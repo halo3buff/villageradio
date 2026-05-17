@@ -4,6 +4,7 @@ import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import { NewsStrip } from '@/components/NewsStrip';
 
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
@@ -35,14 +36,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${spaceMono.variable} ${dmSans.variable}`}>
       <head>
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#f0efe9" />
       </head>
-      <body className="bg-black text-vr-white min-h-screen font-sans">
+      <body className="bg-[#f0efe9] text-vr-white min-h-screen font-sans">
         <AudioProvider>
           <Nav />
-          <div className="pb-16">
+          <div className="pb-[76px]">
             {children}
           </div>
+          <NewsStrip />
           <AudioPlayer />
         </AudioProvider>
       </body>

@@ -1,0 +1,35 @@
+import fs from 'fs';
+import path from 'path';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = { title: 'Information' };
+
+export default function InformationPage() {
+  const filePath = path.join(process.cwd(), 'public', 'information', 'info_page.md');
+  const raw = fs.readFileSync(filePath, 'utf-8');
+
+  const blocks = raw.split(/\n\n+/).filter(s => s.trim());
+
+  return (
+    <div className="px-5 pt-10 pb-8 page-enter max-w-2xl">
+      {blocks.map((block, i) => {
+        const trimmed = block.trim();
+        if (trimmed.startsWith('# ')) {
+          return (
+            <h1 key={i} className="font-mono text-[0.65rem] tracking-[0.15em] uppercase text-vr-white mb-8">
+              {trimmed.slice(2)}
+            </h1>
+          );
+        }
+        if (trimmed === '---') {
+          return <hr key={i} className="border-none border-t border-black/[0.10] my-8" />;
+        }
+        return (
+          <p key={i} className="text-sm text-black/80 leading-relaxed mb-6 max-w-[60ch]">
+            {trimmed}
+          </p>
+        );
+      })}
+    </div>
+  );
+}

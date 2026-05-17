@@ -1,4 +1,4 @@
-# Village Radio — villageradio.xyz
+# Village Radio — vlgfm.live
 
 A minimal cybercore creative hub: internet radio mixes, brand design portfolio, and photography. Built for atmosphere, not features.
 

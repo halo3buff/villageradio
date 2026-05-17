@@ -21,20 +21,20 @@ const negatives = [
 export default function PhotographyPage() {
   return (
     <div className="page-enter">
-      <div className="px-5 pt-8 pb-4 border-b border-white/[0.06]">
-        <h1 className="font-mono text-[0.65rem] tracking-[0.15em] uppercase text-white/30">
+      <div className="px-5 pt-8 pb-4 border-b border-black/[0.08]">
+        <h1 className="font-mono text-[0.65rem] tracking-[0.15em] uppercase text-black/50">
           Photography — Negative Series
         </h1>
       </div>
-      <div className="space-y-px">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6">
         {negatives.map((file, i) => (
-          <div key={i} className="relative w-full aspect-[4/3]">
+          <div key={i} className="relative aspect-square">
             <Image
               src={`/images/photography/negative/${file}`}
               alt=""
               fill
               className="object-cover"
-              sizes="100vw"
+              sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, 17vw"
             />
           </div>
         ))}

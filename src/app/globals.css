@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --color-vr-white: #f0efe9;
-  --color-vr-signal: #c8ff00;
+  --color-vr-white: #000000;
+  --color-vr-signal: #5a8a00;
 
   --font-mono: var(--font-space-mono), 'Courier New', monospace;
   --font-sans: var(--font-dm-sans), 'Helvetica Neue', sans-serif;
@@ -10,23 +10,24 @@
 
 @layer base {
   :root {
-    --vr-border: rgba(255, 255, 255, 0.08);
-    --vr-dim: rgba(255, 255, 255, 0.45);
+    --vr-border: rgba(0, 0, 0, 0.08);
+    --vr-dim: rgba(0, 0, 0, 0.45);
+    --vr-bg: #f0efe9;
   }
 
   html {
-    background-color: #000;
+    background-color: #f0efe9;
   }
 
   body {
-    background-color: #000;
-    color: #f0efe9;
+    background-color: #f0efe9;
+    color: #000000;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   ::selection {
-    background: rgba(200, 255, 0, 0.15);
+    background: rgba(0, 0, 0, 0.12);
   }
 
   * {

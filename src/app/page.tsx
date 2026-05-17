@@ -15,7 +15,7 @@ export default function Home() {
           <Link
             key={item.href}
             href={item.href}
-            className="block text-sm text-white/70 hover:text-vr-white transition-colors duration-150"
+            className="block text-sm text-black/75 hover:text-vr-white transition-colors duration-150"
           >
             {item.label}
           </Link>
@@ -23,7 +23,7 @@ export default function Home() {
       </div>
       <div className="relative aspect-square w-full max-w-[480px]">
         <Image
-          src="/images/photography/negative/imageedit_1_4032830485.jpg"
+          src="/images/photography/infrared/Home_page_1.PNG"
           alt=""
           fill
           className="object-cover"
