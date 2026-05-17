@@ -1,35 +1,181 @@
 'use client';
 import { createContext, useContext, useRef, useState } from 'react';
 import type { Mix } from '@/lib/types';
+import { broadcastPlaylist } from '@/lib/data/mixes';
+
+type AudioMode = 'idle' | 'broadcast' | 'individual';
 
 interface AudioCtx {
   currentTrack: Mix | null;
   isPlaying: boolean;
+  mode: AudioMode;
+  broadcastIndex: number;
   play: (track: Mix) => void;
+  broadcastPlay: () => void;
   pause: () => void;
   toggle: () => void;
   progress: number;
+  analyserL: AnalyserNode | null;
+  analyserR: AnalyserNode | null;
+  analyserFreq: AnalyserNode | null;
+  volume: number;
+  setVolume: (v: number) => void;
 }
 
-const AudioContext = createContext<AudioCtx | null>(null);
+const PlayerContext = createContext<AudioCtx | null>(null);
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const webCtxRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const volumeRef = useRef(0.8);
+  const modeRef = useRef<AudioMode>('idle');
+  const broadcastIdxRef = useRef(0);
+  const isFirstBroadcastRef = useRef(true);
+
   const [currentTrack, setCurrentTrack] = useState<Mix | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [mode, setMode] = useState<AudioMode>('idle');
+  const [broadcastIndex, setBroadcastIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [analyserL, setAnalyserL] = useState<AnalyserNode | null>(null);
+  const [analyserR, setAnalyserR] = useState<AnalyserNode | null>(null);
+  const [analyserFreq, setAnalyserFreq] = useState<AnalyserNode | null>(null);
+  const [volume, setVolumeState] = useState(0.8);
 
-  function play(track: Mix) {
+  function getOrCreateAudio(): HTMLAudioElement {
     if (!audioRef.current) audioRef.current = new Audio();
-    audioRef.current.src = track.src;
-    audioRef.current.play();
-    audioRef.current.ontimeupdate = () => {
+    return audioRef.current;
+  }
+
+  function initWebAudio(audio: HTMLAudioElement) {
+    if (webCtxRef.current) {
+      if (webCtxRef.current.state === 'suspended') webCtxRef.current.resume();
+      return;
+    }
+    const ctx = new AudioContext();
+    webCtxRef.current = ctx;
+
+    const source = ctx.createMediaElementSource(audio);
+    const splitter = ctx.createChannelSplitter(2);
+
+    const aL = ctx.createAnalyser();
+    aL.fftSize = 2048;
+    aL.smoothingTimeConstant = 0.0;
+
+    const aR = ctx.createAnalyser();
+    aR.fftSize = 2048;
+    aR.smoothingTimeConstant = 0.0;
+
+    const aFreq = ctx.createAnalyser();
+    aFreq.fftSize = 4096;
+    aFreq.smoothingTimeConstant = 0.75;
+
+    const gain = ctx.createGain();
+    gain.gain.value = volumeRef.current;
+    gainNodeRef.current = gain;
+
+    // Analysers tap directly from source — unaffected by volume
+    source.connect(splitter);
+    splitter.connect(aL, 0);
+    splitter.connect(aR, 1);
+    source.connect(aFreq);
+
+    // Output path goes through gain node so volume control works
+    source.connect(gain);
+    gain.connect(ctx.destination);
+
+    setAnalyserL(aL);
+    setAnalyserR(aR);
+    setAnalyserFreq(aFreq);
+  }
+
+  function setVolume(v: number) {
+    const clamped = Math.max(0, Math.min(1, v));
+    volumeRef.current = clamped;
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = clamped;
+    setVolumeState(clamped);
+  }
+
+  function wireBroadcastTrack(idx: number, randomOffset: boolean) {
+    const audio = audioRef.current!;
+    const track = broadcastPlaylist[idx];
+    if (!track) return;
+
+    broadcastIdxRef.current = idx;
+    setBroadcastIndex(idx);
+    setCurrentTrack(track);
+    audio.src = track.src;
+
+    audio.ontimeupdate = () => {
       const a = audioRef.current!;
       setProgress(a.currentTime / a.duration || 0);
     };
-    audioRef.current.onended = () => setIsPlaying(false);
+    audio.onerror = () => setIsPlaying(false);
+
+    // Auto-advance to next track in broadcast mode
+    audio.onended = () => {
+      if (modeRef.current !== 'broadcast') return;
+      const nextIdx = (broadcastIdxRef.current + 1) % broadcastPlaylist.length;
+      const nextTrack = broadcastPlaylist[nextIdx];
+      broadcastIdxRef.current = nextIdx;
+      setBroadcastIndex(nextIdx);
+      setCurrentTrack(nextTrack);
+      audio.src = nextTrack.src;
+      audio.play().catch(() => setIsPlaying(false));
+    };
+
+    if (randomOffset) {
+      audio.addEventListener('canplay', function handler() {
+        if (audio.duration > 60) {
+          audio.currentTime = Math.random() * (audio.duration * 0.7);
+        }
+        audio.removeEventListener('canplay', handler);
+      });
+    }
+  }
+
+  function broadcastPlay() {
+    const audio = getOrCreateAudio();
+
+    // Resume if already broadcasting and paused
+    if (modeRef.current === 'broadcast' && audio.paused) {
+      if (webCtxRef.current?.state === 'suspended') webCtxRef.current.resume();
+      audio.play().catch(() => setIsPlaying(false));
+      setIsPlaying(true);
+      return;
+    }
+
+    modeRef.current = 'broadcast';
+    setMode('broadcast');
+    initWebAudio(audio);
+
+    const doRandomOffset = isFirstBroadcastRef.current;
+    isFirstBroadcastRef.current = false;
+    wireBroadcastTrack(0, doRandomOffset);
+
+    audio.play().catch(() => setIsPlaying(false));
+    setIsPlaying(true);
+  }
+
+  function play(track: Mix) {
+    const audio = getOrCreateAudio();
+    modeRef.current = 'individual';
+    setMode('individual');
+    audio.src = track.src;
+    audio.ontimeupdate = () => {
+      const a = audioRef.current!;
+      setProgress(a.currentTime / a.duration || 0);
+    };
+    audio.onerror = () => setIsPlaying(false);
+    audio.onended = () => {
+      setIsPlaying(false);
+      setCurrentTrack(null);
+    };
+    initWebAudio(audio);
     setCurrentTrack(track);
     setIsPlaying(true);
+    audio.play().catch(() => setIsPlaying(false));
   }
 
   function pause() {
@@ -40,21 +186,29 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   function toggle() {
     if (isPlaying) {
       pause();
-    } else {
-      audioRef.current?.play();
+    } else if (modeRef.current === 'broadcast') {
+      broadcastPlay();
+    } else if (audioRef.current) {
+      if (webCtxRef.current?.state === 'suspended') webCtxRef.current.resume();
+      audioRef.current.play().catch(() => {});
       setIsPlaying(true);
     }
   }
 
   return (
-    <AudioContext.Provider value={{ currentTrack, isPlaying, play, pause, toggle, progress }}>
+    <PlayerContext.Provider value={{
+      currentTrack, isPlaying, mode, broadcastIndex,
+      play, broadcastPlay, pause, toggle, progress,
+      analyserL, analyserR, analyserFreq,
+      volume, setVolume,
+    }}>
       {children}
-    </AudioContext.Provider>
+    </PlayerContext.Provider>
   );
 }
 
 export function useAudio() {
-  const ctx = useContext(AudioContext);
+  const ctx = useContext(PlayerContext);
   if (!ctx) throw new Error('useAudio must be used within AudioProvider');
   return ctx;
 }

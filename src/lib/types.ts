@@ -7,6 +7,7 @@ export interface Mix {
   src: string;
   cover?: string;
   tags: string[];
+  kind?: 'mix' | 'inter';
 }
 
 export interface WorkItem {

@@ -1,33 +1,35 @@
 @import "tailwindcss";
 
 @theme {
-  --color-vr-white: #000000;
-  --color-vr-signal: #5a8a00;
+  --color-vr-white: #e8e4d9;
+  --color-vr-signal: #4a9e4a;
 
-  --font-mono: var(--font-space-mono), 'Courier New', monospace;
+  --font-mono: var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace;
   --font-sans: var(--font-dm-sans), 'Helvetica Neue', sans-serif;
 }
 
 @layer base {
   :root {
-    --vr-border: rgba(0, 0, 0, 0.08);
-    --vr-dim: rgba(0, 0, 0, 0.45);
-    --vr-bg: #f0efe9;
+    --vr-border: rgba(255, 255, 255, 0.08);
+    --vr-dim: rgba(255, 255, 255, 0.45);
+    --vr-bg: #080808;
   }
 
   html {
-    background-color: #f0efe9;
+    background-color: #080808;
+    overflow-x: hidden;
   }
 
   body {
-    background-color: #f0efe9;
-    color: #000000;
+    background-color: #080808;
+    color: #e8e4d9;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
 
   ::selection {
-    background: rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.12);
   }
 
   * {

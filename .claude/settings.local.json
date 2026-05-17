@@ -5,7 +5,11 @@
       "Bash(npx tsc *)",
       "Bash(npm run *)",
       "Bash(npx plugins *)",
-      "PowerShell(New-Item *)"
+      "PowerShell(New-Item *)",
+      "Bash(Start-Process npm *)",
+      "Bash(Start-Sleep 5)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\vrsite\\\\public\\\\images\\\\photography\" -Recurse -File)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }

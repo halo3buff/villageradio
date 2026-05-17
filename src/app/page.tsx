@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { LissajousScope } from '@/components/LissajousScope';
 
 const featured = [
   { href: '/mixes', label: 'Signal 001 — New Mix' },
@@ -9,27 +10,38 @@ const featured = [
 
 export default function Home() {
   return (
-    <div className="px-5 pt-8 page-enter">
-      <div className="mb-10 space-y-1">
+    <div className="px-4 sm:px-5 pt-6 sm:pt-8 page-enter">
+      {/* Featured links */}
+      <div className="mb-6 sm:mb-8 space-y-1">
         {featured.map(item => (
           <Link
             key={item.href}
             href={item.href}
-            className="block text-sm text-black/75 hover:text-vr-white transition-colors duration-150"
+            className="block text-sm text-[rgba(200,196,187,0.7)] hover:text-[#e8e4d9] transition-colors duration-150"
           >
             {item.label}
           </Link>
         ))}
       </div>
-      <div className="relative aspect-square w-full max-w-[480px]">
-        <Image
-          src="/images/photography/infrared/Home_page_1.PNG"
-          alt=""
-          fill
-          className="object-cover"
-          priority
-          sizes="(max-width: 480px) 100vw, 480px"
-        />
+
+      {/* Scope (left / top on mobile) + Image (right / bottom on mobile) */}
+      <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
+        {/* Lissajous scope — primary element */}
+        <div className="flex-1 min-w-0 max-w-full md:max-w-[420px]">
+          <LissajousScope />
+        </div>
+
+        {/* Thermal photograph — secondary, smaller, offset right */}
+        <div className="relative aspect-square w-full max-w-[260px] md:max-w-[200px] md:self-end md:ml-auto shrink-0">
+          <Image
+            src="/images/photography/infrared/Home_page_1.PNG"
+            alt=""
+            fill
+            className="object-cover"
+            priority
+            sizes="(max-width: 768px) 260px, 200px"
+          />
+        </div>
       </div>
     </div>
   );

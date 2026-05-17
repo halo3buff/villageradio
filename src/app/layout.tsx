@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Space_Mono, DM_Sans } from 'next/font/google';
+import { Space_Mono, DM_Sans, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
 import { Nav } from '@/components/Nav';
@@ -19,6 +19,13 @@ const dmSans = DM_Sans({
   display: 'swap',
 });
 
+const ibmPlexMono = IBM_Plex_Mono({
+  weight: ['400', '500'],
+  subsets: ['latin'],
+  variable: '--font-ibm-plex-mono',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: {
     default: 'Village Radio',
@@ -34,11 +41,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${spaceMono.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable}`}>
       <head>
-        <meta name="theme-color" content="#f0efe9" />
+        <meta name="theme-color" content="#080808" />
       </head>
-      <body className="bg-[#f0efe9] text-vr-white min-h-screen font-sans">
+      <body className="bg-[#080808] text-vr-white min-h-screen font-sans">
         <AudioProvider>
           <Nav />
           <div className="pb-[76px]">

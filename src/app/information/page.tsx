@@ -22,10 +22,10 @@ export default function InformationPage() {
           );
         }
         if (trimmed === '---') {
-          return <hr key={i} className="border-none border-t border-black/[0.10] my-8" />;
+          return <hr key={i} className="border-none border-t border-white/[0.08] my-8" />;
         }
         return (
-          <p key={i} className="text-sm text-black/80 leading-relaxed mb-6 max-w-[60ch]">
+          <p key={i} className="text-sm leading-relaxed mb-6 max-w-[60ch]" style={{ color: 'rgba(200,196,187,0.75)' }}>
             {trimmed}
           </p>
         );
