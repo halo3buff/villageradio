@@ -135,12 +135,11 @@ export function Oscilloscope() {
       const w = c.width;
       const h = c.height;
 
-      // Phosphor decay
-      ctx.fillStyle = 'rgba(8, 8, 8, 0.18)';
-      ctx.fillRect(0, 0, w, h);
-
       const a = rec.analyser;
       if (a && rec.state === 'recording') {
+        // Phosphor decay only while recording — keeps the idle grid crisp
+        ctx.fillStyle = 'rgba(8, 8, 8, 0.18)';
+        ctx.fillRect(0, 0, w, h);
         const buf = new Float32Array(a.fftSize);
         a.getFloatTimeDomainData(buf);
         let sum = 0;
