@@ -24,6 +24,31 @@ interface AudioCtx {
 
 const PlayerContext = createContext<AudioCtx | null>(null);
 
+// Probe a single audio file's duration via metadata — no full download needed
+function probeAudioDuration(src: string): Promise<number> {
+  return new Promise(resolve => {
+    const a = new Audio();
+    a.preload = 'metadata';
+    a.onloadedmetadata = () => resolve(isFinite(a.duration) ? a.duration : 0);
+    a.onerror = () => resolve(0);
+    a.src = src;
+  });
+}
+
+// Given probed durations and the current wall-clock time, return which track
+// is "on air" right now and how many seconds into it we are.
+function getBroadcastPosition(durations: number[]): { trackIdx: number; offsetSec: number } {
+  const total = durations.reduce((a, b) => a + b, 0);
+  if (total === 0) return { trackIdx: 0, offsetSec: 0 };
+
+  let offset = (Date.now() / 1000) % total;
+  for (let i = 0; i < durations.length; i++) {
+    if (offset < durations[i]) return { trackIdx: i, offsetSec: offset };
+    offset -= durations[i];
+  }
+  return { trackIdx: 0, offsetSec: 0 };
+}
+
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const webCtxRef = useRef<AudioContext | null>(null);
@@ -31,7 +56,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const volumeRef = useRef(0.8);
   const modeRef = useRef<AudioMode>('idle');
   const broadcastIdxRef = useRef(0);
-  const isFirstBroadcastRef = useRef(true);
+  // Cache probed durations so we only fetch metadata once per session
+  const durationsRef = useRef<number[] | null>(null);
 
   const [currentTrack, setCurrentTrack] = useState<Mix | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -97,7 +123,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setVolumeState(clamped);
   }
 
-  function wireBroadcastTrack(idx: number, randomOffset: boolean) {
+  function wireBroadcastTrack(idx: number, seekTo: number | null) {
     const audio = audioRef.current!;
     const track = broadcastPlaylist[idx];
     if (!track) return;
@@ -125,37 +151,39 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.play().catch(() => setIsPlaying(false));
     };
 
-    if (randomOffset) {
+    if (seekTo !== null && seekTo > 0) {
       audio.addEventListener('canplay', function handler() {
-        if (audio.duration > 60) {
-          audio.currentTime = Math.random() * (audio.duration * 0.7);
-        }
+        audio.currentTime = Math.min(seekTo, audio.duration - 1);
         audio.removeEventListener('canplay', handler);
       });
     }
   }
 
+  async function tuneIntoBroadcast() {
+    const audio = audioRef.current!;
+
+    // Probe durations once and cache them
+    if (!durationsRef.current) {
+      durationsRef.current = await Promise.all(
+        broadcastPlaylist.map(t => probeAudioDuration(t.src))
+      );
+    }
+
+    const { trackIdx, offsetSec } = getBroadcastPosition(durationsRef.current);
+    wireBroadcastTrack(trackIdx, offsetSec);
+    audio.play().catch(() => setIsPlaying(false));
+    setIsPlaying(true);
+  }
+
   function broadcastPlay() {
     const audio = getOrCreateAudio();
-
-    // Resume if already broadcasting and paused
-    if (modeRef.current === 'broadcast' && audio.paused) {
-      if (webCtxRef.current?.state === 'suspended') webCtxRef.current.resume();
-      audio.play().catch(() => setIsPlaying(false));
-      setIsPlaying(true);
-      return;
-    }
 
     modeRef.current = 'broadcast';
     setMode('broadcast');
     initWebAudio(audio);
 
-    const doRandomOffset = isFirstBroadcastRef.current;
-    isFirstBroadcastRef.current = false;
-    wireBroadcastTrack(0, doRandomOffset);
-
-    audio.play().catch(() => setIsPlaying(false));
-    setIsPlaying(true);
+    // Always tune to the current broadcast position — never resume from pause
+    tuneIntoBroadcast();
   }
 
   function play(track: Mix) {
@@ -187,6 +215,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (isPlaying) {
       pause();
     } else if (modeRef.current === 'broadcast') {
+      // Rejoin the broadcast at its current live position
       broadcastPlay();
     } else if (audioRef.current) {
       if (webCtxRef.current?.state === 'suspended') webCtxRef.current.resume();
