@@ -38,6 +38,8 @@ export function Oscilloscope() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [playPos, setPlayPos] = useState(0);
+  const [reviewPeaks, setReviewPeaks] = useState<Float32Array | null>(null);
+  const [reviewDuration, setReviewDuration] = useState(0);
 
   useEffect(() => {
     if (!rec.blob) {
@@ -63,6 +65,45 @@ export function Oscilloscope() {
       el.pause();
       URL.revokeObjectURL(url);
     };
+  }, [rec.blob]);
+
+  useEffect(() => {
+    if (!rec.blob) {
+      setReviewPeaks(null);
+      setReviewDuration(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const arr = await rec.blob!.arrayBuffer();
+        const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new Ctx();
+        const decoded = await ctx.decodeAudioData(arr.slice(0));
+        await ctx.close();
+        if (cancelled) return;
+
+        const COLS = 600;
+        const ch = decoded.getChannelData(0);
+        const stride = Math.max(1, Math.floor(ch.length / COLS));
+        const peaks = new Float32Array(COLS);
+        for (let i = 0; i < COLS; i++) {
+          let max = 0;
+          const start = i * stride;
+          const end = Math.min(ch.length, start + stride);
+          for (let j = start; j < end; j++) {
+            const v = Math.abs(ch[j]);
+            if (v > max) max = v;
+          }
+          peaks[i] = max;
+        }
+        setReviewPeaks(peaks);
+        setReviewDuration(decoded.duration);
+      } catch {
+        // If decode fails, leave peaks null — the canvas will just show the grid
+      }
+    })();
+    return () => { cancelled = true; };
   }, [rec.blob]);
 
   const togglePlayback = useCallback(() => {
@@ -181,6 +222,38 @@ export function Oscilloscope() {
         sweepXRef.current = (x + 1) % w;
       }
 
+    if (rec.state === 'review' && reviewPeaks) {
+      const ctx2 = c.getContext('2d');
+      if (!ctx2) return;
+      ctx2.fillStyle = '#050505';
+      ctx2.fillRect(0, 0, w, h);
+      ctx2.strokeStyle = 'rgba(0, 200, 60, 0.07)';
+      ctx2.lineWidth = 1;
+      const cols = 12, rows = 4;
+      for (let i = 0; i <= cols; i++) { ctx2.beginPath(); ctx2.moveTo((i * w) / cols, 0); ctx2.lineTo((i * w) / cols, h); ctx2.stroke(); }
+      for (let j = 0; j <= rows; j++) { ctx2.beginPath(); ctx2.moveTo(0, (j * h) / rows); ctx2.lineTo(w, (j * h) / rows); ctx2.stroke(); }
+      ctx2.strokeStyle = 'rgba(0, 200, 60, 0.12)';
+      ctx2.beginPath(); ctx2.moveTo(0, h / 2); ctx2.lineTo(w, h / 2); ctx2.stroke();
+
+      ctx2.strokeStyle = 'rgba(0, 255, 80, 0.7)';
+      ctx2.lineWidth = 1;
+      const cy = h / 2;
+      for (let i = 0; i < reviewPeaks.length; i++) {
+        const x = (i / reviewPeaks.length) * w;
+        const amp = reviewPeaks[i] * (h / 2) * 0.95;
+        ctx2.beginPath();
+        ctx2.moveTo(x, cy - amp);
+        ctx2.lineTo(x, cy + amp);
+        ctx2.stroke();
+      }
+
+      if (reviewDuration > 0) {
+        const px = (playPos / reviewDuration) * w;
+        ctx2.fillStyle = 'rgba(0, 255, 80, 0.9)';
+        ctx2.fillRect(px, 0, 1, h);
+      }
+    }
+
       rafDrawRef.current = requestAnimationFrame(draw);
     };
     rafDrawRef.current = requestAnimationFrame(draw);
@@ -189,7 +262,7 @@ export function Oscilloscope() {
       ro.disconnect();
       if (rafDrawRef.current) cancelAnimationFrame(rafDrawRef.current);
     };
-  }, [rec.analyser, rec.state]);
+  }, [rec.analyser, rec.state, reviewPeaks, reviewDuration, playPos]);
 
   // Send logic
   const send = useCallback(async () => {
@@ -329,9 +402,6 @@ export function Oscilloscope() {
           onRetry={() => { rec.reset(); void rec.start(); }}
         />
       </div>
-
-      {/* Hidden ref target; canvas-driven playhead in later task uses playPos */}
-      <span hidden>{playPos.toFixed(2)}</span>
     </div>
   );
 }
