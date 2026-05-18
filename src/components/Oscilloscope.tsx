@@ -416,7 +416,7 @@ export function Oscilloscope() {
                 lineHeight: 1,
               }}
             >
-              [ × ]
+              ×
             </button>
           </div>
         )}
