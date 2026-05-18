@@ -108,6 +108,8 @@ export function Oscilloscope() {
 
   // Send logic
   const send = useCallback(async () => {
+    if (audioRef.current) audioRef.current.pause();
+    setPlaying(false);
     if (!rec.blob) return;
     setSendError(null);
     setPageState('transmitting');
@@ -145,6 +147,7 @@ export function Oscilloscope() {
       case 'recording': return 'RECORDING';
       case 'review': return 'REVIEW';
       case 'error': return 'ERROR';
+      default: return 'IDLE';
     }
   })();
 
@@ -232,13 +235,13 @@ export function Oscilloscope() {
           transmitting={transmitting}
           sent={sent}
           playing={playing}
-          onArm={() => { rec.reset(); rec.start(); }}
+          onArm={() => rec.start()}
           onStop={rec.stop}
           onPlayback={togglePlayback}
           onReRecord={() => { rec.reset(); }}
           onTransmit={send}
           onSendAnother={sendAnother}
-          onRetry={() => { rec.reset(); rec.start(); }}
+          onRetry={() => { rec.reset(); void rec.start(); }}
         />
       </div>
 
