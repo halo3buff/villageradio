@@ -37,6 +37,7 @@ export function useRecorder(): RecorderApi {
   const rafRef = useRef<number>(0);
   const startedAtRef = useRef<number>(0);
   const stopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelledRef = useRef(false);
 
   const cleanup = useCallback(() => {
     if (rafRef.current) {
@@ -48,6 +49,7 @@ export function useRecorder(): RecorderApi {
       stopTimeoutRef.current = null;
     }
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      cancelledRef.current = true;
       try { recorderRef.current.stop(); } catch { /* ignore */ }
     }
     recorderRef.current = null;
@@ -92,6 +94,7 @@ export function useRecorder(): RecorderApi {
   }, []);
 
   const start = useCallback(async () => {
+    cancelledRef.current = false;
     setError(null);
     setBlob(null);
     setDuration(0);
@@ -120,9 +123,10 @@ export function useRecorder(): RecorderApi {
       analyserRef.current = a;
       setAnalyser(a);
 
-      const mimeType = MediaRecorder.isTypeSupported(PREFERRED_MIME)
+      const canCheckType = typeof MediaRecorder.isTypeSupported === 'function';
+      const mimeType = canCheckType && MediaRecorder.isTypeSupported(PREFERRED_MIME)
         ? PREFERRED_MIME
-        : MediaRecorder.isTypeSupported(FALLBACK_MIME)
+        : canCheckType && MediaRecorder.isTypeSupported(FALLBACK_MIME)
         ? FALLBACK_MIME
         : '';
 
@@ -136,6 +140,7 @@ export function useRecorder(): RecorderApi {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
       };
       recorder.onstop = () => {
+        if (cancelledRef.current) return;
         if (rafRef.current) {
           cancelAnimationFrame(rafRef.current);
           rafRef.current = 0;
@@ -153,6 +158,7 @@ export function useRecorder(): RecorderApi {
         }
         setState('review');
       };
+      recorder.onerror = () => { setError('Recording failed.'); setState('error'); cleanup(); };
 
       startedAtRef.current = performance.now();
       recorder.start(250);
