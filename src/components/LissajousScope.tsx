@@ -62,15 +62,20 @@ function getNowLabel(index: number, mode: string): string | null {
 }
 
 export function LissajousScope() {
-  const { isPlaying, mode, broadcastIndex, broadcastPlay, pause, analyserL, analyserR, volume, setVolume } = useAudio();
+  const { isPlaying, mode, broadcastIndex, broadcastPlay, pause, analyserL, analyserR, analyserFreq, volume, setVolume } = useAudio();
   const analyserLRef = useRef<AnalyserNode | null>(null);
   const analyserRRef = useRef<AnalyserNode | null>(null);
+  const analyserFreqRef = useRef<AnalyserNode | null>(null);
   useEffect(() => { analyserLRef.current = analyserL; }, [analyserL]);
   useEffect(() => { analyserRRef.current = analyserR; }, [analyserR]);
+  useEffect(() => { analyserFreqRef.current = analyserFreq; }, [analyserFreq]);
+
+  const [peakFreq, setPeakFreq] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
+  const lastFreqUpdateRef = useRef<number>(0);
 
   const [acqLines, setAcqLines] = useState<string[]>([]);
   const [showReadout, setShowReadout] = useState(false);
@@ -169,6 +174,31 @@ export function LissajousScope() {
       }
     }
 
+    // Peak frequency — throttled to ~3 Hz to keep the readout legible
+    const aF = analyserFreqRef.current;
+    const now = performance.now();
+    if (aF && now - lastFreqUpdateRef.current > 300) {
+      lastFreqUpdateRef.current = now;
+      const bins = new Float32Array(aF.frequencyBinCount);
+      aF.getFloatFrequencyData(bins);
+      let peakBin = -1;
+      let peakDb = -Infinity;
+      // Skip the DC bin (0) — the loudest "frequency" otherwise is always 0 Hz
+      for (let i = 1; i < bins.length; i++) {
+        if (bins[i] > peakDb) {
+          peakDb = bins[i];
+          peakBin = i;
+        }
+      }
+      // Treat very quiet signal as no signal so we don't display garbage when paused
+      if (peakBin > 0 && peakDb > -80) {
+        const binHz = aF.context.sampleRate / aF.fftSize;
+        setPeakFreq(peakBin * binHz);
+      } else {
+        setPeakFreq(null);
+      }
+    }
+
     rafRef.current = requestAnimationFrame(animate);
   }, []);
 
@@ -203,7 +233,7 @@ export function LissajousScope() {
     ['MODE', 'XY / LISSAJOUS'],
     ['INPUT', 'L+R STEREO'],
     ['SIGNAL', 'VILLAGE RADIO'],
-    ['FREQ', 'UNKNOWN'],
+    ['FREQ', peakFreq == null ? '—' : peakFreq >= 1000 ? `${(peakFreq / 1000).toFixed(2)} kHz` : `${Math.round(peakFreq)} Hz`],
     ['STATUS', statusLabel],
     ...(nowLabel ? [['NOW', nowLabel] as [string, string]] : []),
   ];
@@ -256,7 +286,7 @@ export function LissajousScope() {
       </div>
 
       {/* Technical readout */}
-      <div style={{ padding: '10px 0', fontSize: '9px', letterSpacing: '0.15em', lineHeight: '1.8' }}>
+      <div style={{ padding: '6px 0', fontSize: '9px', letterSpacing: '0.15em', lineHeight: '1.5' }}>
         {acqLines.map((line, i) => (
           <div key={i} style={{ color: '#4a9e4a' }}>{line}</div>
         ))}
