@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type RecorderState = 'idle' | 'armed' | 'recording' | 'review' | 'error';
+export type RecorderState = 'idle' | 'armed' | 'recording' | 'paused' | 'review' | 'error';
 
 export interface RecorderApi {
   state: RecorderState;
   start: () => Promise<void>;
+  pause: () => void;
+  resume: () => void;
   stop: () => void;
   reset: () => void;
   blob: Blob | null;
@@ -35,7 +37,8 @@ export function useRecorder(): RecorderApi {
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafRef = useRef<number>(0);
-  const startedAtRef = useRef<number>(0);
+  const segmentStartRef = useRef<number>(0);
+  const accumulatedMsRef = useRef<number>(0);
   const stopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
 
@@ -72,6 +75,12 @@ export function useRecorder(): RecorderApi {
     setAnalyser(null);
   }, []);
 
+  const elapsedSeconds = useCallback((paused: boolean): number => {
+    const accumulated = accumulatedMsRef.current;
+    const liveSegment = paused ? 0 : performance.now() - segmentStartRef.current;
+    return (accumulated + liveSegment) / 1000;
+  }, []);
+
   const tickLevel = useCallback(() => {
     const a = analyserRef.current;
     if (!a) return;
@@ -83,15 +92,53 @@ export function useRecorder(): RecorderApi {
       if (v > peak) peak = v;
     }
     setPeakLevel(peak);
-    setDuration((performance.now() - startedAtRef.current) / 1000);
+    setDuration(elapsedSeconds(false));
     rafRef.current = requestAnimationFrame(tickLevel);
-  }, []);
+  }, [elapsedSeconds]);
 
   const stop = useCallback(() => {
-    if (recorderRef.current && recorderRef.current.state === 'recording') {
-      recorderRef.current.stop();
+    const r = recorderRef.current;
+    if (r && (r.state === 'recording' || r.state === 'paused')) {
+      r.stop();
     }
   }, []);
+
+  const pause = useCallback(() => {
+    const r = recorderRef.current;
+    if (!r || r.state !== 'recording') return;
+    r.pause();
+    accumulatedMsRef.current += performance.now() - segmentStartRef.current;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+    if (stopTimeoutRef.current) {
+      clearTimeout(stopTimeoutRef.current);
+      stopTimeoutRef.current = null;
+    }
+    setDuration(accumulatedMsRef.current / 1000);
+    setPeakLevel(0);
+    setState('paused');
+  }, []);
+
+  const resume = useCallback(() => {
+    const r = recorderRef.current;
+    if (!r || r.state !== 'paused') return;
+    segmentStartRef.current = performance.now();
+    r.resume();
+    rafRef.current = requestAnimationFrame(tickLevel);
+    const remainingMs = MAX_DURATION_SECONDS * 1000 - accumulatedMsRef.current;
+    if (remainingMs > 0) {
+      stopTimeoutRef.current = setTimeout(() => {
+        const cur = recorderRef.current;
+        if (cur && cur.state === 'recording') cur.stop();
+      }, remainingMs);
+    } else {
+      r.stop();
+      return;
+    }
+    setState('recording');
+  }, [tickLevel]);
 
   const start = useCallback(async () => {
     cancelledRef.current = false;
@@ -157,7 +204,11 @@ export function useRecorder(): RecorderApi {
         }
         const finalBlob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
         setBlob(finalBlob);
-        setDuration((performance.now() - startedAtRef.current) / 1000);
+        // If we stopped from 'paused', the last segment ended at the pause; otherwise account for it.
+        const final = recorderRef.current?.state === 'paused' || rafRef.current === 0
+          ? accumulatedMsRef.current / 1000
+          : elapsedSeconds(false);
+        setDuration(final);
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(t => t.stop());
           streamRef.current = null;
@@ -166,7 +217,8 @@ export function useRecorder(): RecorderApi {
       };
       recorder.onerror = () => { setError('Recording failed.'); setState('error'); cleanup(); };
 
-      startedAtRef.current = performance.now();
+      accumulatedMsRef.current = 0;
+      segmentStartRef.current = performance.now();
       recorder.start(250);
       setState('recording');
       rafRef.current = requestAnimationFrame(tickLevel);
@@ -184,7 +236,7 @@ export function useRecorder(): RecorderApi {
       setState('error');
       cleanup();
     }
-  }, [cleanup, tickLevel]);
+  }, [cleanup, tickLevel, elapsedSeconds]);
 
   const reset = useCallback(() => {
     cleanup();
@@ -197,5 +249,5 @@ export function useRecorder(): RecorderApi {
 
   useEffect(() => () => cleanup(), [cleanup]);
 
-  return { state, start, stop, reset, blob, duration, peakLevel, analyser, error };
+  return { state, start, pause, resume, stop, reset, blob, duration, peakLevel, analyser, error };
 }

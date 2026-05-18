@@ -345,6 +345,7 @@ export function Oscilloscope() {
       case 'idle': return 'IDLE';
       case 'armed': return 'ARMED';
       case 'recording': return 'RECORDING';
+      case 'paused': return 'PAUSED';
       case 'review': return 'REVIEW';
       case 'error': return 'ERROR';
       default: return 'IDLE';
@@ -395,6 +396,7 @@ export function Oscilloscope() {
             <span style={{ color: '#6b5f3a', minWidth: '68px' }}>{label}</span>
             <span style={{
               color: status === 'RECORDING' && label === 'STATUS' ? '#ff5050'
+                : status === 'PAUSED' && label === 'STATUS' ? '#d4aa50'
                 : status === 'RECEIVED' && label === 'STATUS' ? '#4a9e4a'
                 : '#e8e4d9',
             }}>{value}</span>
@@ -462,6 +464,8 @@ export function Oscilloscope() {
           loop={loop}
           onArm={() => rec.start()}
           onStop={rec.stop}
+          onPauseRecord={rec.pause}
+          onResumeRecord={rec.resume}
           onPlayback={togglePlayback}
           onToggleLoop={() => setLoop(l => !l)}
           onReRecord={() => { rec.reset(); void rec.start(); }}
@@ -486,6 +490,8 @@ interface ButtonsProps {
   loop: boolean;
   onArm: () => void;
   onStop: () => void;
+  onPauseRecord: () => void;
+  onResumeRecord: () => void;
   onPlayback: () => void;
   onToggleLoop: () => void;
   onReRecord: () => void;
@@ -568,7 +574,20 @@ function Buttons(p: ButtonsProps) {
     return <ScopeButton onClick={() => {}} disabled>[ ACQUIRING... ]</ScopeButton>;
   }
   if (p.recState === 'recording') {
-    return <ScopeButton onClick={p.onStop} active red>[ ■ STOP ]</ScopeButton>;
+    return (
+      <>
+        <ScopeButton onClick={p.onPauseRecord}>[ ❚❚ PAUSE ]</ScopeButton>
+        <ScopeButton onClick={p.onStop} active red>[ ■ STOP ]</ScopeButton>
+      </>
+    );
+  }
+  if (p.recState === 'paused') {
+    return (
+      <>
+        <ScopeButton onClick={p.onResumeRecord}>[ ● RESUME ]</ScopeButton>
+        <ScopeButton onClick={p.onStop} red>[ ■ STOP ]</ScopeButton>
+      </>
+    );
   }
   // review
   return (
