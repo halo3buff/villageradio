@@ -10,9 +10,9 @@ const featured = [
 
 export default function Home() {
   return (
-    <div className="px-4 sm:px-5 pt-6 sm:pt-8 page-enter">
+    <div className="px-4 sm:px-5 pt-2 sm:pt-3 page-enter">
       {/* Featured links */}
-      <div className="mb-6 sm:mb-8 space-y-1">
+      <div className="mb-3 sm:mb-4 space-y-1">
         {featured.map(item => (
           <Link
             key={item.href}
@@ -27,7 +27,7 @@ export default function Home() {
       {/* Scope (left / top on mobile) + Image (right / bottom on mobile) */}
       <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
         {/* Lissajous scope — primary element */}
-        <div className="flex-1 min-w-0 max-w-full md:max-w-[420px]">
+        <div className="flex-1 min-w-0 max-w-full md:max-w-[400px]">
           <LissajousScope />
         </div>
 
