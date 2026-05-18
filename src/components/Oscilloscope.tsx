@@ -37,7 +37,6 @@ export function Oscilloscope() {
   // Playback wiring — Audio element fed by the recorded blob
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [playPos, setPlayPos] = useState(0);
   const [reviewPeaks, setReviewPeaks] = useState<Float32Array | null>(null);
   const [reviewDuration, setReviewDuration] = useState(0);
 
@@ -48,18 +47,15 @@ export function Oscilloscope() {
         audioRef.current.src = '';
       }
       setPlaying(false);
-      setPlayPos(0);
+      playPosRef.current = 0;
       return;
     }
     const url = URL.createObjectURL(rec.blob);
     const el = new Audio(url);
     el.preload = 'auto';
     audioRef.current = el;
-    const onTime = () => {
-      playPosRef.current = el.currentTime;
-      setPlayPos(el.currentTime);
-    };
-    const onEnd = () => { setPlaying(false); setPlayPos(0); playPosRef.current = 0; };
+    const onTime = () => { playPosRef.current = el.currentTime; };
+    const onEnd = () => { setPlaying(false); playPosRef.current = 0; };
     el.addEventListener('timeupdate', onTime);
     el.addEventListener('ended', onEnd);
     return () => {
