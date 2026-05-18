@@ -391,7 +391,27 @@ export function Oscilloscope() {
           <div style={{ marginTop: 6, color: '#ff5050' }}>{rec.error}</div>
         )}
         {sendError && (
-          <div style={{ marginTop: 6, color: '#ff5050' }}>TRANSMISSION FAILED — {sendError.toUpperCase()}</div>
+          <div style={{ marginTop: 6, color: '#ff5050', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>TRANSMISSION FAILED — {sendError.toUpperCase()}</span>
+            <button
+              type="button"
+              onClick={() => setSendError(null)}
+              aria-label="Dismiss error"
+              style={{
+                fontFamily: 'inherit',
+                fontSize: 9,
+                letterSpacing: '0.15em',
+                color: 'rgba(255,80,80,0.7)',
+                background: 'none',
+                border: '1px solid rgba(255,80,80,0.35)',
+                padding: '1px 6px',
+                cursor: 'pointer',
+                lineHeight: 1,
+              }}
+            >
+              [ × ]
+            </button>
+          </div>
         )}
       </div>
 
