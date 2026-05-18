@@ -38,6 +38,7 @@ export function Oscilloscope() {
   // Playback wiring — Audio element fed by the recorded blob
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [loop, setLoop] = useState(false);
   const [reviewPeaks, setReviewPeaks] = useState<Float32Array | null>(null);
   const [reviewDuration, setReviewDuration] = useState(0);
   const [playbackAnalyser, setPlaybackAnalyser] = useState<AnalyserNode | null>(null);
@@ -50,6 +51,7 @@ export function Oscilloscope() {
         audioRef.current.src = '';
       }
       setPlaying(false);
+      setLoop(false);
       playPosRef.current = 0;
       setPlaybackAnalyser(null);
       if (playbackCtxRef.current) {
@@ -90,6 +92,10 @@ export function Oscilloscope() {
       }
     };
   }, [rec.blob]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.loop = loop;
+  }, [loop]);
 
   useEffect(() => {
     if (!rec.blob) {
@@ -453,10 +459,12 @@ export function Oscilloscope() {
           transmitting={transmitting}
           sent={sent}
           playing={playing}
+          loop={loop}
           onArm={() => rec.start()}
           onStop={rec.stop}
           onPlayback={togglePlayback}
-          onReRecord={() => { rec.reset(); }}
+          onToggleLoop={() => setLoop(l => !l)}
+          onReRecord={() => { rec.reset(); void rec.start(); }}
           onTransmit={send}
           onSendAnother={sendAnother}
           onRetry={() => { rec.reset(); void rec.start(); }}
@@ -475,9 +483,11 @@ interface ButtonsProps {
   transmitting: boolean;
   sent: boolean;
   playing: boolean;
+  loop: boolean;
   onArm: () => void;
   onStop: () => void;
   onPlayback: () => void;
+  onToggleLoop: () => void;
   onReRecord: () => void;
   onTransmit: () => void;
   onSendAnother: () => void;
@@ -564,6 +574,7 @@ function Buttons(p: ButtonsProps) {
   return (
     <>
       <ScopeButton onClick={p.onPlayback}>{p.playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAYBACK ]'}</ScopeButton>
+      <ScopeButton onClick={p.onToggleLoop} active={p.loop}>{p.loop ? '[ ↻ LOOP ON ]' : '[ ↻ LOOP ]'}</ScopeButton>
       <ScopeButton onClick={p.onReRecord}>[ RE-RECORD ]</ScopeButton>
       <ScopeButton onClick={p.onTransmit}>[ TRANSMIT → ]</ScopeButton>
     </>
