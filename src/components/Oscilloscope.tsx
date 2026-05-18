@@ -76,14 +76,42 @@ export function Oscilloscope() {
     }
   }, []);
 
-  // Canvas — placeholder grid for now; drawing happens in later tasks
+  // Canvas — live sweep during recording
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const rafDrawRef = useRef<number>(0);
+  const sweepXRef = useRef<number>(0);
   useEffect(() => {
     const c = canvasRef.current;
     const container = containerRef.current;
     if (!c || !container) return;
-    const ro = new ResizeObserver(() => {
+
+    const drawGrid = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = 'rgba(0, 200, 60, 0.07)';
+      ctx.lineWidth = 1;
+      const cols = 12, rows = 4;
+      for (let i = 0; i <= cols; i++) {
+        ctx.beginPath();
+        ctx.moveTo((i * w) / cols, 0);
+        ctx.lineTo((i * w) / cols, h);
+        ctx.stroke();
+      }
+      for (let j = 0; j <= rows; j++) {
+        ctx.beginPath();
+        ctx.moveTo(0, (j * h) / rows);
+        ctx.lineTo(w, (j * h) / rows);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(0, 200, 60, 0.12)';
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+    };
+
+    const resize = () => {
       const w = Math.floor(container.clientWidth);
       const h = Math.floor(container.clientHeight);
       if (w <= 0 || h <= 0) return;
@@ -91,20 +119,78 @@ export function Oscilloscope() {
       c.height = h;
       const ctx = c.getContext('2d');
       if (!ctx) return;
-      ctx.fillStyle = '#050505';
-      ctx.fillRect(0, 0, w, h);
-      // grid
-      ctx.strokeStyle = 'rgba(0, 200, 60, 0.07)';
-      ctx.lineWidth = 1;
-      const cols = 12, rows = 4;
-      for (let i = 0; i <= cols; i++) { ctx.beginPath(); ctx.moveTo(i * w / cols, 0); ctx.lineTo(i * w / cols, h); ctx.stroke(); }
-      for (let j = 0; j <= rows; j++) { ctx.beginPath(); ctx.moveTo(0, j * h / rows); ctx.lineTo(w, j * h / rows); ctx.stroke(); }
-      ctx.strokeStyle = 'rgba(0, 200, 60, 0.12)';
-      ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
-    });
+      drawGrid(ctx, w, h);
+      sweepXRef.current = 0;
+    };
+    const ro = new ResizeObserver(resize);
     ro.observe(container);
-    return () => ro.disconnect();
-  }, []);
+    resize();
+
+    const draw = () => {
+      const ctx = c.getContext('2d');
+      if (!ctx) {
+        rafDrawRef.current = requestAnimationFrame(draw);
+        return;
+      }
+      const w = c.width;
+      const h = c.height;
+
+      // Phosphor decay
+      ctx.fillStyle = 'rgba(8, 8, 8, 0.18)';
+      ctx.fillRect(0, 0, w, h);
+
+      const a = rec.analyser;
+      if (a && rec.state === 'recording') {
+        const buf = new Float32Array(a.fftSize);
+        a.getFloatTimeDomainData(buf);
+        let sum = 0;
+        let peak = 0;
+        const sampleCount = Math.min(buf.length, 512);
+        for (let i = 0; i < sampleCount; i++) {
+          const v = buf[i];
+          sum += v * v;
+          if (Math.abs(v) > peak) peak = Math.abs(v);
+        }
+        const rms = Math.sqrt(sum / sampleCount);
+        const amp = Math.max(rms, peak * 0.5);
+        const cy = h / 2;
+        const x = sweepXRef.current;
+
+        // Erase column we're about to draw
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(x, 0, 2, h);
+
+        // Redraw center axis crossing this column
+        ctx.strokeStyle = 'rgba(0, 200, 60, 0.12)';
+        ctx.beginPath();
+        ctx.moveTo(x, cy);
+        ctx.lineTo(x + 2, cy);
+        ctx.stroke();
+
+        // Sample vertical line
+        ctx.strokeStyle = 'rgba(0, 255, 80, 0.85)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, cy - amp * (h / 2) * 0.95);
+        ctx.lineTo(x + 0.5, cy + amp * (h / 2) * 0.95);
+        ctx.stroke();
+
+        // Sweep cursor
+        ctx.fillStyle = 'rgba(0, 255, 80, 0.9)';
+        ctx.fillRect(x + 1, 0, 1, h);
+
+        sweepXRef.current = (x + 1) % w;
+      }
+
+      rafDrawRef.current = requestAnimationFrame(draw);
+    };
+    rafDrawRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      ro.disconnect();
+      if (rafDrawRef.current) cancelAnimationFrame(rafDrawRef.current);
+    };
+  }, [rec.analyser, rec.state]);
 
   // Send logic
   const send = useCallback(async () => {
