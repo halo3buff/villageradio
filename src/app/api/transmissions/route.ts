@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 
@@ -17,14 +18,15 @@ function isoTimestampForKey(): string {
 }
 
 function randomSuffix(): string {
-  return Math.random().toString(36).slice(2, 8);
+  return randomUUID().replace(/-/g, '').slice(0, 8);
 }
 
 export async function POST(req: Request): Promise<Response> {
   let form: FormData;
   try {
     form = await req.formData();
-  } catch {
+  } catch (err) {
+    console.error('[transmissions] form parse failed', err);
     return NextResponse.json({ ok: false, error: 'invalid_form' }, { status: 400 });
   }
 
@@ -34,7 +36,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!(audio instanceof Blob)) {
     return NextResponse.json({ ok: false, error: 'missing_audio' }, { status: 400 });
   }
-  if (!audio.type.startsWith('audio/')) {
+  if (!audio.type.startsWith('audio/webm')) {
     return NextResponse.json({ ok: false, error: 'invalid_audio_type' }, { status: 400 });
   }
   if (audio.size === 0) {
@@ -51,7 +53,7 @@ export async function POST(req: Request): Promise<Response> {
     await put(key, audio, {
       access: 'public',
       addRandomSuffix: false,
-      contentType: audio.type,
+      contentType: 'audio/webm',
     });
   } catch (err) {
     console.error('[transmissions] upload failed', err);
