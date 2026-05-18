@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRecorder } from '@/lib/use-recorder';
+import { RecordingSpectrum } from '@/components/RecordingSpectrum';
 
 const VR_FONT = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const MAX_HANDLE = 64;
@@ -39,6 +40,8 @@ export function Oscilloscope() {
   const [playing, setPlaying] = useState(false);
   const [reviewPeaks, setReviewPeaks] = useState<Float32Array | null>(null);
   const [reviewDuration, setReviewDuration] = useState(0);
+  const [playbackAnalyser, setPlaybackAnalyser] = useState<AnalyserNode | null>(null);
+  const playbackCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (!rec.blob) {
@@ -48,12 +51,29 @@ export function Oscilloscope() {
       }
       setPlaying(false);
       playPosRef.current = 0;
+      setPlaybackAnalyser(null);
+      if (playbackCtxRef.current) {
+        playbackCtxRef.current.close().catch(() => { /* ignore */ });
+        playbackCtxRef.current = null;
+      }
       return;
     }
     const url = URL.createObjectURL(rec.blob);
     const el = new Audio(url);
     el.preload = 'auto';
     audioRef.current = el;
+
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    playbackCtxRef.current = ctx;
+    const source = ctx.createMediaElementSource(el);
+    const analyserNode = ctx.createAnalyser();
+    analyserNode.fftSize = 2048;
+    analyserNode.smoothingTimeConstant = 0.6;
+    source.connect(analyserNode);
+    analyserNode.connect(ctx.destination);
+    setPlaybackAnalyser(analyserNode);
+
     const onTime = () => { playPosRef.current = el.currentTime; };
     const onEnd = () => { setPlaying(false); playPosRef.current = 0; };
     el.addEventListener('timeupdate', onTime);
@@ -63,6 +83,11 @@ export function Oscilloscope() {
       el.removeEventListener('ended', onEnd);
       el.pause();
       URL.revokeObjectURL(url);
+      setPlaybackAnalyser(null);
+      if (playbackCtxRef.current) {
+        playbackCtxRef.current.close().catch(() => { /* ignore */ });
+        playbackCtxRef.current = null;
+      }
     };
   }, [rec.blob]);
 
@@ -110,6 +135,9 @@ export function Oscilloscope() {
     const el = audioRef.current;
     if (!el) return;
     if (el.paused) {
+      // AudioContext starts suspended (created outside a user gesture); resume on first play
+      const ctx = playbackCtxRef.current;
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => { /* ignore */ });
       el.play().then(() => setPlaying(true)).catch(() => { /* ignore */ });
     } else {
       el.pause();
@@ -323,8 +351,12 @@ export function Oscilloscope() {
     ['STATUS', status],
   ];
 
+  const spectrumAnalyser = rec.state === 'recording' ? rec.analyser : playbackAnalyser;
+  const spectrumActive = rec.state === 'recording' || (rec.state === 'review' && playing);
+
   return (
-    <div style={{ fontFamily: VR_FONT, display: 'block', width: '100%', maxWidth: 720 }}>
+    <div style={{ display: 'flex', flexDirection: 'row', gap: 16, alignItems: 'stretch', flexWrap: 'wrap' }}>
+      <div style={{ fontFamily: VR_FONT, width: '100%', maxWidth: 720, flexShrink: 0 }}>
       <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: 'rgba(0,200,60,0.5)', marginBottom: '6px' }}>
         TRANSMISSION INPUT  CH-A
       </div>
@@ -402,6 +434,10 @@ export function Oscilloscope() {
           onSendAnother={sendAnother}
           onRetry={() => { rec.reset(); void rec.start(); }}
         />
+      </div>
+      </div>
+      <div style={{ flex: '1 1 320px', minWidth: 0, minHeight: 360, alignSelf: 'stretch' }}>
+        <RecordingSpectrum analyser={spectrumAnalyser} active={spectrumActive} />
       </div>
     </div>
   );
