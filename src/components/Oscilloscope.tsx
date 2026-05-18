@@ -151,6 +151,13 @@ export function Oscilloscope() {
   const rafDrawRef = useRef<number>(0);
   const sweepXRef = useRef<number>(0);
   const playPosRef = useRef(0);
+
+  // Clear any stale send error when a new recording starts — the previous failure
+  // no longer applies to the take being made now.
+  useEffect(() => {
+    if (rec.state === 'recording') setSendError(null);
+  }, [rec.state]);
+
   useEffect(() => {
     const c = canvasRef.current;
     const container = containerRef.current;
