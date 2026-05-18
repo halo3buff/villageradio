@@ -130,9 +130,15 @@ export function useRecorder(): RecorderApi {
         ? FALLBACK_MIME
         : '';
 
-      const recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 64000 })
-        : new MediaRecorder(stream);
+      // Server only accepts audio/webm; bail out cleanly instead of recording an mp4 we'll reject on upload
+      if (!mimeType) {
+        setError('This browser does not support webm recording. Try Chrome or Firefox.');
+        setState('error');
+        cleanup();
+        return;
+      }
+
+      const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 64000 });
       recorderRef.current = recorder;
       chunksRef.current = [];
 
