@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const BLOB_BASE = 'https://sqpxujl59eeeqlyt.private.blob.vercel-storage.com/mixes_inters';
+const BLOB_BASE = 'https://sqpxujl59eeeqlyt.private.blob.vercel-storage.com/mixes_inter';
 
 const ALLOWED = new Set([
   'inter_1.mp3',
