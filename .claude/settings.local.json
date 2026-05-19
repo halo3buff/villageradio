@@ -12,7 +12,8 @@
       "Bash(Select-Object FullName)",
       "Bash(Remove-Item *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\vrsite\" -Recurse -Force)",
-      "PowerShell(head *)"
+      "PowerShell(head *)",
+      "Skill(vercel:status)"
     ]
   }
 }
