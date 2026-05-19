@@ -45,3 +45,5 @@ pnpm-debug.log*
 references/
 
 public/audio/
+
+docs/instructions.md
