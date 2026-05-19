@@ -13,7 +13,9 @@
       "Bash(Remove-Item *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\vrsite\" -Recurse -Force)",
       "PowerShell(head *)",
-      "Skill(vercel:status)"
+      "Skill(vercel:status)",
+      "Bash(git show *)",
+      "Bash(git ls-tree *)"
     ]
   }
 }
