@@ -15,7 +15,24 @@
       "PowerShell(head *)",
       "Skill(vercel:status)",
       "Bash(git show *)",
-      "Bash(git ls-tree *)"
+      "Bash(git ls-tree *)",
+      "Bash(git log *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git stash *)",
+      "Bash(git push *)",
+      "Bash(git fetch *)",
+      "Bash(node -e \"const b = require\\('@vercel/blob'\\); console.log\\(Object.keys\\(b\\)\\)\")",
+      "Bash(node -e \"const {getDownloadUrl} = require\\('@vercel/blob'\\); console.log\\(getDownloadUrl.toString\\(\\).slice\\(0, 300\\)\\)\")",
+      "Bash(node -e \"const {get} = require\\('@vercel/blob'\\); console.log\\(get.toString\\(\\).slice\\(0, 500\\)\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(git reset *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(Write-Output \"deleted\")"
     ]
   }
 }
