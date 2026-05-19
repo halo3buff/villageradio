@@ -47,5 +47,12 @@ export async function GET(request: NextRequest) {
     if (val) resHeaders.set(key, val);
   }
 
+  // Ensure the browser treats the response as audio, regardless of what the blob store sends
+  if (!resHeaders.has('Content-Type')) {
+    const ext = file.split('.').pop()?.toLowerCase();
+    const mimeMap: Record<string, string> = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4' };
+    if (ext && mimeMap[ext]) resHeaders.set('Content-Type', mimeMap[ext]);
+  }
+
   return new Response(upstream.body, { status: upstream.status, headers: resHeaders });
 }
