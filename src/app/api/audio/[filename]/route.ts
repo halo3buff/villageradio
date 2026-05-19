@@ -26,8 +26,13 @@ export async function GET(
     return new Response('Not found', { status: 404 });
   }
 
-  const fetchHeaders: HeadersInit = {
-    Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    return new Response('Server misconfigured', { status: 500 });
+  }
+
+  const fetchHeaders: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
   };
 
   const range = request.headers.get('Range');
@@ -35,7 +40,7 @@ export async function GET(
 
   const upstream = await fetch(`${BLOB_BASE}/${filename}`, { headers: fetchHeaders });
 
-  if (!upstream.ok && upstream.status !== 206) {
+  if (!upstream.ok) {
     return new Response('Upstream error', { status: upstream.status });
   }
 
