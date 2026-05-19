@@ -13,21 +13,24 @@ export function MixList({ mixes }: { mixes: Mix[] }) {
           <li
             key={mix.id}
             onClick={() => play(mix)}
-            className="flex items-baseline gap-6 px-5 py-3 border-b border-black/[0.08] cursor-pointer group"
+            className="flex items-baseline gap-6 px-5 py-3 cursor-pointer group"
           >
-            <span className="font-mono text-[10px] text-black/45 shrink-0 w-24 tracking-wider">
+            <span
+              className="font-mono text-[10px] shrink-0 w-24 tracking-wider"
+              style={{ color: 'rgba(200,196,187,0.35)' }}
+            >
               {mix.date}
             </span>
             <span
-              className={`text-xs flex-1 transition-colors duration-150 ${
-                isActive && isPlaying
-                  ? 'text-vr-signal'
-                  : 'text-black/80 group-hover:text-vr-white'
-              }`}
+              className="text-xs flex-1 transition-colors duration-150 group-hover:text-[#e8e4d9]"
+              style={{ color: isActive && isPlaying ? 'var(--color-vr-signal)' : 'rgba(200,196,187,0.8)' }}
             >
               {mix.title}
             </span>
-            <span className="font-mono text-[10px] text-black/45 shrink-0 tracking-wider">
+            <span
+              className="font-mono text-[10px] shrink-0 tracking-wider"
+              style={{ color: 'rgba(200,196,187,0.35)' }}
+            >
               {mix.duration}
             </span>
           </li>

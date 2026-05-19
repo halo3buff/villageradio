@@ -9,7 +9,10 @@
       "Bash(Start-Process npm *)",
       "Bash(Start-Sleep 5)",
       "Bash(Get-ChildItem \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\vrsite\\\\public\\\\images\\\\photography\" -Recurse -File)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(Remove-Item *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\ameen\\\\OneDrive\\\\Desktop\\\\vrsite\" -Recurse -Force)",
+      "PowerShell(head *)"
     ]
   }
 }
