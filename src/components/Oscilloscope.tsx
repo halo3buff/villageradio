@@ -220,8 +220,9 @@ export function Oscilloscope() {
 
       const a = rec.analyser;
       if (a && rec.state === 'recording') {
-        // Phosphor decay only while recording — keeps the idle grid crisp
-        ctx.fillStyle = 'rgba(8, 8, 8, 0.18)';
+        // Phosphor decay only while recording — keeps the idle grid crisp.
+        // Lower alpha = longer trail (waveform persists across more sweep frames).
+        ctx.fillStyle = 'rgba(8, 8, 8, 0.02)';
         ctx.fillRect(0, 0, w, h);
         const buf = new Float32Array(a.fftSize);
         a.getFloatTimeDomainData(buf);
@@ -237,6 +238,7 @@ export function Oscilloscope() {
         const amp = Math.max(rms, peak * 0.5);
         const cy = h / 2;
         const x = sweepXRef.current;
+        const ampY = amp * (h / 2) * 0.95;
 
         // Erase column we're about to draw
         ctx.fillStyle = '#050505';
@@ -249,12 +251,28 @@ export function Oscilloscope() {
         ctx.lineTo(x + 2, cy);
         ctx.stroke();
 
-        // Sample vertical line
-        ctx.strokeStyle = 'rgba(0, 255, 80, 0.85)';
+        // Outer bloom — widest, very dim, soft halo
+        ctx.strokeStyle = 'rgba(0, 255, 80, 0.15)';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, cy - ampY);
+        ctx.lineTo(x + 0.5, cy + ampY);
+        ctx.stroke();
+
+        // Mid glow — gives the trail body
+        ctx.strokeStyle = 'rgba(0, 255, 80, 0.35)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, cy - ampY);
+        ctx.lineTo(x + 0.5, cy + ampY);
+        ctx.stroke();
+
+        // Bright sample line — sharp, full intensity center
+        ctx.strokeStyle = 'rgba(180, 255, 200, 1)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(x + 0.5, cy - amp * (h / 2) * 0.95);
-        ctx.lineTo(x + 0.5, cy + amp * (h / 2) * 0.95);
+        ctx.moveTo(x + 0.5, cy - ampY);
+        ctx.lineTo(x + 0.5, cy + ampY);
         ctx.stroke();
 
         // Sweep cursor
