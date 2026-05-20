@@ -28,6 +28,7 @@ const PlayerContext = createContext<AudioCtx | null>(null);
 function probeAudioDuration(src: string): Promise<number> {
   return new Promise(resolve => {
     const a = new Audio();
+    a.crossOrigin = 'anonymous';
     a.preload = 'metadata';
     a.onloadedmetadata = () => resolve(isFinite(a.duration) ? a.duration : 0);
     a.onerror = () => resolve(0);
@@ -70,7 +71,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [volume, setVolumeState] = useState(0.8);
 
   function getOrCreateAudio(): HTMLAudioElement {
-    if (!audioRef.current) audioRef.current = new Audio();
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.crossOrigin = 'anonymous';
+    }
     return audioRef.current;
   }
 
