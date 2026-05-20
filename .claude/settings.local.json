@@ -15,7 +15,12 @@
       "PowerShell(head *)",
       "Skill(vercel:status)",
       "Bash(git show *)",
-      "Bash(git ls-tree *)"
+      "Bash(git ls-tree *)",
+      "Bash(ffprobe -version)",
+      "Bash(where ffprobe *)",
+      "Bash(node -e \"require\\('music-metadata'\\)\")",
+      "Bash(node scripts/probe-durations.mjs)",
+      "Bash(node -e ' *)"
     ]
   }
 }

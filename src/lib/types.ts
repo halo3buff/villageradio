@@ -4,6 +4,7 @@ export interface Mix {
   artist: string;
   date: string;
   duration: string;
+  durationSec?: number;
   src: string;
   cover?: string;
   tags: string[];

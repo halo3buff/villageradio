@@ -203,7 +203,9 @@ export function SDRWaterfall() {
 
   const [visibleLines, setVisibleLines] = useState(0);
   const [statusLive, setStatusLive] = useState(false);
-  const [selectedMix, setSelectedMix] = useState<Mix>(broadcastPlaylist[0]);
+  const [selectedMix, setSelectedMix] = useState<Mix>(
+    broadcastPlaylist.find(t => t.kind === 'mix') ?? broadcastPlaylist[0]
+  );
   const [power, setPower] = useState<string | null>(null);
   const [iqMax, setIqMax] = useState<string | null>(null);
   const [durations, setDurations] = useState<Record<string, string>>({});
@@ -217,9 +219,14 @@ export function SDRWaterfall() {
     ? (FREQ_MIN + cursorPct * (FREQ_MAX - FREQ_MIN)).toFixed(1)
     : null;
 
+  // Deduplicated list for display — broadcast sequence reuses some interludes
+  const uniqueTracks = broadcastPlaylist.filter(
+    (t, i, arr) => arr.findIndex(u => u.src === t.src) === i
+  );
+
   // Archive stats (computed from loaded durations)
   let archiveTotalSec = 0;
-  for (const t of broadcastPlaylist) {
+  for (const t of uniqueTracks) {
     const dur = durations[t.id];
     if (dur) archiveTotalSec += parseDurSec(dur);
   }
@@ -227,7 +234,7 @@ export function SDRWaterfall() {
   const archiveMin = Math.floor((archiveTotalSec % 3600) / 60);
 
   // Filtered track list
-  const filteredTracks = broadcastPlaylist.filter(t => {
+  const filteredTracks = uniqueTracks.filter(t => {
     if (activeFilter === 'ALL') return true;
     if (activeFilter === 'BROADCAST') return t.kind === 'mix';
     return t.kind === 'inter';
@@ -454,7 +461,7 @@ export function SDRWaterfall() {
               : '— HRS — MIN'}
           </div>
           <div style={{ color: GREEN_CURSOR }}>
-            {broadcastPlaylist.length} TRANSMISSIONS
+            {uniqueTracks.length} TRANSMISSIONS
           </div>
           <div style={{ color: GREEN_FAINT }}>{SEP}</div>
         </div>
