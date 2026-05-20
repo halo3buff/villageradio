@@ -267,6 +267,7 @@ export function SDRWaterfall() {
   useEffect(() => {
     broadcastPlaylist.forEach((track) => {
       const probe = new Audio();
+      probe.crossOrigin = 'anonymous';
       probe.preload = 'metadata';
       probe.src = track.src;
       probe.addEventListener('loadedmetadata', () => {

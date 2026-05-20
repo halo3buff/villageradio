@@ -16,11 +16,24 @@
       "Skill(vercel:status)",
       "Bash(git show *)",
       "Bash(git ls-tree *)",
+      "Bash(git log *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)",
+      "Bash(git stash *)",
+      "Bash(git push *)",
+      "Bash(git fetch *)",
+      "Bash(git reset *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git rm *)",
       "Bash(ffprobe -version)",
       "Bash(where ffprobe *)",
       "Bash(node -e \"require\\('music-metadata'\\)\")",
       "Bash(node scripts/probe-durations.mjs)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(Write-Output \"deleted\")"
     ]
   }
 }
