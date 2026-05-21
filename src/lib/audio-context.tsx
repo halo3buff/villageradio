@@ -37,13 +37,24 @@ function getDuration(track: Mix): Promise<number> {
   });
 }
 
+// Fetches the server's clock and returns how many milliseconds ahead/behind
+// the local clock is. One fetch per session; result is cached in the caller.
+async function fetchServerOffsetMs(): Promise<number> {
+  const t0 = Date.now();
+  const res = await fetch('/api/time');
+  const t1 = Date.now();
+  const { t: serverTime } = await res.json() as { t: number };
+  // serverTime is the server's Date.now() mid-request; approximate with half RTT
+  return serverTime + (t1 - t0) / 2 - t1;
+}
+
 // Returns which track is currently "on air" and how many seconds into it.
-// Uses Unix epoch so all clients with the same wall clock get the same answer.
-function getBroadcastPosition(durations: number[]): { trackIdx: number; offsetSec: number } {
+// offsetMs corrects for a skewed local clock (from fetchServerOffsetMs).
+function getBroadcastPosition(durations: number[], offsetMs: number): { trackIdx: number; offsetSec: number } {
   const total = durations.reduce((a, b) => a + b, 0);
   if (total === 0) return { trackIdx: 0, offsetSec: 0 };
 
-  let elapsed = (Date.now() / 1000) % total;
+  let elapsed = ((Date.now() + offsetMs) / 1000) % total;
   for (let i = 0; i < durations.length; i++) {
     if (elapsed < durations[i]) return { trackIdx: i, offsetSec: elapsed };
     elapsed -= durations[i];
@@ -59,6 +70,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const modeRef         = useRef<AudioMode>('idle');
   const broadcastIdxRef = useRef(0);
   const durationsRef    = useRef<number[] | null>(null); // cached on first broadcastPlay
+  const serverOffsetRef = useRef<number | null>(null);  // ms to add to Date.now() for server-accurate time
 
   const [currentTrack,  setCurrentTrack]  = useState<Mix | null>(null);
   const [isPlaying,     setIsPlaying]     = useState(false);
@@ -151,14 +163,20 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       durationsRef.current = await Promise.all(broadcastPlaylist.map(getDuration));
     }
 
-    const { trackIdx, offsetSec } = getBroadcastPosition(durationsRef.current);
+    // Fetch server time once per session to correct for skewed device clocks
+    if (serverOffsetRef.current === null) {
+      serverOffsetRef.current = await fetchServerOffsetMs();
+    }
+
+    const { trackIdx, offsetSec } = getBroadcastPosition(durationsRef.current, serverOffsetRef.current);
     const totalDuration = durationsRef.current.reduce((a, b) => a + b, 0);
 
     console.log('[VR broadcast]', {
       trackTitle: broadcastPlaylist[trackIdx].title,
       seek: Math.round(offsetSec),
       totalDuration: Math.round(totalDuration),
-      elapsed: Math.round((Date.now() / 1000) % totalDuration),
+      elapsed: Math.round(((Date.now() + serverOffsetRef.current) / 1000) % totalDuration),
+      serverOffsetMs: Math.round(serverOffsetRef.current),
     });
 
     wireBroadcastTrack(trackIdx);
