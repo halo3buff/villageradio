@@ -116,17 +116,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setVolumeState(clamped);
   }
 
-  function wireBroadcastTrack(idx: number, seekTo: number | null) {
+  function wireBroadcastTrack(idx: number) {
     const audio = audioRef.current!;
     const track = broadcastPlaylist[idx];
     if (!track) return;
 
-    audio.oncanplay = null; // discard any pending seek from a previous call
-
     broadcastIdxRef.current = idx;
     setBroadcastIndex(idx);
     setCurrentTrack(track);
-    audio.src = track.src;
 
     audio.ontimeupdate = () => {
       const a = audioRef.current!;
@@ -144,27 +141,42 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.src = next.src;
       audio.play().catch(() => setIsPlaying(false));
     };
-
-    audio.oncanplay = seekTo !== null && seekTo > 0
-      ? () => {
-          audio.currentTime = Math.min(seekTo, isFinite(audio.duration) ? audio.duration - 1 : seekTo);
-          audio.oncanplay = null;
-        }
-      : null;
   }
 
   async function tuneIntoBroadcast() {
     const audio = audioRef.current!;
 
-    // All tracks have durationSec hardcoded — this resolves instantly with no network requests
+    // All tracks have durationSec hardcoded — resolves instantly, no network requests
     if (!durationsRef.current) {
       durationsRef.current = await Promise.all(broadcastPlaylist.map(getDuration));
     }
 
     const { trackIdx, offsetSec } = getBroadcastPosition(durationsRef.current);
-    wireBroadcastTrack(trackIdx, offsetSec);
-    audio.play().catch(() => setIsPlaying(false));
-    setIsPlaying(true);
+    const totalDuration = durationsRef.current.reduce((a, b) => a + b, 0);
+
+    console.log('[VR broadcast]', {
+      trackTitle: broadcastPlaylist[trackIdx].title,
+      seek: Math.round(offsetSec),
+      totalDuration: Math.round(totalDuration),
+      elapsed: Math.round((Date.now() / 1000) % totalDuration),
+    });
+
+    wireBroadcastTrack(trackIdx);
+
+    // Seek and play must happen inside canplay — setting currentTime before the
+    // element is ready silently fails, causing playback to start from position 0.
+    const seekTo = offsetSec;
+    audio.oncanplay = () => {
+      audio.oncanplay = null;
+      audio.currentTime = seekTo > 0
+        ? Math.min(seekTo, isFinite(audio.duration) ? audio.duration - 1 : seekTo)
+        : 0;
+      audio.play().catch(() => setIsPlaying(false));
+      setIsPlaying(true);
+    };
+
+    audio.src = broadcastPlaylist[trackIdx].src;
+    audio.load();
   }
 
   function broadcastPlay() {
