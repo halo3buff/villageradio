@@ -50,8 +50,10 @@ export async function POST(req: Request): Promise<Response> {
   const key = `transmissions/${isoTimestampForKey()}-${handle}-${randomSuffix()}.webm`;
 
   try {
+    // TODO: reconsider switching the Blob store to public access so transmissions can be played
+    // back via direct URL instead of needing a signed/proxied route.
     await put(key, audio, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: false,
       contentType: 'audio/webm',
     });
