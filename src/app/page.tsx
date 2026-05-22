@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { LissajousScope } from '@/components/LissajousScope';
 
 const featured = [
-  { href: '/mixes', label: 'Signal 001 — New Mix' },
+  { href: '/listen', label: 'Signal 001 — New Mix' },
   { href: '/work', label: 'Brand Archive — Identity Systems' },
   { href: '/news', label: 'Transmission Notes' },
 ];
