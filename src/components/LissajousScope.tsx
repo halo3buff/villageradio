@@ -239,7 +239,7 @@ export function LissajousScope() {
   ];
 
   return (
-    <div style={{ fontFamily: VR_FONT, display: 'block', width: '100%' }}>
+    <div style={{ fontFamily: VR_FONT, width: '100%' }} className="flex flex-col">
       {/* Panel label — outside bezel */}
       <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: 'rgba(0,200,60,0.5)', marginBottom: '6px' }}>
         VECTORSCOPE  CH1/CH2
@@ -257,11 +257,11 @@ export function LissajousScope() {
         {/* Square container — ResizeObserver target */}
         <div
           ref={containerRef}
-          style={{ width: '100%', aspectRatio: '1 / 1', lineHeight: 0, position: 'relative' }}
+          style={{ width: '100%', aspectRatio: '1 / 1', lineHeight: 0, position: 'relative', overflow: 'hidden' }}
         >
           <canvas
             ref={canvasRef}
-            style={{ display: 'block', width: '100%', height: '100%' }}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
           />
         </div>
 
@@ -306,8 +306,8 @@ export function LissajousScope() {
         )}
       </div>
 
-      {/* Broadcast button + volume control */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+      {/* Broadcast button + volume control — order-first on mobile so it's above the fold */}
+      <div className="order-first md:order-last mb-3 md:mb-0 md:mt-0" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
         <button
           onClick={handleButton}
           onMouseEnter={() => setBtnHover(true)}
