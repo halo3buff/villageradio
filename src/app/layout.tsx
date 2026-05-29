@@ -31,11 +31,21 @@ export const metadata: Metadata = {
     default: 'Village Radio',
     template: '%s — Village Radio',
   },
-  description: 'Signal. Archive. Transmission.',
-  metadataBase: new URL('https://villageradio.xyz'),
+  description: '24/7 — vlgfm.live',
+  metadataBase: new URL('https://vlgfm.live'),
   openGraph: {
+    title: 'Village Radio',
+    description: '24/7 — vlgfm.live',
+    url: 'https://vlgfm.live',
     siteName: 'Village Radio',
+    images: [{ url: 'https://vlgfm.live/og-image.jpg' }],
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Village Radio',
+    description: '24/7 — vlgfm.live',
+    images: ['https://vlgfm.live/og-image.jpg'],
   },
 };
 
