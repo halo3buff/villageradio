@@ -35,7 +35,8 @@
       "Bash(node -e ' *)",
       "Bash(Write-Output \"deleted\")",
       "Bash(git pull *)",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(Rename-Item *)"
     ]
   }
 }
