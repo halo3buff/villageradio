@@ -38,14 +38,14 @@ export const metadata: Metadata = {
     description: '24/7 — vlgfm.live',
     url: 'https://vlgfm.live',
     siteName: 'Village Radio',
-    images: [{ url: 'https://vlgfm.live/og-image-2.jpg' }],
+    images: [{ url: 'https://vlgfm.live/og-image-3.jpg' }],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Village Radio',
     description: '24/7 — vlgfm.live',
-    images: ['https://vlgfm.live/og-image-2.jpg'],
+    images: ['https://vlgfm.live/og-image-3.jpg'],
   },
 };
 
