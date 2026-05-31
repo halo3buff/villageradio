@@ -33,7 +33,9 @@
       "Bash(node -e \"require\\('music-metadata'\\)\")",
       "Bash(node scripts/probe-durations.mjs)",
       "Bash(node -e ' *)",
-      "Bash(Write-Output \"deleted\")"
+      "Bash(Write-Output \"deleted\")",
+      "Bash(git pull *)",
+      "Bash(git mv *)"
     ]
   }
 }
