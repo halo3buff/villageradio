@@ -1,47 +1,47 @@
 # Adding New Mixes
 
-Three steps every time.
+Broadcast mixes are hosted on **Cloudflare R2** and streamed through the
+`/api/audio/stream` proxy. `src/lib/data/mixes.ts` is the single source of truth — the
+proxy's allowlist is derived from it, so once the file is in R2 you only edit one file.
 
-## 1. Upload to Vercel Blob
+## 1. Upload to Cloudflare R2
 
-Vercel dashboard → Storage → your Blob store → upload the file.
+Upload the audio file to the R2 bucket that backs the stream proxy (the bucket behind
+`R2_BASE` in `src/app/api/audio/stream/route.ts`). Files live at the bucket root, e.g.:
 
-Make sure it lands under the `mixes_inter/` folder path:
 ```
-mixes_inter/mix_morning_3.mp3
-```
-
-Supported formats: `.mp3`, `.wav`
-
----
-
-## 2. Whitelist the filename in the proxy
-
-`src/app/api/audio/stream/route.ts` — add the filename to the `ALLOWED` set:
-
-```ts
-const ALLOWED = new Set([
-  // ...existing files...
-  'mix_morning_3.mp3',
-]);
+green_05-20-2026.mp3
 ```
 
----
+Supported formats: `.mp3`, `.wav`, `.ogg`, `.m4a` (mixes are `.mp3` in practice).
+
+## 2. Get the duration
+
+Add the filename to the `FILES` array in `scripts/probe-durations.mjs`, then run:
+
+```
+node scripts/probe-durations.mjs
+```
+
+It probes R2 via byte-range requests and prints `durationSec` values to paste below.
 
 ## 3. Add it to the playlist
 
-`src/lib/data/mixes.ts` — add an entry to `broadcastPlaylist`:
+`src/lib/data/mixes.ts` — add an entry to `broadcastPlaylist`. This is the only edit
+needed: the stream proxy's allowlist (`broadcastFiles`) is derived from this array
+automatically, so there's no separate whitelist to maintain.
 
 ```ts
 {
-  id: 'mix-morning-3',
-  title: 'BROADCAST VI',
+  id: 'green-05-20-2026',
+  title: 'GREEN 05.20.2026',
   artist: 'Village Radio',
-  date: '',
-  duration: '',
-  src: '/api/audio/stream?file=mix_morning_3.mp3',
+  date: '05-20-2026',
+  duration: '3:55',      // human-readable, m:ss or h:mm:ss
+  durationSec: 235,      // from the probe script
+  src: `${PROXY}green_05-20-2026.mp3`,
   tags: [],
-  kind: 'mix',   // use 'inter' for interlude/break tracks
+  kind: 'mix',           // use 'inter' for interlude/break tracks
 },
 ```
 
@@ -53,9 +53,5 @@ Then commit and push `main`. Vercel deploys automatically.
 
 | Type | Filename pattern | `kind` value |
 |---|---|---|
-| Full mix | `mix_<time>_<n>.mp3` | `'mix'` |
+| Full mix | `<color>_<MM-DD-YYYY>.mp3` (color = `red` / `green` / `yellow`) | `'mix'` |
 | Interlude / break | `inter_<n>.mp3` | `'inter'` |
-
-## Note on the whitelist
-
-If you're adding mixes often, ask Claude to replace the `ALLOWED` set with a regex pattern check so you only need to touch `mixes.ts` going forward.

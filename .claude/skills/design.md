@@ -27,7 +27,7 @@ The more important reference for Village Radio's portfolio dimension.
 - Loading state = `"loading.."` — plain text, no spinner, no skeleton.
 - Radio = one flat nav section (`/listen`) equal to everything else. Not the hero.
 - No footer, or a single line at most.
-- `meta-theme-color: #000` — always pure black, always.
+- `meta-theme-color: #080808` — near-black, always.
 
 ---
 
@@ -40,13 +40,18 @@ Content just exists on the page. No design trying to be noticed.
 
 ## Colors
 
+**Source of truth: `src/app/globals.css`.** If anything here disagrees with it,
+`globals.css` wins — update this file. Current tokens:
+
 ```css
+@theme {
+  --color-vr-white: #e8e4d9;   /* warm off-white text, not pure #fff */
+  --color-vr-signal: #4a9e4a;  /* muted green — live indicator only */
+}
 :root {
-  --vr-black: #000000;
-  --vr-white: #f0efe9;       /* warm off-white, not pure #fff */
-  --vr-dim: rgba(255,255,255,0.45);
   --vr-border: rgba(255,255,255,0.08);
-  --vr-signal: #c8ff00;      /* ONE USE ONLY: live indicator dot */
+  --vr-dim: rgba(255,255,255,0.45);
+  --vr-bg: #080808;            /* near-black background, not pure #000 */
 }
 ```
 
@@ -54,7 +59,8 @@ Content just exists on the page. No design trying to be noticed.
 
 ## Typography
 
-- **Logotype**: Custom SVG — never render the site name in a system font
+- **Logotype**: Custom image mark — never render the site name in a system font.
+  Currently `/icons/hero_logo_p.png`, displayed inverted (`filter: invert(1)`).
 - **Nav / UI chrome**: monospace, `0.75rem`, `letter-spacing: 0.15em`
 - **Page titles**: ALL CAPS, monospace
 - **Dates / metadata**: styled same as titles — both H1 in elara.world, replicate that flatness
@@ -73,12 +79,13 @@ font-family: 'DM Sans', 'Helvetica Neue', sans-serif;  /* body prose */
 
 ### Navigation (elara.world style)
 ```tsx
-// Flat, sentence case, SVG logo — no active states except opacity
+// Flat, lowercase, inverted PNG logo — no active states except opacity.
+// Actual nav lives in src/components/Nav.tsx; links are: listen / work / photography / news.
 <nav className="flex items-center gap-6 px-5 py-4">
   <a href="/" className="mr-auto">
-    <img src="/icons/vr-logotype.svg" alt="Village Radio" className="h-4" />
+    <img src="/icons/hero_logo_p.png" alt="Village Radio" className="h-4" style={{ filter: 'invert(1)' }} />
   </a>
-  {['mixes', 'work', 'photography', 'listen', 'news'].map(s => (
+  {['listen', 'work', 'photography', 'news'].map(s => (
     <a key={s} href={`/${s}`}
        className="text-xs text-white/50 hover:text-white transition-opacity duration-150 capitalize">
       {s}
@@ -92,10 +99,10 @@ font-family: 'DM Sans', 'Helvetica Neue', sans-serif;  /* body prose */
 // Featured items = plain linked text at top, then one square hero image
 <main className="px-5 pt-8">
   <div className="mb-10 space-y-1">
-    <a href="/mixes/signal-01" className="block text-sm text-white/80 hover:text-white">
+    <a href="/listen" className="block text-sm text-white/80 hover:text-white">
       Signal 01 — New Mix
     </a>
-    <a href="/work/brand-x" className="block text-sm text-white/80 hover:text-white">
+    <a href="/work" className="block text-sm text-white/80 hover:text-white">
       Brand X Identity System
     </a>
   </div>
