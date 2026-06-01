@@ -1,0 +1,42 @@
+name: deploy
+on:
+  push:
+    # `main` is the production trigger (active after Phase 8 cutover).
+    # `gcp-migration` lets us validate CD before cutover without touching main.
+    # (GitHub only allows workflow_dispatch for workflows on the default branch,
+    #  so a push trigger on the feature branch is the working pre-cutover test.)
+    branches: [main, gcp-migration]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write          # required for Workload Identity Federation
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true        # materialize the real interlude MP3s into the build context
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/319817275609/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: vlgfm-deployer@village-radio.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "vlgfm" \
+            --source . \
+            --project "village-radio" \
+            --region "us-central1" \
+            --service-account "vlgfm-run@village-radio.iam.gserviceaccount.com" \
+            --set-env-vars "TRANSMISSIONS_BUCKET=vlg-transmissions-village-radio" \
+            --allow-unauthenticated \
+            --min-instances 1 --max-instances 4 \
+            --cpu 1 --memory 512Mi \
+            --quiet
