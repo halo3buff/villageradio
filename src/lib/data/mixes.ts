@@ -2,6 +2,11 @@ import type { Mix } from '@/lib/types';
 
 const PROXY = '/api/audio/stream?file=';
 
+// TODO: This playlist is hardcoded. Once we move off Vercel, replace it with an
+// editable source — env vars, a JSON feed, or a small CMS/service — so the lineup
+// can change without a code deploy. Keep this array as the SINGLE SOURCE OF TRUTH:
+// the stream proxy's allowlist is derived from it (see `broadcastFiles` below), so
+// adding a track here is all that's needed to make it both playable and proxyable.
 export const broadcastPlaylist: Mix[] = [
   { id: 'inter-1',          title: 'TRANSMISSION BREAK I',   artist: 'Village Radio', date: '',           duration: '0:22', durationSec: 22,  src: `${PROXY}inter_1.mp3`,          tags: [], kind: 'inter' },
   { id: 'red-06-28-2025',   title: 'RED 06.28.2025',         artist: 'Village Radio', date: '06-28-2025', duration: '8:18', durationSec: 498, src: `${PROXY}red_06-28-2025.mp3`,   tags: [], kind: 'mix'   },
@@ -23,3 +28,14 @@ export const broadcastPlaylist: Mix[] = [
 
 // All mixes without interludes — used by the listen/archive page
 export const mixes: Mix[] = broadcastPlaylist.filter(t => t.kind === 'mix');
+
+// Bare filename from a proxied src, e.g. '/api/audio/stream?file=inter_1.mp3' → 'inter_1.mp3'
+export function fileFromSrc(src: string): string {
+  return src.startsWith(PROXY) ? src.slice(PROXY.length) : src;
+}
+
+// Filenames the stream proxy is allowed to fetch — derived from the playlist so it
+// stays in sync automatically. Deduped because some interludes appear more than once.
+export const broadcastFiles: string[] = [
+  ...new Set(broadcastPlaylist.map(t => fileFromSrc(t.src))),
+];

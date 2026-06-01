@@ -24,6 +24,18 @@ interface AudioCtx {
 
 const PlayerContext = createContext<AudioCtx | null>(null);
 
+// --- Drift correction tuning -------------------------------------------------
+// The broadcast position is derived from the UTC epoch clock (Date.now()), so it
+// is identical for every listener at a given instant — timezone never matters.
+// The only per-user variance is a *wrong* device clock, corrected by the server
+// offset. These constants govern how we gently re-converge during a session.
+const NUDGE_THRESHOLD_SEC = 0.25;       // ignore drift smaller than this
+const HARD_SEEK_SEC       = 1.5;        // above this, fade + seek instead of nudging
+const RATE_WINDOW_SEC     = 30;         // absorb a rate nudge over this many seconds
+const RATE_MAX            = 0.03;       // cap playbackRate change at ±3% (imperceptible)
+const CORRECT_INTERVAL_MS = 5 * 60_000; // how often to check for drift
+const TIME_REFRESH_MS     = 10 * 60_000;// how often to re-fetch the server clock offset
+
 // Returns hardcoded durationSec instantly; falls back to a metadata probe for unknowns
 function getDuration(track: Mix): Promise<number> {
   if (track.durationSec && track.durationSec > 0) return Promise.resolve(track.durationSec);
@@ -38,7 +50,8 @@ function getDuration(track: Mix): Promise<number> {
 }
 
 // Fetches the server's clock and returns how many milliseconds ahead/behind
-// the local clock is. One fetch per session; result is cached in the caller.
+// the local clock is. Refreshed periodically during long sessions so a slowly
+// drifting device clock can't pull a listener out of sync.
 async function fetchServerOffsetMs(): Promise<number> {
   const t0 = Date.now();
   const res = await fetch('/api/time');
@@ -71,6 +84,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const broadcastIdxRef = useRef(0);
   const durationsRef    = useRef<number[] | null>(null); // cached on first broadcastPlay
   const serverOffsetRef = useRef<number | null>(null);  // ms to add to Date.now() for server-accurate time
+  const rateResetRef    = useRef<ReturnType<typeof setTimeout>  | null>(null); // resets playbackRate after a nudge
+  const correctTimerRef = useRef<ReturnType<typeof setInterval> | null>(null); // periodic drift check
+  const timeRefreshRef  = useRef<ReturnType<typeof setInterval> | null>(null); // periodic server-clock refresh
 
   const [currentTrack,  setCurrentTrack]  = useState<Mix | null>(null);
   const [isPlaying,     setIsPlaying]     = useState(false);
@@ -155,8 +171,16 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }
 
+  // Seek without overshooting the end (setting currentTime past duration is a no-op on some browsers)
+  function safeSeek(audio: HTMLAudioElement, sec: number) {
+    audio.currentTime = sec > 0
+      ? Math.min(sec, isFinite(audio.duration) ? audio.duration - 1 : sec)
+      : 0;
+  }
+
   async function tuneIntoBroadcast() {
     const audio = audioRef.current!;
+    audio.playbackRate = 1; // clear any leftover nudge from a previous track
 
     // All tracks have durationSec hardcoded — resolves instantly, no network requests
     if (!durationsRef.current) {
@@ -186,9 +210,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const seekTo = offsetSec;
     audio.oncanplay = () => {
       audio.oncanplay = null;
-      audio.currentTime = seekTo > 0
-        ? Math.min(seekTo, isFinite(audio.duration) ? audio.duration - 1 : seekTo)
-        : 0;
+      safeSeek(audio, seekTo);
       audio.play().catch(() => setIsPlaying(false));
       setIsPlaying(true);
     };
@@ -197,16 +219,103 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     audio.load();
   }
 
+  // Briefly dip the gain to ~silence, run `action` (a seek/re-tune) while muted,
+  // then ramp back. Hides the click/stall a hard seek would otherwise produce.
+  function fadeOutThen(action: () => void) {
+    const gain = gainNodeRef.current;
+    const ctx  = webCtxRef.current;
+    if (!gain || !ctx) { action(); return; }
+    const now = ctx.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(0.0001, now + 0.08);
+    setTimeout(action, 90);
+  }
+
+  function fadeIn() {
+    const gain = gainNodeRef.current;
+    const ctx  = webCtxRef.current;
+    if (!gain || !ctx) return;
+    const now = ctx.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(volumeRef.current, now + 0.12);
+  }
+
+  // Smoothly absorb a small drift by speeding up / slowing down playback a touch.
+  // A ±3% rate change is an inaudible pitch shift; it converges over RATE_WINDOW_SEC
+  // then snaps back to 1.0. No seek, no glitch.
+  function nudgeRate(driftSec: number) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    let rate = 1 + driftSec / RATE_WINDOW_SEC;            // behind → >1, ahead → <1
+    rate = Math.max(1 - RATE_MAX, Math.min(1 + RATE_MAX, rate));
+    audio.playbackRate = rate;
+    if (rateResetRef.current) clearTimeout(rateResetRef.current);
+    rateResetRef.current = setTimeout(() => {
+      if (audioRef.current) audioRef.current.playbackRate = 1;
+    }, RATE_WINDOW_SEC * 1000);
+  }
+
+  // Periodic check: how far is actual playback from where the broadcast clock says
+  // it should be? Small drift → smooth rate nudge. Large drift or wrong track →
+  // fade-covered seek/re-tune (rare; mainly after a long stall).
+  function correctDrift() {
+    if (modeRef.current !== 'broadcast') return;
+    const audio = audioRef.current;
+    const durations = durationsRef.current;
+    if (!audio || audio.paused || !durations || serverOffsetRef.current === null) return;
+
+    const expected = getBroadcastPosition(durations, serverOffsetRef.current);
+
+    // On the wrong track entirely — re-derive from the clock, hidden behind a gain dip
+    if (expected.trackIdx !== broadcastIdxRef.current) {
+      audio.playbackRate = 1;
+      fadeOutThen(() => { tuneIntoBroadcast(); fadeIn(); });
+      console.log('[VR broadcast] resync: wrong track → re-tune');
+      return;
+    }
+
+    const drift = expected.offsetSec - audio.currentTime; // +behind / -ahead
+    const absDrift = Math.abs(drift);
+
+    if (absDrift > HARD_SEEK_SEC) {
+      audio.playbackRate = 1;
+      fadeOutThen(() => { safeSeek(audio, expected.offsetSec); fadeIn(); });
+      console.log('[VR broadcast] resync: hard seek', { drift: +drift.toFixed(2) });
+    } else if (absDrift > NUDGE_THRESHOLD_SEC) {
+      nudgeRate(drift);
+      console.log('[VR broadcast] resync: rate nudge', { drift: +drift.toFixed(2), rate: +audio.playbackRate.toFixed(3) });
+    }
+  }
+
+  function startBroadcastTimers() {
+    stopBroadcastTimers();
+    correctTimerRef.current = setInterval(correctDrift, CORRECT_INTERVAL_MS);
+    timeRefreshRef.current  = setInterval(async () => {
+      try { serverOffsetRef.current = await fetchServerOffsetMs(); } catch { /* keep last offset */ }
+    }, TIME_REFRESH_MS);
+  }
+
+  function stopBroadcastTimers() {
+    if (correctTimerRef.current) { clearInterval(correctTimerRef.current); correctTimerRef.current = null; }
+    if (timeRefreshRef.current)  { clearInterval(timeRefreshRef.current);  timeRefreshRef.current  = null; }
+    if (rateResetRef.current)    { clearTimeout(rateResetRef.current);     rateResetRef.current    = null; }
+    if (audioRef.current) audioRef.current.playbackRate = 1;
+  }
+
   function broadcastPlay() {
     const audio = getOrCreateAudio();
     modeRef.current = 'broadcast';
     setMode('broadcast');
     initWebAudio(audio);
     tuneIntoBroadcast();
+    startBroadcastTimers();
   }
 
   function play(track: Mix) {
     const audio = getOrCreateAudio();
+    stopBroadcastTimers(); // leaving the broadcast — stop drift correction
     modeRef.current = 'individual';
     setMode('individual');
     audio.src = track.src;
@@ -224,6 +333,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   function pause() {
     audioRef.current?.pause();
+    stopBroadcastTimers(); // resume re-tunes from scratch, so no need to keep checking while paused
     setIsPlaying(false);
   }
 
