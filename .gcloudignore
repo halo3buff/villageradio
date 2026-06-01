@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+.next
+.env*
+references
+docs
+*.tsbuildinfo
+# Without this file, gcloud falls back to .gitignore, which excludes public/audio and
+# would ship pointer files. Do NOT add public/ or public/audio here.

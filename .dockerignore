@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.github
+docs
+references
+.env*
+Dockerfile
+.dockerignore
+.gcloudignore
+*.tsbuildinfo
+npm-debug.log*
+# NOTE: do NOT exclude public/ — the interlude MP3s must ship in the image.
