@@ -23,19 +23,19 @@ jobs:
       - id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: projects/319817275609/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: vlgfm-deployer@village-radio.iam.gserviceaccount.com
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
 
       - uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy "vlgfm" \
+          gcloud run deploy "${{ vars.GCP_SERVICE }}" \
             --source . \
-            --project "village-radio" \
-            --region "us-central1" \
-            --service-account "vlgfm-run@village-radio.iam.gserviceaccount.com" \
-            --set-env-vars "TRANSMISSIONS_BUCKET=vlg-transmissions-village-radio" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service-account "${{ vars.GCP_RUNTIME_SA }}" \
+            --set-env-vars "TRANSMISSIONS_BUCKET=${{ vars.GCP_TRANSMISSIONS_BUCKET }}" \
             --allow-unauthenticated \
             --min-instances 1 --max-instances 4 \
             --cpu 1 --memory 512Mi \
