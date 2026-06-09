@@ -4,6 +4,7 @@ import { authConfig } from '@/lib/auth/config';
 import { verifyPassword } from '@/lib/auth/password';
 import { signSession, sessionCookie } from '@/lib/auth/session';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { sameOrigin } from '@/lib/http/same-origin';
 
 export const runtime = 'nodejs';
 
@@ -14,16 +15,6 @@ function clientIp(req: Request): string {
   const fwd = req.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0]!.trim();
   return req.headers.get('x-real-ip') ?? '127.0.0.1';
-}
-
-function sameOrigin(req: Request): boolean {
-  const origin = req.headers.get('origin');
-  if (!origin) return true; // tolerate non-browser clients; browsers send Origin on POST
-  try {
-    return new URL(origin).host === req.headers.get('host');
-  } catch {
-    return false;
-  }
 }
 
 // Length-independent constant-time compare via fixed-width digests.
