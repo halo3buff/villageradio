@@ -5,6 +5,7 @@ import { AudioProvider } from '@/lib/audio-context';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { NewsStrip } from '@/components/NewsStrip';
+import { SootSprite } from '@/components/SootSprite';
 
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-[#080808] text-vr-white min-h-screen font-sans">
         <AudioProvider>
           <Nav />
+          <SootSprite />
           <div className="pb-[76px]">
             {children}
           </div>

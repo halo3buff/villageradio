@@ -55,3 +55,13 @@
   animation: ticker 25s linear infinite;
   white-space: nowrap;
 }
+
+@keyframes soot-bob {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50%      { transform: translateY(-3px) rotate(1.5deg); }
+}
+
+.soot-sprite {
+  filter: drop-shadow(0 0 0.5px rgba(232, 228, 217, 0.45)) drop-shadow(0 0 2px rgba(232, 228, 217, 0.12));
+  animation: soot-bob 2.6s ease-in-out infinite;
+}
