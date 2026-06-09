@@ -430,7 +430,9 @@ so both go live the moment the **1 + 2 + 4** gates are met. Until first publish 
 bundled seed (`src/lib/content/seed/news.json`) / bundled doc
 (`public/information/info_page.md`); the first admin **Publish** creates `content/news.json` and
 `content/information.md` via `ifGenerationMatch:0` (the generic step 5 — no Phase-4-specific
-provisioning).
+provisioning). **Phase 5 (Transmissions moderation)** needs the panel gate (**3 + 4**) plus the
+one new **step 9** SA grant on `TRANSMISSIONS_BUCKET`; it needs no R2, no new env/secrets/buckets,
+and the bucket itself is already wired.
 
 1. **Config bucket** — create the GCS `CONFIG_BUCKET`; enable **object versioning** (free edit
    history + one-click rollback), uniform bucket-level access, public-access-prevention.
@@ -470,9 +472,17 @@ provisioning).
 9. **(Phase 5 — gates the moderation queue) grant the runtime SA list/copy/delete on
    `TRANSMISSIONS_BUCKET`.** The public upload route only ever needed **create** (`.save()`), but
    moderation **lists** the queue and **moves** objects (`new/`→`kept/`/`trash/` = copy + delete), so
-   grant the runtime SA `roles/storage.objectAdmin` (or `objectUser`) on `TRANSMISSIONS_BUCKET`.
+   grant the runtime SA `roles/storage.objectAdmin` (or `objectUser`) on `TRANSMISSIONS_BUCKET`:
+
+   ```bash
+   # replace <TRANSMISSIONS_BUCKET> with the actual bucket name
+   gcloud storage buckets add-iam-policy-binding gs://<TRANSMISSIONS_BUCKET> \
+     --member="serviceAccount:vlgfm-run@village-radio.iam.gserviceaccount.com" \
+     --role="roles/storage.objectAdmin"
+   ```
+
    *Why:* `/admin/transmissions` 500s on load and keep/delete fail with 403 from GCS otherwise. No new
-   env, secrets, buckets, or APIs — playback proxies the bytes through ADC and soft-delete reuses the
-   same bucket. **Smoke test:** upload a clip via `/transmit` → it appears in `/admin/transmissions` →
-   **play** streams → **keep** removes it from the queue (now under `kept/`) → **delete** on another
-   moves it under `trash/`.
+   env, secrets, buckets, or APIs — `TRANSMISSIONS_BUCKET` is already wired (§14.1), playback proxies
+   the bytes through ADC, and soft-delete reuses the same bucket. **Smoke test:** upload a clip via
+   `/transmit` → it appears in `/admin/transmissions` → **play** streams → **keep** removes it from the
+   queue (now under `kept/`) → **delete** on another moves it under `trash/`.
