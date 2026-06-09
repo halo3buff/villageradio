@@ -1,11 +1,11 @@
 'use client';
 import { createContext, useContext, useRef, useState } from 'react';
 import type { Mix } from '@/lib/types';
-import { broadcastPlaylist } from '@/lib/data/mixes';
 
 type AudioMode = 'idle' | 'broadcast' | 'individual';
 
 interface AudioCtx {
+  playlist: Mix[];
   currentTrack: Mix | null;
   isPlaying: boolean;
   mode: AudioMode;
@@ -75,7 +75,7 @@ function getBroadcastPosition(durations: number[], offsetMs: number): { trackIdx
   return { trackIdx: 0, offsetSec: 0 };
 }
 
-export function AudioProvider({ children }: { children: React.ReactNode }) {
+export function AudioProvider({ children, playlist }: { children: React.ReactNode; playlist: Mix[] }) {
   const audioRef        = useRef<HTMLAudioElement | null>(null);
   const webCtxRef       = useRef<AudioContext | null>(null);
   const gainNodeRef     = useRef<GainNode | null>(null);
@@ -146,7 +146,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   function wireBroadcastTrack(idx: number) {
     const audio = audioRef.current!;
-    const track = broadcastPlaylist[idx];
+    const track = playlist[idx];
     if (!track) return;
 
     broadcastIdxRef.current = idx;
@@ -161,8 +161,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     audio.onended = () => {
       if (modeRef.current !== 'broadcast') return;
-      const nextIdx = (broadcastIdxRef.current + 1) % broadcastPlaylist.length;
-      const next = broadcastPlaylist[nextIdx];
+      const nextIdx = (broadcastIdxRef.current + 1) % playlist.length;
+      const next = playlist[nextIdx];
       broadcastIdxRef.current = nextIdx;
       setBroadcastIndex(nextIdx);
       setCurrentTrack(next);
@@ -184,7 +184,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     // All tracks have durationSec hardcoded — resolves instantly, no network requests
     if (!durationsRef.current) {
-      durationsRef.current = await Promise.all(broadcastPlaylist.map(getDuration));
+      durationsRef.current = await Promise.all(playlist.map(getDuration));
     }
 
     // Fetch server time once per session to correct for skewed device clocks
@@ -196,7 +196,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const totalDuration = durationsRef.current.reduce((a, b) => a + b, 0);
 
     console.log('[VR broadcast]', {
-      trackTitle: broadcastPlaylist[trackIdx].title,
+      trackTitle: playlist[trackIdx].title,
       seek: Math.round(offsetSec),
       totalDuration: Math.round(totalDuration),
       elapsed: Math.round(((Date.now() + serverOffsetRef.current) / 1000) % totalDuration),
@@ -215,7 +215,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       setIsPlaying(true);
     };
 
-    audio.src = broadcastPlaylist[trackIdx].src;
+    audio.src = playlist[trackIdx].src;
     audio.load();
   }
 
@@ -351,6 +351,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PlayerContext.Provider value={{
+      playlist,
       currentTrack, isPlaying, mode, broadcastIndex,
       play, broadcastPlay, pause, toggle, progress,
       analyserL, analyserR, analyserFreq,
