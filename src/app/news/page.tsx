@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getNews } from '@/lib/content/loaders';
+import { EditorialBody } from '@/components/EditorialBody';
 
 export const metadata: Metadata = { title: 'News' };
 
@@ -21,9 +22,7 @@ export default async function NewsPage() {
             <h1 className="font-mono text-xs tracking-widest uppercase mb-8" style={{ color: 'rgba(200,196,187,0.4)' }}>
               {post.date}
             </h1>
-            <p className="text-sm leading-relaxed max-w-[60ch]" style={{ color: 'rgba(200,196,187,0.75)' }}>
-              {post.body}
-            </p>
+            <EditorialBody markdown={post.body} />
           </article>
         ))}
       </div>
