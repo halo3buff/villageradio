@@ -355,6 +355,8 @@ function EntryEditor({
   );
 }
 
+type AddMode = 'existing' | 'upload';
+
 function AddPanel({
   knownFiles,
   existingIds,
@@ -366,24 +368,55 @@ function AddPanel({
   onAdd: (entry: BroadcastEntry) => void;
   onCancel: () => void;
 }) {
-  const [file, setFile] = useState(knownFiles[0]?.file ?? '');
+  const [mode, setMode] = useState<AddMode>(knownFiles.length ? 'existing' : 'upload');
+  const [existingFile, setExistingFile] = useState(knownFiles[0]?.file ?? '');
+  const [upload, setUpload] = useState<{ file: string; durationSec: number } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('Village Radio');
   const [kind, setKind] = useState<BroadcastKind>('mix');
   const [date, setDate] = useState('');
   const [series, setSeries] = useState<BroadcastSeries | ''>('');
-  const durationSec = knownFiles.find((f) => f.file === file)?.durationSec ?? 0;
+
+  const selected =
+    mode === 'upload'
+      ? upload
+      : knownFiles.find((f) => f.file === existingFile) ?? null;
+
+  async function uploadAudio(picked: File) {
+    setUploading(true);
+    setUploadError('');
+    setUpload(null);
+    try {
+      const body = new FormData();
+      body.append('audio', picked);
+      body.append('filename', picked.name);
+      const res = await fetch('/api/admin/broadcast/upload', { method: 'POST', body });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        setUploadError(json.error ?? 'upload failed');
+      } else {
+        setUpload({ file: json.file, durationSec: json.durationSec });
+        if (!title) setTitle(picked.name.replace(/\.[^.]+$/, ''));
+      }
+    } catch {
+      setUploadError('network error');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function submit() {
-    if (!file) return;
-    const id = generateEntryId(file, existingIds);
+    if (!selected) return;
+    const id = generateEntryId(selected.file, existingIds);
     const entry: BroadcastEntry = normalize({
       id,
       title,
       artist,
       date,
-      durationSec,
-      file,
+      durationSec: selected.durationSec,
+      file: selected.file,
       kind,
       ...(kind === 'mix' && series ? { series } : {}),
       tags: [],
@@ -393,21 +426,55 @@ function AddPanel({
 
   return (
     <div className="border border-white/15 p-4">
-      <p className="font-mono text-[8px] tracking-[0.2em] uppercase text-white/30 mb-4">
-        add an existing file (re-use an interlude or a previously uploaded mix) — upload of new
-        audio is added in the next step
-      </p>
+      <div className="flex gap-4 mb-4">
+        {(['upload', 'existing'] as AddMode[]).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            disabled={m === 'existing' && knownFiles.length === 0}
+            className={`font-mono text-[8.5px] tracking-[0.18em] uppercase transition-colors disabled:opacity-20 ${
+              mode === m ? 'text-white' : 'text-white/30 hover:text-white'
+            }`}
+          >
+            {m === 'upload' ? 'upload new audio' : 'existing file'}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-3 gap-x-5 gap-y-4">
-        <label>
-          <span className={FIELD_LABEL}>file</span>
-          <select className={FIELD} value={file} onChange={(e) => setFile(e.target.value)}>
-            {knownFiles.map((f) => (
-              <option key={f.file} value={f.file}>
-                {f.file}
-              </option>
-            ))}
-          </select>
-        </label>
+        {mode === 'existing' ? (
+          <label>
+            <span className={FIELD_LABEL}>file</span>
+            <select className={FIELD} value={existingFile} onChange={(e) => setExistingFile(e.target.value)}>
+              {knownFiles.map((f) => (
+                <option key={f.file} value={f.file}>
+                  {f.file}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label className="col-span-2">
+            <span className={FIELD_LABEL}>audio file (.mp3)</span>
+            <input
+              type="file"
+              accept="audio/mpeg"
+              disabled={uploading}
+              onChange={(e) => e.target.files?.[0] && uploadAudio(e.target.files[0])}
+              className="block w-full font-mono text-[10px] text-white/50 file:mr-3 file:border file:border-white/20 file:bg-transparent file:px-2 file:py-1 file:font-mono file:text-[9px] file:uppercase file:tracking-[0.16em] file:text-white/70 hover:file:border-white/50"
+            />
+            <span className="block mt-1 font-mono text-[8px] tracking-[0.14em] uppercase text-white/30">
+              {uploading
+                ? 'uploading + probing..'
+                : uploadError
+                  ? uploadError
+                  : upload
+                    ? `${upload.file} · ${formatDuration(upload.durationSec)}`
+                    : 'no file uploaded'}
+            </span>
+          </label>
+        )}
+
         <label>
           <span className={FIELD_LABEL}>kind</span>
           <select className={FIELD} value={kind} onChange={(e) => setKind(e.target.value as BroadcastKind)}>
@@ -446,11 +513,12 @@ function AddPanel({
           </>
         )}
       </div>
+
       <div className="flex items-center gap-3 mt-5">
         <button
           onClick={submit}
-          disabled={!file}
-          className="font-mono text-[9.5px] tracking-[0.16em] uppercase text-white border border-white/20 hover:border-white/60 px-3 py-2 transition-colors disabled:opacity-30"
+          disabled={!selected || uploading}
+          className="font-mono text-[9.5px] tracking-[0.16em] uppercase text-white border border-white/20 hover:border-white/60 px-3 py-2 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
         >
           add ▸
         </button>
@@ -461,7 +529,7 @@ function AddPanel({
           cancel
         </button>
         <span className="font-mono text-[8px] tracking-[0.16em] uppercase text-white/25 ml-auto">
-          {file ? `${formatDuration(durationSec)}` : 'no file'}
+          {selected ? formatDuration(selected.durationSec) : 'no file'}
         </span>
       </div>
     </div>
