@@ -1,13 +1,18 @@
+import type { BroadcastManifest } from '@/lib/types';
 import { requireAdmin } from '@/lib/auth/guard';
+import { readManifest } from '@/lib/content/store';
+import { SEED_BROADCAST } from '@/lib/content/seed';
+import { ArrangementList } from '@/components/admin/ArrangementList';
+
+// Read the LIVE manifest (real generation), never the 300s-cached public loader.
+export const dynamic = 'force-dynamic';
 
 export default async function AdminBroadcast() {
   await requireAdmin();
-  return (
-    <div className="px-6 pt-8 page-enter">
-      <p className="font-mono text-[0.7rem] tracking-[0.18em] uppercase text-white/70">Broadcast</p>
-      <p className="mt-3 font-mono text-[0.65rem] tracking-[0.14em] uppercase text-white/30">
-        console — Phase 2
-      </p>
-    </div>
-  );
+  // Falls back to the bundled seed (generation '0' = "create if absent") until first publish.
+  const res = await readManifest<BroadcastManifest>('broadcast.json');
+  const manifest = res?.data ?? SEED_BROADCAST;
+  const generation = res?.generation ?? '0';
+
+  return <ArrangementList initialEntries={manifest.entries} generation={generation} />;
 }
