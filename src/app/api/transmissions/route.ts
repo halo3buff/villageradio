@@ -1,10 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
+import { Storage } from '@google-cloud/storage';
 
 export const runtime = 'nodejs';
 
 const MAX_BYTES = 5_242_880; // 5 MB
+
+// One client per warm instance. On Cloud Run this authenticates via the attached
+// runtime service account (ADC); locally via `gcloud auth application-default login`.
+const storage = new Storage();
+
+function bucketName(): string {
+  const name = process.env.TRANSMISSIONS_BUCKET;
+  if (!name) throw new Error('TRANSMISSIONS_BUCKET is not set');
+  return name;
+}
 
 function sanitizeHandle(raw: string | null): string {
   if (!raw) return 'anon';
@@ -50,12 +60,11 @@ export async function POST(req: Request): Promise<Response> {
   const key = `transmissions/${isoTimestampForKey()}-${handle}-${randomSuffix()}.webm`;
 
   try {
-    // TODO: reconsider switching the Blob store to public access so transmissions can be played
-    // back via direct URL instead of needing a signed/proxied route.
-    await put(key, audio, {
-      access: 'private',
-      addRandomSuffix: false,
+    const buffer = Buffer.from(await audio.arrayBuffer());
+    // Private object; uniform bucket-level access + public-access-prevention keep it so.
+    await storage.bucket(bucketName()).file(key).save(buffer, {
       contentType: 'audio/webm',
+      resumable: false,
     });
   } catch (err) {
     console.error('[transmissions] upload failed', err);

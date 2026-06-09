@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(npx eslint *)",
+      "Bash(node scripts/probe-durations.mjs)",
+      "Bash(ffprobe -version)",
+      "Bash(git show *)",
+      "Bash(git log *)",
+      "Bash(git ls-tree *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git stash *)",
+      "Bash(git push *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git reset *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git rm *)",
+      "Bash(git mv *)",
+      "Skill(vercel:status)"
+    ]
+  }
+}

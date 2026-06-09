@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.19.0",
     "@vercel/blob": "^2.3.3",
     "next": "^16.2.6",
     "react": "^19.0.0",
