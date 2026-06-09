@@ -95,7 +95,8 @@ function drawSpectrumFrame(
   for (let i = 0; i < bc; i++) {
     const x = (i / bc) * w;
     const y = h - (((-120 + (data[i] / 255) * 80) + 120) / 80) * h;
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   }
   ctx.strokeStyle = AMBER;
   ctx.lineWidth = 1.5;
@@ -107,7 +108,8 @@ function drawSpectrumFrame(
     for (let i = 0; i < bc; i++) {
       const x = (i / bc) * w;
       const y = h - (((-120 + (peakHold[i] / 255) * 80) + 120) / 80) * h;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     }
     ctx.strokeStyle = 'rgba(200, 160, 40, 0.35)';
     ctx.lineWidth = 1;
@@ -510,7 +512,7 @@ export function SDRWaterfall() {
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(74,158,74,0.3) transparent',
           } as React.CSSProperties}>
-            {filteredTracks.map((mix, idx) => {
+            {filteredTracks.map((mix) => {
               const globalIdx = playlist.indexOf(mix);
               const vrId = `VR-${String(globalIdx + 1).padStart(3, '0')}`;
               const isActive = currentTrack?.id === mix.id && isIndividualPlaying;

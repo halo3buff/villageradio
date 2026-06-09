@@ -10,7 +10,8 @@ brand-design portfolio, and photography. Built for atmosphere, not features.
 ## Stack
 - **Framework**: Next.js 16 (App Router), React 19, TypeScript (strict)
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/postcss`) + CSS custom properties
-- **Lint**: ESLint 9 + `eslint-config-next`
+- **Lint**: ESLint 9 (flat config `eslint.config.mjs`, `eslint-config-next`). Run it with
+  `npm run lint` (= `eslint .`). **Do not use `next lint`** — it was removed in Next 16.
 - **Audio hosting**: Cloudflare R2 (public bucket) for broadcast mixes
 - **User uploads**: Vercel Blob (private) for `/transmit` submissions
 - **Deployment**: Vercel — pushes to `main` deploy to production automatically
@@ -32,7 +33,7 @@ brand-design portfolio, and photography. Built for atmosphere, not features.
 - `npm run dev` — start local dev server (http://localhost:3000)
 - `npm run build` — production build
 - `npm run start` — serve a production build locally
-- `npm run lint` — run ESLint
+- `npm run lint` — run ESLint (`eslint .`; **not** `next lint`, removed in Next 16)
 - `npx tsc --noEmit` — typecheck without emitting
 - `node scripts/probe-durations.mjs` — probe MP3 durations from R2 (see "Adding mixes")
 
