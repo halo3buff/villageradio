@@ -278,7 +278,8 @@ No new dependencies: duration probing and markdown parsing reuse existing in-rep
 **API (`/api/admin/*`, all behind the 404 gate + per-route auth)**
 - `POST login`, `POST logout`
 - `GET/PUT broadcast`, `photos`, `work`, `news`, `information`, `settings`
-- `POST upload-url` (signed URL) · `GET/POST transmissions` (list/moderate)
+- `POST upload-url` (signed URL) · `GET/POST transmissions` (list / keep+delete) ·
+  `GET transmissions/audio` (Phase 5: private-object playback proxy, `requireAdmin`-gated)
 
 **Public refactors:** `listen`/home (broadcast), `photography`, `work`, `news`, `information`
 read manifests via the cached store instead of hardcoded data. `/api/audio/stream` allowlist
@@ -330,7 +331,23 @@ Each phase ships independently and must pass **lint + typecheck + build** before
   `EditorialBody.tsx`). Information edits the single `information.md` document (text in
   `CONFIG_BUCKET`, same parser). **No new infra, secrets, or env — reuses the Phase 0/1 gates and
   needs no R2.**
-- **Phase 5 — Transmissions moderation.** Queue: list/play/keep/delete via prefix moves.
+- **Phase 5 — Transmissions moderation** *(DONE — branch `adnan`, 2026-06-09)*. Moderation queue:
+  list → play → keep → delete, with state encoded purely by **object prefix** (no manifest, no
+  staged-publish — each action is an immediate GCS move). **DECISIONS:** (a) **dedicated `new/` +
+  `kept/` + `trash/` prefixes** — the public upload route now writes incoming uploads to
+  `transmissions/new/` (`src/app/api/transmissions/route.ts`); `listQueue` surfaces `new/` **plus
+  any legacy bare-root** `transmissions/*.webm` so nothing is stranded (no migration script).
+  (b) **Playback proxies through an admin route** (`GET /api/admin/transmissions/audio`) that streams
+  the private GCS bytes behind `requireAdmin()`, mirroring `/api/audio/stream` — **no signed URLs**,
+  so no `signBlob` IAM grant / IAM Credentials API. (c) **Delete is soft** — the bucket has no object
+  versioning, so `delete` **moves** the object to `transmissions/trash/` (recoverable via console)
+  guarded by a two-click inline confirm; `keep` moves it to `transmissions/kept/`. New code:
+  `src/lib/transmissions/{names,store}.ts` (own `Storage()` singleton on `TRANSMISSIONS_BUCKET`),
+  `src/app/api/admin/transmissions/{route,audio/route}.ts`,
+  `src/components/admin/ModerationQueue.tsx`. Security-critical name validation
+  (`assertSafeTransmissionName`) is unit-tested against traversal. **The one manual gate: the runtime
+  SA needs list/copy/delete on `TRANSMISSIONS_BUCKET`** (see §14.2 step 9) — upload only ever needed
+  create. No new env, secrets, buckets, or APIs.
 - **Phase 6 — Hardening & docs.** Settings, audit log view, security headers, CSP; **fix
   AGENTS.md drift**; final security review.
 
@@ -353,7 +370,10 @@ Each phase will get its own implementation plan (via writing-plans) when we reac
    extending it (`##`/`###`, lists, inline links/images) once the editorial flow is in use.
 4. ~~**DnD approach**~~ **RESOLVED:** native HTML5 DnD across broadcast/photo/work managers —
    no `@dnd-kit`.
-5. **Transmissions** — currently private; "feature on site" is explicitly out of v1.
+5. ~~**Transmissions**~~ **RESOLVED (Phase 5):** moderation now exists (list/play/keep/delete via
+   `new/`→`kept/`/`trash/` prefix moves; private playback proxied behind `requireAdmin()`). Delete is
+   **soft** (move to `transmissions/trash/`) since the bucket has no versioning. Still private —
+   "feature on site" remains out of v1.
 6. **Session secret rotation** — document the bump-to-revoke procedure.
 7. **Backups** — rely on GCS object versioning for content history/rollback.
 
@@ -447,3 +467,12 @@ provisioning).
    Idempotent; R2 is Cloudflare (not Google) so the VPN→Google hang does not apply.
 8. **(Optional) Obscurity** — set `ADMIN_LOGIN_PATH` / finalize the key sequence if changing
    defaults. *Why:* doorknob obscurity only — real security is the gate + auth.
+9. **(Phase 5 — gates the moderation queue) grant the runtime SA list/copy/delete on
+   `TRANSMISSIONS_BUCKET`.** The public upload route only ever needed **create** (`.save()`), but
+   moderation **lists** the queue and **moves** objects (`new/`→`kept/`/`trash/` = copy + delete), so
+   grant the runtime SA `roles/storage.objectAdmin` (or `objectUser`) on `TRANSMISSIONS_BUCKET`.
+   *Why:* `/admin/transmissions` 500s on load and keep/delete fail with 403 from GCS otherwise. No new
+   env, secrets, buckets, or APIs — playback proxies the bytes through ADC and soft-delete reuses the
+   same bucket. **Smoke test:** upload a clip via `/transmit` → it appears in `/admin/transmissions` →
+   **play** streams → **keep** removes it from the queue (now under `kept/`) → **delete** on another
+   moves it under `trash/`.
