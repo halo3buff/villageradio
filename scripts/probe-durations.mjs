@@ -2,6 +2,10 @@
  * Probes MP3 durations from R2 using byte-range requests.
  * Uses Xing/Info VBR header when present, falls back to CBR estimate.
  * Run: node scripts/probe-durations.mjs
+ *
+ * NOTE: this standalone dev script is kept as-is. The app's runtime probing (broadcast
+ * uploads) lives in `src/lib/audio/probe.ts`, which is the spec-correct, unit-tested version
+ * (this script's layer/bitrate-table mapping is not reliable for Layer III files).
  */
 
 const R2 = 'https://pub-fa76dac35d0c4ddf9a81d5267a06b241.r2.dev';
