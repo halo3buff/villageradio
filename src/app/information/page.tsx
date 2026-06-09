@@ -1,12 +1,10 @@
-import fs from 'fs';
-import path from 'path';
 import type { Metadata } from 'next';
+import { getInformation } from '@/lib/content/loaders';
 
 export const metadata: Metadata = { title: 'Information' };
 
-export default function InformationPage() {
-  const filePath = path.join(process.cwd(), 'public', 'information', 'info_page.md');
-  const raw = fs.readFileSync(filePath, 'utf-8');
+export default async function InformationPage() {
+  const raw = await getInformation();
 
   const blocks = raw.split(/\n\n+/).filter(s => s.trim());
 
