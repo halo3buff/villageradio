@@ -14,17 +14,22 @@ export function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setError('');
-    const res = await fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    if (res.ok) {
-      router.push('/admin');
-      return;
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (res.ok) {
+        router.push('/admin');
+        return;
+      }
+      setBusy(false);
+      setError(res.status === 429 ? 'too many attempts — wait a few minutes' : 'denied');
+    } catch {
+      setBusy(false);
+      setError('network error — try again');
     }
-    setBusy(false);
-    setError(res.status === 429 ? 'too many attempts — wait a few minutes' : 'denied');
   }
 
   return (
@@ -40,6 +45,7 @@ export function LoginForm() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
+          required
           className="w-full bg-transparent border-b border-white/15 pb-1.5 font-mono text-sm text-white outline-none focus:border-white/40"
         />
       </label>
@@ -52,6 +58,7 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
+          required
           className="w-full bg-transparent border-b border-white/15 pb-1.5 font-mono text-sm text-white outline-none focus:border-white/40"
         />
       </label>
