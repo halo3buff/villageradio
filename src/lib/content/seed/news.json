@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "posts": [
+    { "id": "transmission-notes-vol-i", "title": "Transmission Notes — Vol. I", "date": "2026-04-06", "body": "The signal is always there. Sometimes it is buried under noise. Sometimes the noise is the signal. We are still figuring out which.", "status": "published", "order": 0 },
+    { "id": "on-the-archive", "title": "On the Archive", "date": "2026-02-14", "body": "An archive is not a record of what happened. It is a record of what survived.", "status": "published", "order": 1 }
+  ]
+}
