@@ -103,22 +103,33 @@ loader (`unstable_cache` / tagged fetch). **Publishing busts the tag** (`revalid
 changes appear promptly; otherwise a short TTL backstops. Admin views read **live** (no cache).
 
 ### 4.3 Media storage & serving
-- **New `MEDIA_BUCKET`** (GCS) for admin-uploaded **images** (audio mixes stay on R2 — below).
+
+> **DECISION (Phase 3, 2026-06-09): ALL admin-uploaded media — audio AND images — lives on
+> Cloudflare R2. There is NO GCS `MEDIA_BUCKET`.** One R2 bucket, free egress, already wired for
+> writes. Audio sits at the bucket root; images go under `photos/` and `work/` prefixes. This
+> supersedes the original GCS-media-bucket recommendation below and **closes open item 12.2** (no
+> public GCS bucket → no org-policy question). **Every future admin image upload (Phase 4
+> news/editorial images, any later media) MUST follow the same R2-prefix pattern, not GCS.** User
+> transmissions (Phase 5) are the one exception and stay on private GCS (`TRANSMISSIONS_BUCKET`).
+
 - **Audio:** served through the existing `/api/audio/stream` proxy, which **keeps sourcing
   mixes from Cloudflare R2**. R2 egress is free and GCS egress is not, so **audio bytes stay
-  on R2 — do not migrate them to GCS.** The only change vs. today: the proxy **allowlist is
-  derived from `broadcast.json`** instead of a hardcoded array — same single-source-of-truth
-  pattern, just editable.
-- **Images:** primary recommendation — a **public-read media bucket fronted by Cloud CDN**
-  (cheapest, cacheable, fast), served via `next/image`. **Fallback** if org policy enforces
-  public-access-prevention: keep private and serve via short-cache signed URLs or a small
-  image route. → *Open item 12.2: confirm org policy.*
+  on R2.** The only change vs. today: the proxy **allowlist is derived from `broadcast.json`**
+  instead of a hardcoded array — same single-source-of-truth pattern, just editable.
+- **Images:** written to R2 via the same S3 API as audio (`putImage` in `src/lib/storage/r2.ts`,
+  sibling of `putAudio`) under `photos/`/`work/` prefixes; served **directly from the public
+  `pub-…r2.dev` URL via `next/image`** (host allowlisted in `next.config.ts` → `remotePatterns`).
+  The stream allowlist derives ONLY from `broadcast.json`, so a prefixed image can never be served
+  as audio. Resolver: `src/lib/content/media.ts` (`photoUrl`/`workImageUrl`).
+- *Superseded original recommendation: a public-read GCS media bucket fronted by Cloud CDN, with
+  a private + signed-URL fallback. Dropped in favor of R2 to reuse the wired write path, keep
+  egress free, and avoid the org public-bucket question entirely.*
 
 ### 4.4 Secrets — Secret Manager
 Admin **username**, **Argon2id password hash**, and the **session signing secret** live in
 **Secret Manager**, injected into Cloud Run via `--set-secrets` (not plaintext env). The
 deploy workflow already uses keyless WIF; add the `--set-secrets` flags and grant the runtime
-SA `secretAccessor`. `MEDIA_BUCKET` joins `TRANSMISSIONS_BUCKET` as a plain env var.
+SA `secretAccessor`. (No `MEDIA_BUCKET` — images reuse R2 per §4.3.)
 
 ---
 
@@ -214,7 +225,10 @@ interface NewsPost { id; title; date; body /* markdown */; status: 'draft'|'publ
 
 **Migration/seed:** a one-time script writes the current hardcoded data (`mixes.ts`, news
 array, photography filenames, `info_page.md`) into the manifests, and uploads existing
-in-repo/R2 media references. Public pages then read manifests; behavior is preserved.
+in-repo/R2 media references. Public pages then read manifests; behavior is preserved. The 41
+in-repo photos are migrated to R2 (`photos/` prefix) by `scripts/migrate-photos-to-r2.mjs`
+(Phase 3); the media URL resolver serves un-migrated (bare) keys from `/public`, so nothing
+breaks mid-migration.
 
 ---
 
@@ -245,8 +259,10 @@ the proxy allowlist are *derived*, exactly like `mixes.ts` does now.
   files; test, since the heavy leg from a laptop is the same direct-to-Google upload that
   hung before. Mitigation: through-app for small files; turn VPN off for large ones; or keep
   the existing CI path for the occasional huge file.*
-- **Images (small):** through-app POST (≤ a few MB) → validate (magic bytes) → write to
-  `MEDIA_BUCKET` → update `photos.json` / `work.json`. Serve via `next/image`.
+- **Images (small):** through-app POST (≤ 10 MB) → validate (content-type allowlist + size cap +
+  **magic-byte sniff, which is the authoritative type — `blob.type` is not trusted**) → write to
+  **R2** under `photos/`/`work/` (not GCS — see §4.3) → update `photos.json` / `work.json`. Serve
+  via `next/image` from the public R2 URL. Shared handler: `src/lib/image/upload-handler.ts`.
 
 No new dependencies: duration probing and markdown parsing reuse existing in-repo code.
 
@@ -300,8 +316,13 @@ Each phase ships independently and must pass **lint + typecheck + build** before
 - **Phase 2 — Broadcast admin.** Arrangement list (reorder, edit, staged publish); audio
   upload (target **R2**, not GCS — see §4.3) + duration probe. Stream proxy keeps sourcing
   from R2; **not** extended to GCS.
-- **Phase 3 — Media admin.** Photography + work grid managers; image upload; public pages.
-- **Phase 4 — Editorial.** News + information editors (reuse block parser).
+- **Phase 3 — Media admin** *(DONE — branch `adnan`, 2026-06-09)*. Photography + work grid
+  managers; through-app image upload **to R2** (`photos/`/`work/` prefixes — **no GCS
+  `MEDIA_BUCKET`**, see §4.3); public photography + work pages read manifests. Work is grid-only
+  v1 (cover = `images[0]`; no `/work/[id]` detail pages).
+- **Phase 4 — Editorial.** News + information editors (reuse block parser). **Any post/editorial
+  images upload to R2 under a prefix (e.g. `news/`), reusing `putImage` + the §4.3 pattern — not
+  GCS.**
 - **Phase 5 — Transmissions moderation.** Queue: list/play/keep/delete via prefix moves.
 - **Phase 6 — Hardening & docs.** Settings, audit log view, security headers, CSP; **fix
   AGENTS.md drift**; final security review.
@@ -314,12 +335,15 @@ Each phase will get its own implementation plan (via writing-plans) when we reac
 
 1. **VPN vs direct-to-R2 uploads** (§8) — test whether the known VPN hang affects browser
    uploads of large mixes to R2; pick the default path accordingly. (Audio stays on R2 per
-   §4.3, so this is an R2 upload concern, not GCS.)
-2. **Org policy on public buckets** (§4.3) — confirm whether images can be public-read
-   (bucket + CDN) or must be private (signed URLs / proxy).
+   §4.3, so this is an R2 upload concern, not GCS.) *Phase 3 note:* image upload is through-app
+   (small) and the photo migration writes to R2 (Cloudflare, **not** Google) — the Google-VPN
+   hang does not apply to either.
+2. ~~**Org policy on public buckets**~~ **RESOLVED (Phase 3):** images reuse R2 (public
+   `pub-…r2.dev`), so there is no public GCS bucket and the org-policy question never arises.
 3. **Markdown** — reuse the info page's block parser for news/info; confirm it's enough or
    extend minimally (no new lib preferred).
-4. **DnD approach** — native HTML5 vs `@dnd-kit`.
+4. ~~**DnD approach**~~ **RESOLVED:** native HTML5 DnD across broadcast/photo/work managers —
+   no `@dnd-kit`.
 5. **Transmissions** — currently private; "feature on site" is explicitly out of v1.
 6. **Session secret rotation** — document the bump-to-revoke procedure.
 7. **Backups** — rely on GCS object versioning for content history/rollback.
@@ -357,19 +381,21 @@ config lives as Cloud Run env. Nothing sensitive is committed.
 | `TRANSMISSIONS_BUCKET` | env | pre-admin | GCS bucket for user transmissions. Already wired. |
 | `R2_ACCOUNT_ID` | Secret Manager | 2 | Cloudflare account id → S3 endpoint `https://<id>.r2.cloudflarestorage.com`. |
 | `R2_BUCKET` | Secret Manager | 2 | R2 bucket for audio. **Must be the same bucket bound to the public `pub-…r2.dev` URL** the stream proxy reads. |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Secret Manager | 2 | R2 S3-API token (Object Read & Write) for through-app uploads. |
-| `MEDIA_BUCKET` | env | 3 (future) | GCS bucket for admin-uploaded images. |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Secret Manager | 2 | R2 S3-API token (Object Read & Write) for through-app uploads (audio **and** images). |
+| ~~`MEDIA_BUCKET`~~ | — | — | **Not used.** Phase 3 reuses R2 for images (see §4.3); no GCS image bucket. Images write via the same `R2_*` creds, under `photos/`/`work/` prefixes. |
 
-R2 **read** needs no env — the public `pub-…r2.dev` URL is hardcoded in the stream proxy and
-the duration prober. Only R2 **writes** (Phase 2 upload) need credentials.
+R2 **read** needs no env — the public `pub-…r2.dev` URL is hardcoded in the stream proxy, the
+duration prober, and the image resolver (`src/lib/content/media.ts`). Only R2 **writes** (Phase 2
+audio + Phase 3 image uploads, and the photo migration) need credentials.
 
 ### 14.2 Manual setup (in order, with why)
 
 **Blocking gates** (which steps must be done before a feature works in deployment): the admin
-panel is unreachable until **3 + 4**; content editing/publish needs **1 + 2 + 4**; **Phase 2
-audio upload is non-functional until step 6** (the code is shipped + unit-tested, but every
-upload fails without R2 write credentials). Arrangement editing (reorder/edit/publish) does
-*not* depend on step 6.
+panel is unreachable until **3 + 4**; content editing/publish (broadcast arrangement, photo +
+work metadata reorder/edit/delete/publish) needs **1 + 2 + 4** and does *not* depend on R2;
+**Phase 2 audio upload AND Phase 3 image upload + the photo→R2 migration (step 7) are all
+non-functional until step 6** — the code is shipped + unit-tested, but every R2 write fails
+without R2 credentials.
 
 1. **Config bucket** — create the GCS `CONFIG_BUCKET`; enable **object versioning** (free edit
    history + one-click rollback), uniform bucket-level access, public-access-prevention.
@@ -385,14 +411,24 @@ upload fails without R2 write credentials). Arrangement editing (reorder/edit/pu
 5. **Seed manifests** — run the Phase 1 seed/migration, or let the first admin publish create
    `broadcast.json` via `ifGenerationMatch:0`. *Why:* public pages read manifests; until
    seeded they serve the bundled seed.
-6. **(Phase 2 — gates audio upload) R2 S3 token** — create a Cloudflare R2 API token (Object
-   Read & Write); capture `R2_ACCOUNT_ID` + `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` +
-   `R2_BUCKET`; **confirm `R2_BUCKET` is the same bucket bound to the public `pub-…r2.dev`
-   URL** the stream proxy reads; add all four to Secret Manager + the Cloud Run `--set-secrets`
-   wiring. *Why:* through-app audio upload writes via the S3 API — a mismatched bucket uploads
-   somewhere the stream proxy can't read, so playback would 404 even though the upload
-   "succeeded". **Smoke test after wiring:** upload a small `.mp3` in the admin → `GET
-   https://pub-…r2.dev/<returned file>` returns 200 → add it to the lineup + publish → it
-   streams through `/api/audio/stream`.
-7. **(Optional) Obscurity** — set `ADMIN_LOGIN_PATH` / finalize the key sequence if changing
+6. **(Phase 2 + 3 — gates audio AND image upload) R2 S3 token** — create a Cloudflare R2 API
+   token (Object Read & Write); capture `R2_ACCOUNT_ID` + `R2_ACCESS_KEY_ID` +
+   `R2_SECRET_ACCESS_KEY` + `R2_BUCKET`; **confirm `R2_BUCKET` is the same bucket bound to the
+   public `pub-…r2.dev` URL** the stream proxy + image resolver read; add all four to Secret
+   Manager + the Cloud Run `--set-secrets` wiring. *Why:* through-app uploads (audio at the
+   bucket root; images under `photos/`/`work/`) write via the S3 API — a mismatched bucket
+   uploads somewhere the public URL can't read, so playback / images would 404 even though the
+   upload "succeeded". **Smoke test after wiring:** upload a small `.mp3` → `GET
+   https://pub-…r2.dev/<returned file>` 200 → add to the lineup + publish → streams via
+   `/api/audio/stream`; upload a `.jpg` in `/admin/photography` → `GET
+   https://pub-…r2.dev/photos/<key>` 200 → publish → renders on `/photography`.
+7. **(Phase 3 — one-time photo migration) move the 41 in-repo photos to R2.** After step 6 is
+   wired, run `R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… R2_BUCKET=… node
+   scripts/migrate-photos-to-r2.mjs` (preview first with `--dry-run`, which needs no creds). It
+   uploads `public/images/photography/negative/*` under `photos/` and rewrites the seed
+   `photos.json` keys. *Then* open `/admin/photography` and **Publish** so the prefixed keys land
+   in the live GCS manifest. *Why:* until this runs, photo keys stay bare and serve from
+   `/public` (the resolver handles both, so nothing breaks); after it, photos serve from R2.
+   Idempotent; R2 is Cloudflare (not Google) so the VPN→Google hang does not apply.
+8. **(Optional) Obscurity** — set `ADMIN_LOGIN_PATH` / finalize the key sequence if changing
    defaults. *Why:* doorknob obscurity only — real security is the gate + auth.
