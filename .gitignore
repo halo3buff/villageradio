@@ -50,3 +50,6 @@ docs/instructions.md
 
 # Claude Code local/personal settings — shared settings live in .claude/settings.json
 .claude/settings.local.json
+
+# brainstorming visual companion
+.superpowers/
