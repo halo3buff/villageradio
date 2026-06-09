@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
@@ -23,6 +25,7 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4.1.6",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^2.1.8"
   }
 }
