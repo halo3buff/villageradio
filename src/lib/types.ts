@@ -78,3 +78,15 @@ export interface NewsManifest {
   version: 1;
   posts: NewsPost[];
 }
+
+// --- Transmissions moderation (private GCS; state encoded by object prefix, no manifest) ----
+
+export type TransmissionState = 'new' | 'kept' | 'trash';
+
+export interface TransmissionItem {
+  name: string;            // full GCS object name, e.g. 'transmissions/new/2026-…-anon-ab12cd34.webm'
+  handle: string;          // parsed from the filename ('anon' fallback)
+  uploadedAt: string;      // ISO parsed from the filename timestamp; GCS timeCreated fallback
+  sizeBytes: number;
+  state: TransmissionState;
+}
