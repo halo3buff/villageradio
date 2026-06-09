@@ -1,21 +1,21 @@
 {
   "version": 1,
   "entries": [
-    { "id": "inter-1", "title": "TRANSMISSION BREAK I", "artist": "Village Radio", "date": "", "durationSec": 22, "file": "inter_1.mp3", "kind": "inter", "tags": [] },
-    { "id": "red-06-28-2025", "title": "RED 06.28.2025", "artist": "Village Radio", "date": "06-28-2025", "durationSec": 498, "file": "red_06-28-2025.mp3", "kind": "mix", "series": "red", "tags": [] },
-    { "id": "inter-2", "title": "TRANSMISSION BREAK II", "artist": "Village Radio", "date": "", "durationSec": 20, "file": "inter_2.mp3", "kind": "inter", "tags": [] },
-    { "id": "green-04-08-2026", "title": "GREEN 04.08.2026", "artist": "Village Radio", "date": "04-08-2026", "durationSec": 209, "file": "green_04-08-2026.mp3", "kind": "mix", "series": "green", "tags": [] },
-    { "id": "inter-3", "title": "TRANSMISSION BREAK III", "artist": "Village Radio", "date": "", "durationSec": 105, "file": "inter_3.mp3", "kind": "inter", "tags": [] },
-    { "id": "yellow-02-01-2026", "title": "YELLOW 02.01.2026", "artist": "Village Radio", "date": "02-01-2026", "durationSec": 305, "file": "yellow_02-01-2026.mp3", "kind": "mix", "series": "yellow", "tags": [] },
-    { "id": "inter-4", "title": "TRANSMISSION BREAK IV", "artist": "Village Radio", "date": "", "durationSec": 20, "file": "inter_4.mp3", "kind": "inter", "tags": [] },
-    { "id": "green-04-10-2026", "title": "GREEN 04.10.2026", "artist": "Village Radio", "date": "04-10-2026", "durationSec": 202, "file": "green_04-10-2026.mp3", "kind": "mix", "series": "green", "tags": [] },
-    { "id": "inter-5", "title": "TRANSMISSION BREAK V", "artist": "Village Radio", "date": "", "durationSec": 37, "file": "inter_5.mp3", "kind": "inter", "tags": [] },
-    { "id": "red-01-15-2026", "title": "RED 01.15.2026", "artist": "Village Radio", "date": "01-15-2026", "durationSec": 105, "file": "red_01-15-2026.mp3", "kind": "mix", "series": "red", "tags": [] },
-    { "id": "inter-1b", "title": "TRANSMISSION BREAK I", "artist": "Village Radio", "date": "", "durationSec": 22, "file": "inter_1.mp3", "kind": "inter", "tags": [] },
-    { "id": "green-05-19-2026", "title": "GREEN 05.19.2026", "artist": "Village Radio", "date": "05-19-2026", "durationSec": 355, "file": "green_05-19-2026.mp3", "kind": "mix", "series": "green", "tags": [] },
-    { "id": "inter-2b", "title": "TRANSMISSION BREAK II", "artist": "Village Radio", "date": "", "durationSec": 20, "file": "inter_2.mp3", "kind": "inter", "tags": [] },
-    { "id": "red-05-20-2026", "title": "RED 05.20.2026", "artist": "Village Radio", "date": "05-20-2026", "durationSec": 391, "file": "red_05-20-2026.mp3", "kind": "mix", "series": "red", "tags": [] },
-    { "id": "inter-3b", "title": "TRANSMISSION BREAK III", "artist": "Village Radio", "date": "", "durationSec": 105, "file": "inter_3.mp3", "kind": "inter", "tags": [] },
-    { "id": "green-05-20-2026", "title": "GREEN 05.20.2026", "artist": "Village Radio", "date": "05-20-2026", "durationSec": 235, "file": "green_05-20-2026.mp3", "kind": "mix", "series": "green", "tags": [] }
+    { "id": "inter-1", "title": "TRANSMISSION BREAK I", "artist": "Village Radio", "date": "", "durationSec": 65, "file": "inter_1.mp3", "kind": "inter", "tags": [] },
+    { "id": "red-06-28-2025", "title": "RED 06.28.2025", "artist": "Village Radio", "date": "06-28-2025", "durationSec": 1493, "file": "red_06-28-2025.mp3", "kind": "mix", "series": "red", "tags": [] },
+    { "id": "inter-2", "title": "TRANSMISSION BREAK II", "artist": "Village Radio", "date": "", "durationSec": 61, "file": "inter_2.mp3", "kind": "inter", "tags": [] },
+    { "id": "green-04-08-2026", "title": "GREEN 04.08.2026", "artist": "Village Radio", "date": "04-08-2026", "durationSec": 627, "file": "green_04-08-2026.mp3", "kind": "mix", "series": "green", "tags": [] },
+    { "id": "inter-3", "title": "TRANSMISSION BREAK III", "artist": "Village Radio", "date": "", "durationSec": 314, "file": "inter_3.mp3", "kind": "inter", "tags": [] },
+    { "id": "yellow-02-01-2026", "title": "YELLOW 02.01.2026", "artist": "Village Radio", "date": "02-01-2026", "durationSec": 914, "file": "yellow_02-01-2026.mp3", "kind": "mix", "series": "yellow", "tags": [] },
+    { "id": "inter-4", "title": "TRANSMISSION BREAK IV", "artist": "Village Radio", "date": "", "durationSec": 61, "file": "inter_4.mp3", "kind": "inter", "tags": [] },
+    { "id": "green-04-10-2026", "title": "GREEN 04.10.2026", "artist": "Village Radio", "date": "04-10-2026", "durationSec": 607, "file": "green_04-10-2026.mp3", "kind": "mix", "series": "green", "tags": [] },
+    { "id": "inter-5", "title": "TRANSMISSION BREAK V", "artist": "Village Radio", "date": "", "durationSec": 110, "file": "inter_5.mp3", "kind": "inter", "tags": [] },
+    { "id": "red-01-15-2026", "title": "RED 01.15.2026", "artist": "Village Radio", "date": "01-15-2026", "durationSec": 314, "file": "red_01-15-2026.mp3", "kind": "mix", "series": "red", "tags": [] },
+    { "id": "inter-1b", "title": "TRANSMISSION BREAK I", "artist": "Village Radio", "date": "", "durationSec": 65, "file": "inter_1.mp3", "kind": "inter", "tags": [] },
+    { "id": "green-05-19-2026", "title": "GREEN 05.19.2026", "artist": "Village Radio", "date": "05-19-2026", "durationSec": 1066, "file": "green_05-19-2026.mp3", "kind": "mix", "series": "green", "tags": [] },
+    { "id": "inter-2b", "title": "TRANSMISSION BREAK II", "artist": "Village Radio", "date": "", "durationSec": 61, "file": "inter_2.mp3", "kind": "inter", "tags": [] },
+    { "id": "red-05-20-2026", "title": "RED 05.20.2026", "artist": "Village Radio", "date": "05-20-2026", "durationSec": 1173, "file": "red_05-20-2026.mp3", "kind": "mix", "series": "red", "tags": [] },
+    { "id": "inter-3b", "title": "TRANSMISSION BREAK III", "artist": "Village Radio", "date": "", "durationSec": 314, "file": "inter_3.mp3", "kind": "inter", "tags": [] },
+    { "id": "green-05-20-2026", "title": "GREEN 05.20.2026", "artist": "Village Radio", "date": "05-20-2026", "durationSec": 705, "file": "green_05-20-2026.mp3", "kind": "mix", "series": "green", "tags": [] }
   ]
 }
