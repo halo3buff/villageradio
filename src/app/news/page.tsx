@@ -1,21 +1,10 @@
 import type { Metadata } from 'next';
+import { getNews } from '@/lib/content/loaders';
 
 export const metadata: Metadata = { title: 'News' };
 
-const posts = [
-  {
-    title: 'Transmission Notes — Vol. I',
-    date: '2026-04-06',
-    body: 'The signal is always there. Sometimes it is buried under noise. Sometimes the noise is the signal. We are still figuring out which.',
-  },
-  {
-    title: 'On the Archive',
-    date: '2026-02-14',
-    body: 'An archive is not a record of what happened. It is a record of what survived.',
-  },
-];
-
-export default function NewsPage() {
+export default async function NewsPage() {
+  const posts = (await getNews()).filter(post => post.status === 'published');
   return (
     <div className="page-enter">
       <div className="px-5 pt-8 pb-4 border-b border-white/[0.08]">
@@ -25,7 +14,7 @@ export default function NewsPage() {
       </div>
       <div className="divide-y divide-white/[0.06]">
         {posts.map(post => (
-          <article key={post.title} className="px-5 py-10 max-w-2xl">
+          <article key={post.id} className="px-5 py-10 max-w-2xl">
             <h1 className="font-mono text-xs tracking-widest uppercase mb-1" style={{ color: '#e8e4d9' }}>
               {post.title}
             </h1>
