@@ -22,15 +22,21 @@ ways:
 So provisioning = "create the secrets/buckets, grant the runtime service account access, set the
 GitHub `vars`, make sure `deploy.yml` references each secret, then push to `main`."
 
-Concrete project values referenced below (confirm against your project):
+Concrete project values (the real infra IDs — none of these are secrets):
 
 | Thing | Value |
 |---|---|
 | GCP project | `village-radio` |
+| Region | `us-central1` |
+| Cloud Run service | `vlgfm` |
 | Runtime service account (the app's identity) | `vlgfm-run@village-radio.iam.gserviceaccount.com` |
+| Deployer service account (GitHub Actions impersonates) | `vlgfm-deployer@village-radio.iam.gserviceaccount.com` |
 | Config bucket | `vlg-config-village-radio` |
-| Transmissions bucket | *(your existing `TRANSMISSIONS_BUCKET`)* |
+| Transmissions bucket | `vlg-transmissions-village-radio` |
 | Public R2 base (image/audio reads) | `https://pub-…r2.dev` |
+
+The non-secret deploy values also live as **GitHub Actions repository variables** that Ameen sets —
+see [`docs/admin-deploy-for-ameen.md`](./admin-deploy-for-ameen.md).
 
 Throughout, `gcloud` assumes you've run `gcloud auth login` and `gcloud config set project
 village-radio` (Adnan).
@@ -112,7 +118,7 @@ printf '%s' 'NEW_VALUE' | gcloud secrets versions add SECRET_NAME --data-file=-
    bucket-level access, and public-access-prevention:
    ```bash
    gcloud storage buckets create gs://vlg-config-village-radio \
-     --location=<your-region> --uniform-bucket-level-access --public-access-prevention
+     --location=us-central1 --uniform-bucket-level-access --public-access-prevention
    gcloud storage buckets update gs://vlg-config-village-radio --versioning
    ```
    Then **(Ameen)** set GitHub Actions var `GCP_CONFIG_BUCKET=vlg-config-village-radio`.
@@ -121,13 +127,14 @@ printf '%s' 'NEW_VALUE' | gcloud secrets versions add SECRET_NAME --data-file=-
    runtime SA; reads/writes 403 otherwise. The transmissions bucket previously only needed *create*
    (the public upload) — moderation adds list/move/delete, so it needs `objectAdmin` too:
    ```bash
-   for B in vlg-config-village-radio "<TRANSMISSIONS_BUCKET>"; do
+   for B in vlg-config-village-radio vlg-transmissions-village-radio; do
      gcloud storage buckets add-iam-policy-binding "gs://$B" \
        --member="serviceAccount:vlgfm-run@village-radio.iam.gserviceaccount.com" \
        --role="roles/storage.objectAdmin"
    done
    ```
-   **(Ameen)** confirm the GitHub var `GCP_TRANSMISSIONS_BUCKET` matches the real bucket name.
+   (`vlg-config-village-radio` is the content/manifest bucket from step 8;
+   `vlg-transmissions-village-radio` is the existing private `/transmit` bucket — `GCP_TRANSMISSIONS_BUCKET`.)
 
 ---
 
@@ -185,9 +192,11 @@ API. Reads are public (the hardcoded `pub-…r2.dev` URL) and need no creds; onl
     ```
     Then open `/admin/photography` and **Publish** so the prefixed `photos/…` keys land in the live
     manifest.
-14. **Deploy (Ameen).** Merge `adnan` → `main` (or push to `main`). The `deploy` workflow builds the
-    container and runs `gcloud run deploy`. *Why last:* the app reads the secrets/env/buckets created
-    above at startup; deploying earlier fails closed.
+14. **Deploy (Ameen).** Tell Ameen the GCP side is ready; he sets the GitHub Actions variables and
+    merges `adnan` → `main`, which triggers the `deploy` workflow (`gcloud run deploy`). His exact
+    steps + the variable values live in [`docs/admin-deploy-for-ameen.md`](./admin-deploy-for-ameen.md).
+    *Why last:* the app reads the secrets/env/buckets created above at startup; deploying before they
+    exist fails closed (a `--set-secrets` ref to a missing secret aborts the deploy).
 15. **Smoke-test (anyone, in prod).**
     - Visit the site → trigger the hidden entry (key sequence → soot sprite) → land on the login at
       `ADMIN_LOGIN_PATH` (default `/relay`). Visiting `/admin` directly **without a session must
