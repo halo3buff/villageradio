@@ -4,7 +4,7 @@ import { downloadTransmission } from '@/lib/transmissions/store';
 
 export const runtime = 'nodejs';
 
-// Plays back a private GCS transmission for moderation. Admin-gated (middleware 404 + requireAdmin)
+// Plays back a private GCS transmission for moderation. Admin-gated (proxy 404 + requireAdmin)
 // and validated against path traversal before any read — mirrors /api/audio/stream, but the bytes
 // come from the private TRANSMISSIONS_BUCKET via ADC rather than the public R2 URL.
 export async function GET(req: Request): Promise<Response> {

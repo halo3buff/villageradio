@@ -5,7 +5,7 @@ import { authConfig } from './config';
 
 /**
  * Re-checks the session inside a server component or route handler — never trust the
- * middleware gate alone. Calls `notFound()` (renders the 404) when unauthenticated,
+ * proxy gate alone. Calls `notFound()` (renders the 404) when unauthenticated,
  * matching the "the panel doesn't exist" behavior.
  */
 export async function requireAdmin(): Promise<void> {

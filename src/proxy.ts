@@ -4,6 +4,10 @@ import { verifySession, SESSION_COOKIE } from './lib/auth/session';
 import { gateDecision } from './lib/auth/gate';
 import { authConfig } from './lib/auth/config';
 
+// Next 16 renamed the `middleware.ts` convention to `proxy.ts` (the export must be `proxy`).
+// Runs on the nodejs runtime — fine here: the gate uses Web Crypto (`verifySession`) and the
+// rate limiter is an in-memory Map, neither of which needs the edge runtime.
+
 type Rule = { pattern: RegExp; limit: number; windowMs: number };
 
 // Order matters: first match wins.
@@ -26,7 +30,7 @@ function clientIp(req: NextRequest): string {
   return req.headers.get('x-real-ip') ?? '127.0.0.1';
 }
 
-export async function middleware(req: NextRequest): Promise<NextResponse> {
+export async function proxy(req: NextRequest): Promise<NextResponse> {
   const path = req.nextUrl.pathname;
 
   // 1. Admin gate (defense-in-depth layer 1). Only verify a session for gated paths.

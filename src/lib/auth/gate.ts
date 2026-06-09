@@ -3,7 +3,7 @@ export type GateDecision = 'pass' | 'notfound' | 'open';
 const OPEN_ENDPOINTS = new Set(['/api/admin/login', '/api/admin/logout']);
 
 /**
- * Pure gate decision used by middleware.
+ * Pure gate decision used by the proxy (src/proxy.ts).
  * - 'open'     → auth endpoints, reachable without a session (still rate-limited)
  * - 'notfound' → gated admin route with no valid session → render a 404
  * - 'pass'     → everything else

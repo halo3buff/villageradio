@@ -27,7 +27,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  // Defense in depth: rate-limit here too, not only in middleware.
+  // Defense in depth: rate-limit here too, not only in the proxy.
   const ip = clientIp(req);
   const rl = checkRateLimit(`login:${ip}`, LOGIN_LIMIT, LOGIN_WINDOW_MS);
   if (!rl.allowed) {
