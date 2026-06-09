@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { getPhotos } from '@/lib/content/loaders';
+import { photoUrl } from '@/lib/content/media';
 
 export const metadata: Metadata = { title: 'Photography' };
 
@@ -67,7 +68,7 @@ export default async function PhotographyPage() {
           file ? (
             <div key={i} className="relative aspect-square overflow-hidden">
               <Image
-                src={`/images/photography/negative/${file}`}
+                src={photoUrl(file)}
                 alt=""
                 fill
                 className="object-cover"

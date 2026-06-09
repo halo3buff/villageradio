@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-// Broadcast is the only live section in Phase 2; the rest are placeholders (later phases).
+// Broadcast (Phase 2) + photography/work (Phase 3) are live; the rest are later phases.
 const SECTIONS = [
   { slug: 'broadcast', live: true },
-  { slug: 'photography', live: false },
-  { slug: 'work', live: false },
+  { slug: 'photography', live: true },
+  { slug: 'work', live: true },
   { slug: 'news', live: false },
   { slug: 'information', live: false },
   { slug: 'transmissions', live: false },
