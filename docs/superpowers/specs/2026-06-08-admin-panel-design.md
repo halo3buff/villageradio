@@ -365,6 +365,12 @@ the duration prober. Only R2 **writes** (Phase 2 upload) need credentials.
 
 ### 14.2 Manual setup (in order, with why)
 
+**Blocking gates** (which steps must be done before a feature works in deployment): the admin
+panel is unreachable until **3 + 4**; content editing/publish needs **1 + 2 + 4**; **Phase 2
+audio upload is non-functional until step 6** (the code is shipped + unit-tested, but every
+upload fails without R2 write credentials). Arrangement editing (reorder/edit/publish) does
+*not* depend on step 6.
+
 1. **Config bucket** — create the GCS `CONFIG_BUCKET`; enable **object versioning** (free edit
    history + one-click rollback), uniform bucket-level access, public-access-prevention.
    *Why first:* the content store can't persist edits without it.
@@ -379,9 +385,14 @@ the duration prober. Only R2 **writes** (Phase 2 upload) need credentials.
 5. **Seed manifests** — run the Phase 1 seed/migration, or let the first admin publish create
    `broadcast.json` via `ifGenerationMatch:0`. *Why:* public pages read manifests; until
    seeded they serve the bundled seed.
-6. **(Phase 2) R2 S3 token** — create a Cloudflare R2 API token (Object Read & Write); capture
-   account id + key + secret; **confirm the bucket == the public `pub-…r2.dev` bucket**; add
-   `R2_*` to Secret Manager + Cloud Run. *Why:* through-app audio upload writes via the S3
-   API — a mismatched bucket uploads somewhere the stream proxy can't read.
+6. **(Phase 2 — gates audio upload) R2 S3 token** — create a Cloudflare R2 API token (Object
+   Read & Write); capture `R2_ACCOUNT_ID` + `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` +
+   `R2_BUCKET`; **confirm `R2_BUCKET` is the same bucket bound to the public `pub-…r2.dev`
+   URL** the stream proxy reads; add all four to Secret Manager + the Cloud Run `--set-secrets`
+   wiring. *Why:* through-app audio upload writes via the S3 API — a mismatched bucket uploads
+   somewhere the stream proxy can't read, so playback would 404 even though the upload
+   "succeeded". **Smoke test after wiring:** upload a small `.mp3` in the admin → `GET
+   https://pub-…r2.dev/<returned file>` returns 200 → add it to the lineup + publish → it
+   streams through `/api/audio/stream`.
 7. **(Optional) Obscurity** — set `ADMIN_LOGIN_PATH` / finalize the key sequence if changing
    defaults. *Why:* doorknob obscurity only — real security is the gate + auth.
