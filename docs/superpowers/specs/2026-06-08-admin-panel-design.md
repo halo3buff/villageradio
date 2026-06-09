@@ -472,3 +472,8 @@ None requires new infrastructure.
   `console.error` on failures exists.
 - **Settings section + audit-log view** *(§3)* — `/admin/settings` (session/account basics, featured
   home links via a `settings.json` manifest) and an in-panel view over the audit log above.
+- **Trusted rate-limit identity** *(§5.5)* — the login brute-force limiter keys on the spoofable
+  `X-Forwarded-For` header (`clientIp` in `src/proxy.ts` / the login route), so an attacker can rotate
+  the key. Derive the client IP from a trusted hop (Cloud Run's right-most XFF entry) and/or move to a
+  shared global counter. (Surfaced by the Phase 6 security review; not exploitable beyond weakening the
+  per-instance limiter, which the slow scrypt hash + long shared secret already backstop.)
