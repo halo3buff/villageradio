@@ -441,9 +441,10 @@ keeps only the **design-level gate map** (what must exist before each feature wo
   `CONFIG_BUCKET` + its `objectAdmin` grant + seed (runbook §C, §E). **No R2 needed.** Until the first
   **Publish**, pages serve the bundled seed/doc; that Publish creates the manifest via
   `ifGenerationMatch:0`.
-- **Audio upload, image upload, and the one-time photo→R2 migration**: all gated on the **R2 write
-  creds being created AND wired into `deploy.yml`'s `--set-secrets`** (runbook §D — note this wiring
-  is not present yet). The code is shipped + unit-tested, but every R2 write fails without them.
+- **Audio upload, image upload, and the one-time photo→R2 migration**: gated on the **four `R2_*`
+  secrets existing in Secret Manager** (runbook §D). The deploy wiring (`--set-secrets`) is already in
+  place, so creating the secrets is all that's needed; the code is shipped + unit-tested, but every R2
+  write fails until the secrets exist.
 - **Transmissions moderation** (Phase 5): the panel gate + the runtime SA having **list/copy/delete on
   `TRANSMISSIONS_BUCKET`** (runbook step 9). No R2, no new env/secrets/buckets.
 

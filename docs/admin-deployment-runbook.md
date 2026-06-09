@@ -98,8 +98,9 @@ printf '%s' 'NEW_VALUE' | gcloud secrets versions add SECRET_NAME --data-file=-
    ```
 7. **(Optional) session/obscurity env** — defaults are fine; only set these to change behaviour:
    `SESSION_VERSION` (bump to revoke all sessions), `SESSION_TTL_MS` (default 8h), `ADMIN_LOGIN_PATH`
-   (default `/relay`). *Note:* these are **not** wired in `deploy.yml` yet — to use one, add it to the
-   `--set-env-vars` list (see the diff in step 12).
+   (default `/relay`). *Note:* these are intentionally **not** wired in `deploy.yml` (they default
+   safely in code; wiring an unset GitHub var would inject an empty value and override the default).
+   To set one, append it to the `--set-env-vars` line in `deploy.yml`, e.g. `,ADMIN_LOGIN_PATH=/your-path`.
 
 ---
 
@@ -152,17 +153,16 @@ API. Reads are public (the hardcoded `pub-…r2.dev` URL) and need no creds; onl
         --role="roles/secretmanager.secretAccessor"
     done
     ```
-11. **⚠️ Wire the R2 secrets into the deploy (currently MISSING).** `deploy.yml`'s `--set-secrets`
-    lists only the three auth secrets, so even after step 10 the running app has **no** R2 creds and
-    every audio/image upload fails. Add the four to the `--set-secrets` line:
+11. **R2 secrets are already wired in `deploy.yml`** — `--set-secrets` references all four
+    (`R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` → `…:latest`), so once
+    you've created them in step 10 they flow to the app with **no code change**. *Nothing to do here
+    beyond step 10.*
 
-    ```diff
-    --set-secrets "ADMIN_USERNAME=ADMIN_USERNAME:latest,ADMIN_PASSWORD_HASH=ADMIN_PASSWORD_HASH:latest,SESSION_SECRET=SESSION_SECRET:latest\
-    -" \
-    +,R2_ACCOUNT_ID=R2_ACCOUNT_ID:latest,R2_BUCKET=R2_BUCKET:latest,R2_ACCESS_KEY_ID=R2_ACCESS_KEY_ID:latest,R2_SECRET_ACCESS_KEY=R2_SECRET_ACCESS_KEY:latest" \
-    ```
-    (Edit `.github/workflows/deploy.yml`, line 39. If you also set any optional env from step 7, add
-    it to the `--set-env-vars` on line 38, e.g. `,ADMIN_LOGIN_PATH=/your-path`.)
+    > **⚠️ Precondition for the first deploy:** Cloud Run **fails the deploy** if `--set-secrets`
+    > references a secret that doesn't exist yet. So create **all** referenced secrets
+    > (`ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`, and the four `R2_*`) in Secret Manager
+    > **before** the first push to `main` (step 14). This is the same precondition the auth secrets
+    > already had.
 
 ---
 
