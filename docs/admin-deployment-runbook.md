@@ -145,21 +145,35 @@ API. Reads are public (the hardcoded `pub-…r2.dev` URL) and need no creds; onl
 (audio/image uploads + the one-time photo migration) need a token.
 
 10. **Create an R2 S3-API token** (Cloudflare dashboard → **R2** → *Manage R2 API Tokens* → *Create
-    API Token*, permission **Object Read & Write**). Capture the four values:
-    - `R2_ACCOUNT_ID` — your Cloudflare **Account ID** (R2 overview page / dashboard URL).
-    - `R2_BUCKET` — the R2 bucket name. **Critical:** it must be the **same bucket bound to the public
-      `pub-…r2.dev` URL** the app reads from; otherwise an upload "succeeds" somewhere reads can't see
-      it and audio/images 404. Confirm in R2 → your bucket → Settings → Public access.
-    - `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` — shown **once** at token creation; copy both now.
-    Create the four secrets:
+    API Token*, permission **Object Read & Write**). You need four values:
+    - `R2_ACCOUNT_ID` — your Cloudflare **Account ID** (R2 overview page, or the host in the token's S3
+      endpoint `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`).
+    - `R2_BUCKET` — the **name of the existing bucket** whose public URL is
+      `https://pub-fa76dac35d0c4ddf9a81d5267a06b241.r2.dev` (the value hardcoded in
+      `src/lib/content/media.ts`). In R2, open each bucket → Settings → Public access and find the one
+      whose "Public R2.dev Bucket URL" matches; its **name** is `R2_BUCKET`. **Critical:** it must be
+      that exact bucket, or uploads land where reads can't see them and audio/images 404.
+    - `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` — shown **once** when you create the token; copy both.
+
+    Store all four in Secret Manager. This helper **prompts** for each value (input hidden, so nothing
+    lands in your shell history), creates the secret (or adds a new version if it already exists), and
+    grants the runtime SA read access — paste the function, then run the four lines:
     ```bash
-    for kv in R2_ACCOUNT_ID=… R2_BUCKET=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=…; do
-      printf '%s' "${kv#*=}" | gcloud secrets create "${kv%%=*}" --data-file=-
-      gcloud secrets add-iam-policy-binding "${kv%%=*}" \
+    put_secret() {
+      printf 'Paste %s then press Enter: ' "$1" >&2; read -rs v; echo >&2
+      printf '%s' "$v" | gcloud secrets create "$1" --data-file=- 2>/dev/null \
+        || printf '%s' "$v" | gcloud secrets versions add "$1" --data-file=-
+      gcloud secrets add-iam-policy-binding "$1" \
         --member="serviceAccount:vlgfm-run@village-radio.iam.gserviceaccount.com" \
-        --role="roles/secretmanager.secretAccessor"
-    done
+        --role="roles/secretmanager.secretAccessor" >/dev/null
+      unset v
+    }
+    put_secret R2_ACCOUNT_ID
+    put_secret R2_BUCKET
+    put_secret R2_ACCESS_KEY_ID
+    put_secret R2_SECRET_ACCESS_KEY
     ```
+    Verify all four exist: `gcloud secrets list --filter="name~R2_"`.
 11. **R2 secrets are already wired in `deploy.yml`** — `--set-secrets` references all four
     (`R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` → `…:latest`), so once
     you've created them in step 10 they flow to the app with **no code change**. *Nothing to do here
