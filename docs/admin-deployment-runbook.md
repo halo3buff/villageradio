@@ -174,6 +174,10 @@ API. Reads are public (the hardcoded `pub-…r2.dev` URL) and need no creds; onl
     put_secret R2_SECRET_ACCESS_KEY
     ```
     Verify all four exist: `gcloud secrets list --filter="name~R2_"`.
+
+    > **Mistyped one?** Secret Manager is versioned — you don't edit in place; re-run `put_secret <NAME>`
+    > (it adds a new version, and `:latest`, which the deploy reads, points at the newest). Check with
+    > `gcloud secrets versions list <NAME>`. Same trick fixes any auth secret from §B.
 11. **R2 secrets are already wired in `deploy.yml`** — `--set-secrets` references all four
     (`R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` → `…:latest`), so once
     you've created them in step 10 they flow to the app with **no code change**. *Nothing to do here
