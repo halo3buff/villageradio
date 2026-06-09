@@ -334,3 +334,54 @@ sign/verify + expiry, middleware gate (404 vs pass), login rate limiting, `store
 read/write + `ifGenerationMatch` conflict, and upload validation (magic bytes/size). Follow
 TDD for these. UI/DnD verified manually + via the existing build. *Adding Vitest is the one
 tooling addition to confirm (strong justification: security-critical logic).*
+
+---
+
+## 14. Environment variables & manual setup
+
+Tracks every runtime variable the panel needs and the manual (non-code) steps to provision
+them, in order. Secrets live in **Secret Manager** (injected via `--set-secrets`); plain
+config lives as Cloud Run env. Nothing sensitive is committed.
+
+### 14.1 Environment variables
+
+| Var | Where | Phase | Purpose |
+|---|---|---|---|
+| `ADMIN_USERNAME` | Secret Manager | 0 | Admin login username (constant-time compared in the login route). |
+| `ADMIN_PASSWORD_HASH` | Secret Manager | 0 | `scrypt$N$r$p$salt$key` hash — generate with `src/lib/auth/password.ts`. Never store plaintext. |
+| `SESSION_SECRET` | Secret Manager | 0 | HMAC-SHA256 session signing key (long random). |
+| `SESSION_VERSION` | env (opt, def `1`) | 0 | Bump to revoke all live sessions. |
+| `SESSION_TTL_MS` | env (opt, def 8h) | 0 | Session lifetime (idle expiry). |
+| `ADMIN_LOGIN_PATH` | env (opt, def `/relay`) | 0 | Unguessable login path the sprite links to. |
+| `CONFIG_BUCKET` | env | 1 | GCS bucket holding `content/*.json` manifests. Unset locally → bundled-seed fallback. |
+| `TRANSMISSIONS_BUCKET` | env | pre-admin | GCS bucket for user transmissions. Already wired. |
+| `R2_ACCOUNT_ID` | Secret Manager | 2 | Cloudflare account id → S3 endpoint `https://<id>.r2.cloudflarestorage.com`. |
+| `R2_BUCKET` | Secret Manager | 2 | R2 bucket for audio. **Must be the same bucket bound to the public `pub-…r2.dev` URL** the stream proxy reads. |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Secret Manager | 2 | R2 S3-API token (Object Read & Write) for through-app uploads. |
+| `MEDIA_BUCKET` | env | 3 (future) | GCS bucket for admin-uploaded images. |
+
+R2 **read** needs no env — the public `pub-…r2.dev` URL is hardcoded in the stream proxy and
+the duration prober. Only R2 **writes** (Phase 2 upload) need credentials.
+
+### 14.2 Manual setup (in order, with why)
+
+1. **Config bucket** — create the GCS `CONFIG_BUCKET`; enable **object versioning** (free edit
+   history + one-click rollback), uniform bucket-level access, public-access-prevention.
+   *Why first:* the content store can't persist edits without it.
+2. **Grant runtime SA** `roles/storage.objectAdmin` (or objectUser) on the config bucket.
+   *Why:* admin writes go through ADC; reads/writes 403 otherwise.
+3. **Auth secrets** — create `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` (scrypt helper),
+   `SESSION_SECRET` in Secret Manager; grant runtime SA `secretAccessor`.
+   *Why:* the gate fails closed — middleware throws and the panel is unreachable without them.
+4. **Deploy wiring** — add `--set-secrets` for the auth (and Phase 2 R2) secrets plus
+   `CONFIG_BUCKET`/`TRANSMISSIONS_BUCKET` env to the Cloud Run deploy workflow.
+   *Why:* the app reads these at runtime; do this after the secrets exist.
+5. **Seed manifests** — run the Phase 1 seed/migration, or let the first admin publish create
+   `broadcast.json` via `ifGenerationMatch:0`. *Why:* public pages read manifests; until
+   seeded they serve the bundled seed.
+6. **(Phase 2) R2 S3 token** — create a Cloudflare R2 API token (Object Read & Write); capture
+   account id + key + secret; **confirm the bucket == the public `pub-…r2.dev` bucket**; add
+   `R2_*` to Secret Manager + Cloud Run. *Why:* through-app audio upload writes via the S3
+   API — a mismatched bucket uploads somewhere the stream proxy can't read.
+7. **(Optional) Obscurity** — set `ADMIN_LOGIN_PATH` / finalize the key sequence if changing
+   defaults. *Why:* doorknob obscurity only — real security is the gate + auth.
