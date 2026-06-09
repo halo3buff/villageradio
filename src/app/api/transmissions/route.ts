@@ -57,7 +57,8 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const handle = sanitizeHandle(typeof handleRaw === 'string' ? handleRaw : null);
-  const key = `transmissions/${isoTimestampForKey()}-${handle}-${randomSuffix()}.webm`;
+  // Lands in the moderation queue's incoming prefix (Phase 5); admin keeps → kept/ or trashes → trash/.
+  const key = `transmissions/new/${isoTimestampForKey()}-${handle}-${randomSuffix()}.webm`;
 
   try {
     const buffer = Buffer.from(await audio.arrayBuffer());
