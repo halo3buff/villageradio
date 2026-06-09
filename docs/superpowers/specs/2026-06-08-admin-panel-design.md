@@ -320,9 +320,16 @@ Each phase ships independently and must pass **lint + typecheck + build** before
   managers; through-app image upload **to R2** (`photos/`/`work/` prefixes — **no GCS
   `MEDIA_BUCKET`**, see §4.3); public photography + work pages read manifests. Work is grid-only
   v1 (cover = `images[0]`; no `/work/[id]` detail pages).
-- **Phase 4 — Editorial.** News + information editors (reuse block parser). **Any post/editorial
-  images upload to R2 under a prefix (e.g. `news/`), reusing `putImage` + the §4.3 pattern — not
-  GCS.**
+- **Phase 4 — Editorial** *(DONE — branch `adnan`, 2026-06-09)*. News + information editors; both
+  the public `/news` and `/information` pages now render through a shared, extracted block parser
+  (`src/components/EditorialBody.tsx` — `# h1` / `---` / paragraph). **v1 DECISION: News is
+  text-only** (title, date, markdown body, draft/publish status, order) — inline post images are
+  deferred, so **no `news/` R2 prefix, no news upload route, and no parser image block** were
+  built. When post images are added later they MUST upload to R2 under a `news/` prefix reusing
+  `putImage` + the §4.3 pattern (not GCS), alongside an image block in the parser (TODO noted in
+  `EditorialBody.tsx`). Information edits the single `information.md` document (text in
+  `CONFIG_BUCKET`, same parser). **No new infra, secrets, or env — reuses the Phase 0/1 gates and
+  needs no R2.**
 - **Phase 5 — Transmissions moderation.** Queue: list/play/keep/delete via prefix moves.
 - **Phase 6 — Hardening & docs.** Settings, audit log view, security headers, CSP; **fix
   AGENTS.md drift**; final security review.
@@ -340,8 +347,10 @@ Each phase will get its own implementation plan (via writing-plans) when we reac
    hang does not apply to either.
 2. ~~**Org policy on public buckets**~~ **RESOLVED (Phase 3):** images reuse R2 (public
    `pub-…r2.dev`), so there is no public GCS bucket and the org-policy question never arises.
-3. **Markdown** — reuse the info page's block parser for news/info; confirm it's enough or
-   extend minimally (no new lib preferred).
+3. ~~**Markdown**~~ **RESOLVED (Phase 4):** the info page's block parser (`# h1` / `---` /
+   paragraph) was extracted to `src/components/EditorialBody.tsx` and reused as-is for both news
+   and information — no new lib. Confirmed enough for v1; a follow-up TODO in that file tracks
+   extending it (`##`/`###`, lists, inline links/images) once the editorial flow is in use.
 4. ~~**DnD approach**~~ **RESOLVED:** native HTML5 DnD across broadcast/photo/work managers —
    no `@dnd-kit`.
 5. **Transmissions** — currently private; "feature on site" is explicitly out of v1.
@@ -392,10 +401,16 @@ audio + Phase 3 image uploads, and the photo migration) need credentials.
 
 **Blocking gates** (which steps must be done before a feature works in deployment): the admin
 panel is unreachable until **3 + 4**; content editing/publish (broadcast arrangement, photo +
-work metadata reorder/edit/delete/publish) needs **1 + 2 + 4** and does *not* depend on R2;
-**Phase 2 audio upload AND Phase 3 image upload + the photo→R2 migration (step 7) are all
-non-functional until step 6** — the code is shipped + unit-tested, but every R2 write fails
-without R2 credentials.
+work metadata reorder/edit/delete/publish, **Phase 4 news posts, and the information document**)
+needs **1 + 2 + 4** and does *not* depend on R2; **Phase 2 audio upload AND Phase 3 image upload +
+the photo→R2 migration (step 7) are all non-functional until step 6** — the code is shipped +
+unit-tested, but every R2 write fails without R2 credentials. **Phase 4 (Editorial) adds NO new
+manual setup**: News is text-only (no images → no R2) and Information is text in `CONFIG_BUCKET`,
+so both go live the moment the **1 + 2 + 4** gates are met. Until first publish they serve the
+bundled seed (`src/lib/content/seed/news.json`) / bundled doc
+(`public/information/info_page.md`); the first admin **Publish** creates `content/news.json` and
+`content/information.md` via `ifGenerationMatch:0` (the generic step 5 — no Phase-4-specific
+provisioning).
 
 1. **Config bucket** — create the GCS `CONFIG_BUCKET`; enable **object versioning** (free edit
    history + one-click rollback), uniform bucket-level access, public-access-prevention.
