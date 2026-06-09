@@ -43,6 +43,7 @@ export async function signSession(payload: SessionPayload, secret: string): Prom
 export async function verifySession(
   token: string | undefined,
   secret: string = authConfig().sessionSecret,
+  expectedVersion?: number,
 ): Promise<SessionPayload | null> {
   if (!token) return null;
   const parts = token.split('.');
@@ -63,6 +64,7 @@ export async function verifySession(
     return null;
   }
   if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
+  if (expectedVersion !== undefined && payload.v !== expectedVersion) return null;
   return payload;
 }
 

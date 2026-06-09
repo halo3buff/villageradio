@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { checkRateLimit } from './lib/rate-limit';
 import { verifySession, SESSION_COOKIE } from './lib/auth/session';
 import { gateDecision } from './lib/auth/gate';
+import { authConfig } from './lib/auth/config';
 
 type Rule = { pattern: RegExp; limit: number; windowMs: number };
 
@@ -33,7 +34,8 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const token = req.cookies.get(SESSION_COOKIE)?.value;
     let hasSession = false;
     try {
-      hasSession = (await verifySession(token)) !== null;
+      const cfg = authConfig();
+      hasSession = (await verifySession(token, cfg.sessionSecret, cfg.sessionVersion)) !== null;
     } catch {
       hasSession = false;
     }

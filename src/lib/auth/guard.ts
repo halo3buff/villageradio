@@ -11,6 +11,7 @@ import { authConfig } from './config';
 export async function requireAdmin(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
-  const payload = await verifySession(token, authConfig().sessionSecret);
+  const cfg = authConfig();
+  const payload = await verifySession(token, cfg.sessionSecret, cfg.sessionVersion);
   if (!payload) notFound();
 }

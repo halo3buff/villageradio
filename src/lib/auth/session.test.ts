@@ -31,6 +31,12 @@ describe('session', () => {
     expect(await verifySession(undefined, SECRET)).toBeNull();
   });
 
+  it('rejects a token whose version does not match', async () => {
+    const token = await signSession({ exp: Date.now() + 10_000, v: 1 }, SECRET);
+    expect(await verifySession(token, SECRET, 2)).toBeNull();
+    expect(await verifySession(token, SECRET, 1)).not.toBeNull();
+  });
+
   it('builds a hardened cookie', () => {
     const c = sessionCookie('tok', 1000);
     expect(c.name).toBe(SESSION_COOKIE);
