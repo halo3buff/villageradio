@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useAudio } from '@/lib/audio-context';
-import { broadcastPlaylist } from '@/lib/data/mixes';
+import type { Mix } from '@/lib/types';
 
 const VR_FONT = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const SAMPLE_COUNT = 256;
@@ -51,18 +51,18 @@ function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 }
 
 // Derive "NOW" display string from broadcast state
-function getNowLabel(index: number, mode: string): string | null {
+function getNowLabel(index: number, mode: string, playlist: Mix[]): string | null {
   if (mode !== 'broadcast') return null;
-  const track = broadcastPlaylist[index];
+  const track = playlist[index];
   if (!track) return null;
   if (track.kind === 'inter') return 'TRANSMISSION BREAK';
-  const mixNum = broadcastPlaylist.slice(0, index + 1).filter(t => t.kind === 'mix').length;
-  const totalMixes = broadcastPlaylist.filter(t => t.kind === 'mix').length;
+  const mixNum = playlist.slice(0, index + 1).filter(t => t.kind === 'mix').length;
+  const totalMixes = playlist.filter(t => t.kind === 'mix').length;
   return `BROADCAST ${String(mixNum).padStart(2, '0')} OF ${String(totalMixes).padStart(2, '0')}`;
 }
 
 export function LissajousScope() {
-  const { isPlaying, mode, broadcastIndex, broadcastPlay, pause, analyserL, analyserR, analyserFreq, volume, setVolume } = useAudio();
+  const { playlist, isPlaying, mode, broadcastIndex, broadcastPlay, pause, analyserL, analyserR, analyserFreq, volume, setVolume } = useAudio();
   const analyserLRef = useRef<AnalyserNode | null>(null);
   const analyserRRef = useRef<AnalyserNode | null>(null);
   const analyserFreqRef = useRef<AnalyserNode | null>(null);
@@ -222,7 +222,7 @@ export function LissajousScope() {
     }
   };
 
-  const nowLabel = getNowLabel(broadcastIndex, mode);
+  const nowLabel = getNowLabel(broadcastIndex, mode, playlist);
   const statusLabel = isBroadcasting
     ? 'LIVE'
     : acquiring
