@@ -36,7 +36,7 @@ async function hmacKey(secret: string): Promise<CryptoKey> {
 export async function signSession(payload: SessionPayload, secret: string): Promise<string> {
   const body = b64urlEncode(enc.encode(JSON.stringify(payload)));
   const key = await hmacKey(secret);
-  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(body)));
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(body) as BufferSource));
   return `${body}.${b64urlEncode(sig)}`;
 }
 
@@ -51,7 +51,7 @@ export async function verifySession(
   const key = await hmacKey(secret);
   let ok = false;
   try {
-    ok = await crypto.subtle.verify('HMAC', key, b64urlDecode(sig), enc.encode(body));
+    ok = await crypto.subtle.verify('HMAC', key, b64urlDecode(sig) as BufferSource, enc.encode(body) as BufferSource);
   } catch {
     return null;
   }
