@@ -1,33 +1,16 @@
 import type { BroadcastEntry, BroadcastManifest } from '@/lib/types';
+import { uniqueSuffix } from './ids';
 
 // Pure, importable arrangement helpers. The client editor is a thin shell over these so the
 // reorder/validation logic is unit-testable in Vitest's node environment (no jsdom).
+
+// Index reordering is generic — broadcast/photos/work all share it (see reorder.ts).
+export { moveUp, moveDown, moveTo } from './reorder';
 
 const FILENAME_RE = /^[A-Za-z0-9._-]+\.(mp3|wav|ogg|m4a)$/;
 const DATE_RE = /^(\d{2}-\d{2}-\d{4})?$/; // 'MM-DD-YYYY' or '' (interludes)
 const SERIES = new Set(['red', 'green', 'yellow']);
 const KINDS = new Set(['mix', 'inter']);
-
-/** Swap the entry at `index` with the one above it. No-op at the top. Returns a new array. */
-export function moveUp(entries: BroadcastEntry[], index: number): BroadcastEntry[] {
-  if (index <= 0 || index >= entries.length) return entries.slice();
-  return moveTo(entries, index, index - 1);
-}
-
-/** Swap the entry at `index` with the one below it. No-op at the bottom. Returns a new array. */
-export function moveDown(entries: BroadcastEntry[], index: number): BroadcastEntry[] {
-  if (index < 0 || index >= entries.length - 1) return entries.slice();
-  return moveTo(entries, index, index + 1);
-}
-
-/** Relocate the entry at `from` to `to`. Returns a new array. */
-export function moveTo(entries: BroadcastEntry[], from: number, to: number): BroadcastEntry[] {
-  const next = entries.slice();
-  const [moved] = next.splice(from, 1);
-  if (moved === undefined) return entries.slice();
-  next.splice(to, 0, moved);
-  return next;
-}
 
 /** Append an entry. Returns a new array. */
 export function addEntry(entries: BroadcastEntry[], entry: BroadcastEntry): BroadcastEntry[] {
@@ -44,16 +27,8 @@ export function removeEntry(entries: BroadcastEntry[], id: string): BroadcastEnt
  * ids, so collisions get a `b`, `c`, … suffix (matching the seed's `inter-1` → `inter-1b`).
  */
 export function generateEntryId(file: string, existingIds: Iterable<string>): string {
-  const taken = new Set(existingIds);
   const base = file.replace(/\.[^.]+$/, '').replace(/_/g, '-');
-  if (!taken.has(base)) return base;
-  for (let c = 'b'.charCodeAt(0); c <= 'z'.charCodeAt(0); c++) {
-    const candidate = base + String.fromCharCode(c);
-    if (!taken.has(candidate)) return candidate;
-  }
-  let n = 2;
-  while (taken.has(`${base}-${n}`)) n++;
-  return `${base}-${n}`;
+  return uniqueSuffix(base, existingIds);
 }
 
 function isStringArray(v: unknown): v is string[] {

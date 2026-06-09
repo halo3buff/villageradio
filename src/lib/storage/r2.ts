@@ -69,3 +69,15 @@ export async function putAudio(filename: string, body: Buffer, contentType: stri
   await r2().send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: body, ContentType: contentType }));
   return key;
 }
+
+/**
+ * Upload an image object to R2. `key` arrives ALREADY prefixed (`photos/…` | `work/…`) so images
+ * never collide with the root-level audio files the stream allowlist derives from. Served
+ * publicly via `${R2_PUBLIC_BASE}/${key}` through `next/image`. Returns the stored
+ * (collision-suffixed) key — `uniqueKey` suffixes the basename, preserving the prefix.
+ */
+export async function putImage(key: string, body: Buffer, contentType: string): Promise<string> {
+  const stored = await uniqueKey(key);
+  await r2().send(new PutObjectCommand({ Bucket: bucket(), Key: stored, Body: body, ContentType: contentType }));
+  return stored;
+}
