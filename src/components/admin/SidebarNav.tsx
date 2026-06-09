@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-// Broadcast (Phase 2) + photography/work (Phase 3) are live; the rest are later phases.
+// Broadcast (Phase 2) + photography/work (Phase 3) + news/information (Phase 4) are live; the
+// rest are later phases.
 const SECTIONS = [
   { slug: 'broadcast', live: true },
   { slug: 'photography', live: true },
   { slug: 'work', live: true },
-  { slug: 'news', live: false },
-  { slug: 'information', live: false },
+  { slug: 'news', live: true },
+  { slug: 'information', live: true },
   { slug: 'transmissions', live: false },
   { slug: 'settings', live: false },
 ];

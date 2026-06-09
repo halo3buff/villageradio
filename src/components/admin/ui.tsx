@@ -38,3 +38,7 @@ export function RowBtn({
 export const FIELD =
   'w-full bg-transparent border-b border-white/15 pb-1 font-mono text-[11px] text-white outline-none focus:border-white/40';
 export const FIELD_LABEL = 'block font-mono text-[8px] tracking-[0.2em] uppercase text-white/30 mb-1';
+
+/** Multiline variant for editorial bodies / the information doc — bordered box, no rounded corners. */
+export const FIELD_AREA =
+  'w-full bg-transparent border border-white/15 p-2 font-mono text-[11px] leading-relaxed text-white outline-none focus:border-white/40 resize-y min-h-[8rem]';
