@@ -21,4 +21,11 @@ describe('password', () => {
   it('rejects malformed stored hashes', () => {
     expect(verifyPassword('x', 'not-a-hash')).toBe(false);
   });
+
+  it('rejects a stored hash with a wrong-length key (no empty-buffer bypass)', () => {
+    // 'A' decodes to 0 base64url bytes; must NOT authenticate.
+    expect(verifyPassword('anything', 'scrypt$16384$8$1$aass$A')).toBe(false);
+    // empty key part → 0 bytes → must NOT authenticate either.
+    expect(verifyPassword('anything', 'scrypt$16384$8$1$YWJjZGVmZ2hpamtsbW5vcA$')).toBe(false);
+  });
 });

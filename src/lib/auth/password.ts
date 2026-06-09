@@ -30,6 +30,7 @@ export function verifyPassword(password: string, stored: string): boolean {
   } catch {
     return false;
   }
+  if (salt.length !== SALTLEN || expected.length !== KEYLEN) return false;
   const actual = scryptSync(password, salt, expected.length, { N: n, r, p });
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
