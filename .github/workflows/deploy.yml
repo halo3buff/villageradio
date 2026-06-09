@@ -36,6 +36,7 @@ jobs:
             --region "${{ vars.GCP_REGION }}" \
             --service-account "${{ vars.GCP_RUNTIME_SA }}" \
             --set-env-vars "TRANSMISSIONS_BUCKET=${{ vars.GCP_TRANSMISSIONS_BUCKET }}" \
+            --set-secrets "ADMIN_USERNAME=ADMIN_USERNAME:latest,ADMIN_PASSWORD_HASH=ADMIN_PASSWORD_HASH:latest,SESSION_SECRET=SESSION_SECRET:latest" \
             --allow-unauthenticated \
             --min-instances 1 --max-instances 4 \
             --cpu 1 --memory 512Mi \
