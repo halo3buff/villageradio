@@ -11,8 +11,8 @@ beforeEach(() => {
   delete process.env.ADMIN_USERNAME;
   delete process.env.ADMIN_PASSWORD_HASH;
   delete process.env.SESSION_SECRET;
-  delete process.env.ADMIN_LOGIN_PATH;
   delete process.env.SESSION_TTL_MS;
+  delete process.env.SESSION_VERSION;
 });
 
 describe('authConfig', () => {
@@ -24,15 +24,14 @@ describe('authConfig', () => {
     Object.assign(process.env, base);
     const c = authConfig();
     expect(c.username).toBe('adnan');
-    expect(c.loginPath).toBe('/relay');
     expect(c.sessionTtlMs).toBe(8 * 60 * 60 * 1000);
     expect(c.sessionVersion).toBe(1);
   });
 
   it('honors overrides', () => {
-    Object.assign(process.env, base, { ADMIN_LOGIN_PATH: '/dial', SESSION_TTL_MS: '1000' });
+    Object.assign(process.env, base, { SESSION_TTL_MS: '1000', SESSION_VERSION: '4' });
     const c = authConfig();
-    expect(c.loginPath).toBe('/dial');
     expect(c.sessionTtlMs).toBe(1000);
+    expect(c.sessionVersion).toBe(4);
   });
 });

@@ -4,7 +4,6 @@ export interface AuthConfig {
   sessionSecret: string;
   sessionVersion: number;
   sessionTtlMs: number;
-  loginPath: string;
 }
 
 /**
@@ -26,6 +25,5 @@ export function authConfig(): AuthConfig {
     sessionSecret,
     sessionVersion: Number(process.env.SESSION_VERSION ?? '1'),
     sessionTtlMs: Number(process.env.SESSION_TTL_MS ?? String(8 * 60 * 60 * 1000)),
-    loginPath: process.env.ADMIN_LOGIN_PATH ?? '/relay',
   };
 }

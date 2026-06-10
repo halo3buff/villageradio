@@ -4,7 +4,6 @@ import { gateDecision } from './gate';
 describe('gateDecision', () => {
   it('passes non-admin paths', () => {
     expect(gateDecision('/listen', false)).toBe('pass');
-    expect(gateDecision('/relay', false)).toBe('pass');
     expect(gateDecision('/api/audio/stream', false)).toBe('pass');
   });
 

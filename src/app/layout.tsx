@@ -6,7 +6,6 @@ import { getBroadcast } from '@/lib/content/loaders';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { NewsStrip } from '@/components/NewsStrip';
-import { SootSprite } from '@/components/SootSprite';
 
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
@@ -61,7 +60,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="bg-[#080808] text-vr-white min-h-screen font-sans">
         <AudioProvider playlist={playlist}>
           <Nav />
-          <SootSprite />
           <div className="pb-[76px]">
             {children}
           </div>
