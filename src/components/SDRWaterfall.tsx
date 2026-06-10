@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useAudio } from '@/lib/audio-context';
-import { broadcastPlaylist } from '@/lib/data/mixes';
+import { formatDuration } from '@/lib/content/broadcast';
 import type { Mix } from '@/lib/types';
 
 const VR_FONT = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
@@ -41,15 +41,6 @@ function powerToColor(v: number): [number, number, number] {
   if (v < 175) return [160, 210, 50];
   if (v < 210) return [230, 170, 15];
   return [255, 245, 200];
-}
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  return h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${m}:${String(s).padStart(2, '0')}`;
 }
 
 function parseDurSec(dur: string): number {
@@ -104,7 +95,8 @@ function drawSpectrumFrame(
   for (let i = 0; i < bc; i++) {
     const x = (i / bc) * w;
     const y = h - (((-120 + (data[i] / 255) * 80) + 120) / 80) * h;
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   }
   ctx.strokeStyle = AMBER;
   ctx.lineWidth = 1.5;
@@ -116,7 +108,8 @@ function drawSpectrumFrame(
     for (let i = 0; i < bc; i++) {
       const x = (i / bc) * w;
       const y = h - (((-120 + (peakHold[i] / 255) * 80) + 120) / 80) * h;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     }
     ctx.strokeStyle = 'rgba(200, 160, 40, 0.35)';
     ctx.lineWidth = 1;
@@ -175,7 +168,7 @@ function drawColorScale(canvas: HTMLCanvasElement): void {
 }
 
 export function SDRWaterfall() {
-  const { currentTrack, isPlaying, mode, play, pause, analyserFreq } = useAudio();
+  const { playlist, currentTrack, isPlaying, mode, play, pause, analyserFreq } = useAudio();
   const analyserFreqRef = useRef<AnalyserNode | null>(null);
   useEffect(() => { analyserFreqRef.current = analyserFreq; }, [analyserFreq]);
 
@@ -204,7 +197,7 @@ export function SDRWaterfall() {
   const [visibleLines, setVisibleLines] = useState(0);
   const [statusLive, setStatusLive] = useState(false);
   const [selectedMix, setSelectedMix] = useState<Mix>(
-    broadcastPlaylist.find(t => t.kind === 'mix') ?? broadcastPlaylist[0]
+    playlist.find(t => t.kind === 'mix') ?? playlist[0]
   );
   const [power, setPower] = useState<string | null>(null);
   const [iqMax, setIqMax] = useState<string | null>(null);
@@ -220,7 +213,7 @@ export function SDRWaterfall() {
     : null;
 
   // Deduplicated list for display — broadcast sequence reuses some interludes
-  const uniqueTracks = broadcastPlaylist.filter(
+  const uniqueTracks = playlist.filter(
     (t, i, arr) => arr.findIndex(u => u.src === t.src) === i
   );
 
@@ -265,7 +258,7 @@ export function SDRWaterfall() {
 
   // Preload track durations
   useEffect(() => {
-    broadcastPlaylist.forEach((track) => {
+    playlist.forEach((track) => {
       const probe = new Audio();
       probe.crossOrigin = 'anonymous';
       probe.preload = 'metadata';
@@ -274,7 +267,7 @@ export function SDRWaterfall() {
         setDurations(prev => ({ ...prev, [track.id]: formatDuration(probe.duration) }));
       }, { once: true });
     });
-  }, []);
+  }, [playlist]);
 
   // Power / IQ MAX readout
   useEffect(() => {
@@ -519,8 +512,8 @@ export function SDRWaterfall() {
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(74,158,74,0.3) transparent',
           } as React.CSSProperties}>
-            {filteredTracks.map((mix, idx) => {
-              const globalIdx = broadcastPlaylist.indexOf(mix);
+            {filteredTracks.map((mix) => {
+              const globalIdx = playlist.indexOf(mix);
               const vrId = `VR-${String(globalIdx + 1).padStart(3, '0')}`;
               const isActive = currentTrack?.id === mix.id && isIndividualPlaying;
               const isSelected = selectedMix.id === mix.id;

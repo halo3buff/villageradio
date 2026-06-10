@@ -50,3 +50,10 @@ docs/instructions.md
 
 # Claude Code local/personal settings — shared settings live in .claude/settings.json
 .claude/settings.local.json
+
+# brainstorming visual companion
+.superpowers/
+
+# Team-private deployment runbooks — carry infra IDs (SA/bucket/WIF); keep out of this public repo
+docs/admin-deploy-for-ameen.md
+docs/admin-deployment-runbook.md

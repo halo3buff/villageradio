@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Space_Mono, DM_Sans, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
+import { getBroadcast } from '@/lib/content/loaders';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { NewsStrip } from '@/components/NewsStrip';
@@ -49,14 +50,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const playlist = await getBroadcast();
   return (
     <html lang="en" className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable}`}>
       <head>
         <meta name="theme-color" content="#080808" />
       </head>
       <body className="bg-[#080808] text-vr-white min-h-screen font-sans">
-        <AudioProvider>
+        <AudioProvider playlist={playlist}>
           <Nav />
           <div className="pb-[76px]">
             {children}

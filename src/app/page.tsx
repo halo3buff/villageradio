@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { LissajousScope } from '@/components/LissajousScope';
+import { SootSprite } from '@/components/SootSprite';
 
 const featured = [
   { href: '/listen', label: 'Signal 001 — New Mix' },
@@ -11,6 +12,9 @@ const featured = [
 export default function Home() {
   return (
     <div className="px-4 sm:px-5 pt-2 sm:pt-3 page-enter">
+      {/* Hidden admin entry — homepage only (secret key sequence → sprite → login overlay) */}
+      <SootSprite />
+
       {/* Featured links */}
       <div className="mb-3 sm:mb-4 space-y-1">
         {featured.map(item => (

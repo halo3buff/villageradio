@@ -1,14 +1,11 @@
 import type { NextRequest } from 'next/server';
-import { broadcastFiles } from '@/lib/data/mixes';
+import { getBroadcastFiles } from '@/lib/content/loaders';
+import { R2_PUBLIC_BASE } from '@/lib/content/media';
 
 export const runtime = 'nodejs';
 
-const R2_BASE = 'https://pub-fa76dac35d0c4ddf9a81d5267a06b241.r2.dev';
-
-// Allowlist derived from the broadcast playlist — single source of truth lives in
-// src/lib/data/mixes.ts. Add a track there and it's automatically proxyable here.
-const ALLOWED = new Set(broadcastFiles);
-
+// Allowlist derived from the broadcast manifest (GCS config bucket, cached) — the single
+// source of truth. Audio bytes still come from R2; only the lineup is now editable.
 const MIME: Record<string, string> = {
   mp3: 'audio/mpeg',
   wav: 'audio/wav',
@@ -18,13 +15,14 @@ const MIME: Record<string, string> = {
 
 export async function GET(request: NextRequest) {
   const file = request.nextUrl.searchParams.get('file');
-  if (!file || !ALLOWED.has(file)) return new Response('Not found', { status: 404 });
+  const allowed = new Set(await getBroadcastFiles());
+  if (!file || !allowed.has(file)) return new Response('Not found', { status: 404 });
 
   const fetchHeaders: Record<string, string> = {};
   const range = request.headers.get('Range');
   if (range) fetchHeaders['Range'] = range;
 
-  const upstream = await fetch(`${R2_BASE}/${file}`, { headers: fetchHeaders });
+  const upstream = await fetch(`${R2_PUBLIC_BASE}/${file}`, { headers: fetchHeaders });
   if (!upstream.ok) return new Response('Upstream error', { status: upstream.status });
 
   const resHeaders = new Headers();

@@ -1,24 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { checkRateLimit } from './lib/rate-limit';
+import { verifySession, SESSION_COOKIE } from './lib/auth/session';
+import { gateDecision } from './lib/auth/gate';
+import { authConfig } from './lib/auth/config';
 
-type Rule = {
-  pattern: RegExp;
-  limit: number;
-  windowMs: number;
-};
+// Next 16 renamed the `middleware.ts` convention to `proxy.ts` (the export must be `proxy`).
+// Runs on the nodejs runtime — fine here: the gate uses Web Crypto (`verifySession`) and the
+// rate limiter is an in-memory Map, neither of which needs the edge runtime.
+
+type Rule = { pattern: RegExp; limit: number; windowMs: number };
 
 // Order matters: first match wins.
 const RULES: Rule[] = [
-  // Uploads land in paid Blob storage at up to 5 MB each — prime abuse target.
+  // Admin login — strict: brute-force target.
+  { pattern: /^\/api\/admin\/login$/, limit: 10, windowMs: 15 * 60_000 },
+  // Uploads land in paid storage — prime abuse target.
   { pattern: /^\/api\/transmissions(\/|$)/, limit: 10, windowMs: 60 * 60_000 },
-
   // Streaming uses Range requests; a single playback can issue many fetches.
   { pattern: /^\/api\/audio\/stream(\/|$)/, limit: 240, windowMs: 60_000 },
-
   // Cheap clock-sync endpoint, but clients call it on load.
   { pattern: /^\/api\/time(\/|$)/, limit: 60, windowMs: 60_000 },
-
-  // Default for any future /api/* route.
+  // Default for any other /api/* route.
   { pattern: /^\/api\//, limit: 60, windowMs: 60_000 },
 ];
 
@@ -28,8 +30,27 @@ function clientIp(req: NextRequest): string {
   return req.headers.get('x-real-ip') ?? '127.0.0.1';
 }
 
-export function middleware(req: NextRequest): NextResponse {
+export async function proxy(req: NextRequest): Promise<NextResponse> {
   const path = req.nextUrl.pathname;
+
+  // 1. Admin gate (defense-in-depth layer 1). Only verify a session for gated paths.
+  if (gateDecision(path, false) === 'notfound') {
+    const token = req.cookies.get(SESSION_COOKIE)?.value;
+    let hasSession = false;
+    try {
+      const cfg = authConfig();
+      hasSession = (await verifySession(token, cfg.sessionSecret, cfg.sessionVersion)) !== null;
+    } catch {
+      hasSession = false;
+    }
+    if (!hasSession) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/blackhole';
+      return NextResponse.rewrite(url);
+    }
+  }
+
+  // 2. Rate limiting (existing behavior + the login rule).
   const rule = RULES.find((r) => r.pattern.test(path));
   if (!rule) return NextResponse.next();
 
@@ -46,10 +67,10 @@ export function middleware(req: NextRequest): NextResponse {
     const retryAfter = Math.max(1, Math.ceil((result.resetAt - Date.now()) / 1000));
     headers.set('Retry-After', String(retryAfter));
     headers.set('Content-Type', 'application/json');
-    return new NextResponse(
-      JSON.stringify({ ok: false, error: 'rate_limited' }),
-      { status: 429, headers },
-    );
+    return new NextResponse(JSON.stringify({ ok: false, error: 'rate_limited' }), {
+      status: 429,
+      headers,
+    });
   }
 
   const res = NextResponse.next();
@@ -58,5 +79,5 @@ export function middleware(req: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/api/:path*', '/admin', '/admin/:path*'],
 };

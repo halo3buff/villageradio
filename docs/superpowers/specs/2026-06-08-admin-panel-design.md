@@ -1,0 +1,484 @@
+# Village Radio — Admin Panel Design
+
+**Status:** Draft for review · **Date:** 2026-06-08 · **Branch:** `adnan`
+
+A secure, hidden admin panel for vlgfm.live that lets the team upload and arrange
+broadcast tracks, manage photography/work/news/information, and moderate user
+transmissions — without a code deploy. Reuses the existing GCP/Cloud Run stack.
+
+---
+
+## 1. Goals & non-goals
+
+**Goals**
+- A single admin console to manage **all site content**: broadcast tracks + arrangement,
+  photography, work portfolio, news, the information page, and transmissions moderation.
+- **Edit content without a git deploy** — move the hardcoded data into an editable store.
+- **Security first**: every admin route and API gated; obscurity for the entry point,
+  real authentication/authorization behind it. Defense in depth.
+- A **hidden entry** (soot-sprite easter egg) that's easy for the team, invisible to visitors.
+- Stay true to the cybercore design system (a "broadcast console" register).
+- Keep it **cheap** — reuse existing GCP services; add no paid infrastructure.
+
+**Non-goals (for now)**
+- Multi-user accounts / per-user audit identities (single shared login; we log actions but
+  not distinct identities). TOTP/2FA is a later layer, designed-for but not built in v1.
+- Public-facing changes to how listeners experience the broadcast.
+- A general CMS or plugin system. This is a focused, hand-built console.
+
+---
+
+## 2. Current state (post-GCP-migration)
+
+- **Hosting:** Cloud Run (containerized, Next.js `standalone`), `min 1 / max 4` instances,
+  public (`--allow-unauthenticated`). Deploy via GitHub Actions + Workload Identity
+  Federation on push to `main`. Runtime service account attached; GCP auth via ADC.
+- **Broadcast audio:** Cloudflare R2 (public bucket), proxied through `/api/audio/stream`;
+  allowlist derived from the hardcoded `src/lib/data/mixes.ts` (single source of truth).
+- **Transmissions:** user webm uploads → **GCS** (`TRANSMISSIONS_BUCKET`, private; uniform
+  bucket-level access + public-access-prevention) via `@google-cloud/storage` + ADC.
+- **All other content is hardcoded in source:** news posts (`news/page.tsx`), photography
+  filenames (`photography/page.tsx`), work (placeholder grid), info page (parses
+  `public/information/info_page.md` with a tiny built-in block parser).
+- **No database, no auth.** Only protection today: in-memory per-instance rate limiting
+  (`src/proxy.ts` — the Next 16 successor to `middleware.ts` — + `src/lib/rate-limit.ts`).
+- **No test framework. No markdown library.** Duration probing is a self-contained Node
+  script (`scripts/probe-durations.mjs`, MP3 frame parsing).
+
+**Doc drift to fix as part of this work:** `AGENTS.md` still says "Deployment: Vercel" and
+"Vercel Blob" (lines ~14–16, 27, 68, 82). Update to Cloud Run + GCS.
+
+---
+
+## 3. Scope (v1)
+
+Full content scope, single shared login, hidden sprite entry. Built in phases (§11).
+
+| Section | What it manages |
+|---|---|
+| **Broadcast** | Upload tracks; the ordered 24/7 arrangement (mixes + interludes); per-track metadata; staged publish. Supersedes `mixes.ts`. |
+| **Photography** | Upload/reorder photos (negative series); per-photo caption/date/series. |
+| **Work** | Portfolio projects: title, client, year, category, image set; grid order. |
+| **News** | Editorial posts (title → date → body markdown); draft/publish. |
+| **Information** | Edit the single `info_page.md` document. |
+| **Transmissions** | Moderation queue for user uploads: play, keep, delete. |
+| **Settings** | Session/account basics; later: featured home links, audit log view. |
+
+---
+
+## 4. Architecture
+
+### 4.1 Constraints that shaped it
+- **Multi-instance Cloud Run** → no in-memory session state; sessions must be **stateless**.
+- **Ephemeral filesystem** → all writes go to object storage, never local disk.
+- **Public Cloud Run service** → authorization must be **app-layer** (middleware + per route),
+  not Cloud Run IAM.
+- **ADC everywhere** → admin storage access reuses the runtime service account; **no new keys**.
+- **Cheap** → no new always-on services (rules out Cloud SQL); reuse GCS.
+
+### 4.2 Data store — JSON manifests in GCS (chosen over Firestore)
+
+Editable content lives as **versioned JSON objects in a private GCS bucket** (the "config"
+bucket), read/written by the app via `@google-cloud/storage` + ADC.
+
+**Why this over Firestore:** reuses the exact storage stack/SA/ADC already wired (zero new
+services to enable, secure, or learn); effectively free at this volume; **GCS object
+versioning gives free edit history + one-click rollback**; content is naturally
+document-shaped. The one downside (concurrent-edit races) is neutralized by the single-editor
+model and guarded anyway with **optimistic concurrency** (`ifGenerationMatch`).
+
+Manifests (one object each, under a `content/` prefix):
+- `content/broadcast.json` — the ordered broadcast (replaces `mixes.ts` as source of truth)
+- `content/photos.json`, `content/work.json`, `content/news.json`, `content/settings.json`
+- `content/information.md` — the info page document (kept as `.md`, same block parser)
+- Transmissions need no manifest: moderation state is encoded by **object prefix**
+  (`transmissions/new/…` → `transmissions/kept/…`, or delete).
+
+**Concurrency & history:** enable **object versioning** on the config bucket. Writes pass
+`ifGenerationMatch` (the generation the editor loaded); a mismatch returns a 409 "reload &
+retry" instead of silently overwriting. Rollback = restore a prior generation.
+
+**Caching (keeps visitor traffic off GCS):** public pages read manifests through a cached
+loader (`unstable_cache` / tagged fetch). **Publishing busts the tag** (`revalidateTag`) so
+changes appear promptly; otherwise a short TTL backstops. Admin views read **live** (no cache).
+
+### 4.3 Media storage & serving
+
+> **DECISION (Phase 3, 2026-06-09): ALL admin-uploaded media — audio AND images — lives on
+> Cloudflare R2. There is NO GCS `MEDIA_BUCKET`.** One R2 bucket, free egress, already wired for
+> writes. Audio sits at the bucket root; images go under `photos/` and `work/` prefixes. This
+> supersedes the original GCS-media-bucket recommendation below and **closes open item 12.2** (no
+> public GCS bucket → no org-policy question). **Every future admin image upload (Phase 4
+> news/editorial images, any later media) MUST follow the same R2-prefix pattern, not GCS.** User
+> transmissions (Phase 5) are the one exception and stay on private GCS (`TRANSMISSIONS_BUCKET`).
+
+- **Audio:** served through the existing `/api/audio/stream` proxy, which **keeps sourcing
+  mixes from Cloudflare R2**. R2 egress is free and GCS egress is not, so **audio bytes stay
+  on R2.** The only change vs. today: the proxy **allowlist is derived from `broadcast.json`**
+  instead of a hardcoded array — same single-source-of-truth pattern, just editable.
+- **Images:** written to R2 via the same S3 API as audio (`putImage` in `src/lib/storage/r2.ts`,
+  sibling of `putAudio`) under `photos/`/`work/` prefixes; served **directly from the public
+  `pub-…r2.dev` URL via `next/image`** (host allowlisted in `next.config.ts` → `remotePatterns`).
+  The stream allowlist derives ONLY from `broadcast.json`, so a prefixed image can never be served
+  as audio. Resolver: `src/lib/content/media.ts` (`photoUrl`/`workImageUrl`).
+- *Superseded original recommendation: a public-read GCS media bucket fronted by Cloud CDN, with
+  a private + signed-URL fallback. Dropped in favor of R2 to reuse the wired write path, keep
+  egress free, and avoid the org public-bucket question entirely.*
+
+### 4.4 Secrets — Secret Manager
+Admin **username**, **Argon2id password hash**, and the **session signing secret** live in
+**Secret Manager**, injected into Cloud Run via `--set-secrets` (not plaintext env). The
+deploy workflow already uses keyless WIF; add the `--set-secrets` flags and grant the runtime
+SA `secretAccessor`. (No `MEDIA_BUCKET` — images reuse R2 per §4.3.)
+
+---
+
+## 5. Security model (deep)
+
+**Principle:** the sprite/hidden entry is *obscurity for the doorknob only*. Security comes
+from authentication, authorization, and validation — never from hiding.
+
+### 5.1 Authentication
+- Single shared credential. Password verified with **Argon2id** (slow hash) against the hash
+  in Secret Manager; **constant-time** comparison. No password or hash in repo/env plaintext.
+- On success, issue a **stateless session cookie**.
+
+### 5.2 Session
+- Signed token (HMAC-SHA256 or JWT) carrying only `{ iat, exp }` (+ a version for revocation).
+- Cookie flags: **`httpOnly`, `Secure`, `SameSite=Strict`, `Path=/`**, short TTL (e.g. 8h)
+  with idle expiry. Stateless → works across Cloud Run instances with no shared store.
+- Signing secret in Secret Manager; rotating it (bump version) invalidates all sessions.
+
+### 5.3 Authorization / gating (defense in depth)
+1. **Middleware** matches `/admin/:path*` and `/api/admin/:path*`. No valid session →
+   **return 404** (the panel "doesn't exist"), per decision. Valid → continue.
+2. **Per-route re-check** in every admin route handler / server action (never trust the
+   middleware alone). Unauthenticated API calls → 401/404.
+3. Admin pages set `noindex` and `Cache-Control: no-store`.
+
+### 5.4 CSRF
+`SameSite=Strict` cookies + **Origin/Referer validation** on all mutating requests +
+**double-submit token** for state-changing POST/PUT/DELETE. Same-origin only.
+
+### 5.5 Rate limiting & brute force
+- Extend the existing middleware with a **strict login limiter** (per IP, low ceiling,
+  backoff). Upload limiters already exist.
+- In-memory limiter is per-instance (≤4 instances) — acceptable because the **slow Argon2id
+  hash + a long random shared secret** make online brute force impractical. If we want a
+  global counter later, a tiny GCS/Firestore counter is the cheap upgrade. TOTP is the
+  stronger future layer.
+
+### 5.6 Upload validation
+- Server-side: **content-type allowlist + size cap + magic-byte sniffing** (don't trust the
+  declared MIME); sanitize filenames (pattern already in the transmissions route); store
+  **private**. Audio → `audio/mpeg` (+ wav/ogg/m4a); images → `image/jpeg|png|webp`.
+- **Signed upload URLs are short-lived, single-object, single-method** (PUT), scoped to the
+  media bucket.
+
+### 5.7 Audit & headers
+- Log admin actions (login success/failure, publish, upload, delete) with timestamp + IP to
+  Cloud Logging. (Single identity, but still a trail.)
+- Security headers via middleware/`next.config`: CSP, `X-Content-Type-Options`,
+  `Referrer-Policy`, etc., tightened for `/admin`.
+
+### 5.8 Hidden entry (client-side only)
+- A key-sequence listener — **`→ → → ← ↓`** (`ArrowRight ×3, ArrowLeft, ArrowDown`), mounted **only on
+  the homepage** (`src/components/SootSprite.tsx`, rendered by `src/app/page.tsx`) — reveals the **soot
+  sprite** beside the logo: the team's transparent PNG + gentle bob. **Auto-hides after 15s** if
+  ignored; re-summon with the sequence. Clicking it opens the login as an **inline overlay on the
+  homepage** (Escape / backdrop closes).
+- **There is no login route.** The login form lives only behind the sprite (`src/components/LoginForm.tsx`);
+  the former `/relay` page was removed, so a direct visit 404s. Nothing in the page's rendered markup
+  reveals the entry before the keystroke. The **`/admin/*` panel 404s without a session** regardless —
+  the real lock is the credentials + the gate, the sprite is doorknob obscurity only. *(MVP: the
+  sequence + the login component ship in the homepage JS bundle — accepted; security is the auth, not
+  the hiding.)*
+
+---
+
+## 6. Data model
+
+TypeScript types live in `src/lib/types.ts` (extend existing `Mix` / `WorkItem` / `Photo`).
+
+```ts
+// broadcast.json — ordered; supersedes mixes.ts as the single source of truth
+interface BroadcastManifest {
+  version: 1;
+  entries: BroadcastEntry[];      // play order IS the array order
+}
+interface BroadcastEntry {
+  id: string;
+  title: string;
+  artist: string;
+  date: string;                   // 'MM-DD-YYYY' ('' for interludes)
+  durationSec: number;            // probed on upload
+  file: string;                   // R2 filename — audio stays on Cloudflare R2 (free egress)
+  kind: 'mix' | 'inter';
+  series?: 'red' | 'green' | 'yellow';  // mixes only; drives the ink swatch
+  tags: string[];
+}
+// Derived (mirrors today's mixes.ts): `mixes = entries.filter(kind==='mix')`,
+// stream allowlist = unique entry.file set. Never maintained separately.
+
+interface Photo { id; key; caption?; date?; series?; order: number; w?; h? }
+interface WorkProject { id; title; client?; year; category; images: string[]; description?; order }
+interface NewsPost { id; title; date; body /* markdown */; status: 'draft'|'published'; order }
+// information.md — plain markdown document (existing block parser)
+// settings.json — { featuredLinks?, ... } (grows later)
+```
+
+**Migration/seed:** a one-time script writes the current hardcoded data (`mixes.ts`, news
+array, photography filenames, `info_page.md`) into the manifests, and uploads existing
+in-repo/R2 media references. Public pages then read manifests; behavior is preserved. The 41
+in-repo photos are migrated to R2 (`photos/` prefix) by `scripts/migrate-photos-to-r2.mjs`
+(Phase 3); the media URL resolver serves un-migrated (bare) keys from `/public`, so nothing
+breaks mid-migration.
+
+---
+
+## 7. Content store layer
+
+`src/lib/content/store.ts` — the only module that talks to the config bucket.
+- `readManifest<T>(name): Promise<{ data: T; generation: string }>`
+- `writeManifest<T>(name, data, { ifGenerationMatch }): Promise<void>` (throws 409 on mismatch)
+- Cached public reader: `getBroadcast()`, `getPhotos()`, … via `unstable_cache` + a tag per
+  manifest; `publish()` calls `revalidateTag`.
+- One client per warm instance (as in the transmissions route). Small, single-purpose,
+  unit-testable.
+
+Keeps the **AVOID DUPLICATION** rule: the broadcast manifest is the source; `mixes` list and
+the proxy allowlist are *derived*, exactly like `mixes.ts` does now.
+
+---
+
+## 8. Upload flows
+
+- **Audio (large, robust path):** **upload target is Cloudflare R2, not GCS** (see §4.3 — R2
+  egress is free), so the GCS-specific detail below is superseded; the *pattern* still holds.
+  Request a **signed/presigned upload URL** → browser PUTs **direct to R2** (bypasses Cloud
+  Run's ~32 MB request cap) → server **probes duration** (reuse `probe-durations.mjs` frame
+  logic against the R2 object) → write `broadcast.json`. Typical mixes are 3–8 MB, so a
+  through-app path also works as a fallback.
+  → *Open item 12.1: the VPN-to-Google hang may affect direct browser→GCS uploads of large
+  files; test, since the heavy leg from a laptop is the same direct-to-Google upload that
+  hung before. Mitigation: through-app for small files; turn VPN off for large ones; or keep
+  the existing CI path for the occasional huge file.*
+- **Images (small):** through-app POST (≤ 10 MB) → validate (content-type allowlist + size cap +
+  **magic-byte sniff, which is the authoritative type — `blob.type` is not trusted**) → write to
+  **R2** under `photos/`/`work/` (not GCS — see §4.3) → update `photos.json` / `work.json`. Serve
+  via `next/image` from the public R2 URL. Shared handler: `src/lib/image/upload-handler.ts`.
+
+No new dependencies: duration probing and markdown parsing reuse existing in-repo code.
+
+---
+
+## 9. Routes & surface
+
+**Pages**
+- *(no login route)* — login is a homepage overlay revealed by the sprite (§5.8); there is no `/relay`.
+- `/admin` → redirect to `/admin/broadcast`.
+- `/admin/{broadcast,photography,work,news,information,transmissions,settings}`.
+
+**API (`/api/admin/*`, all behind the 404 gate + per-route auth)**
+- `POST login`, `POST logout`
+- `GET/PUT broadcast`, `photos`, `work`, `news`, `information`, `settings`
+- `POST upload-url` (signed URL) · `GET/POST transmissions` (list / keep+delete) ·
+  `GET transmissions/audio` (Phase 5: private-object playback proxy, `requireAdmin`-gated)
+
+**Public refactors:** `listen`/home (broadcast), `photography`, `work`, `news`, `information`
+read manifests via the cached store instead of hardcoded data. `/api/audio/stream` allowlist
+derives from `broadcast.json`.
+
+---
+
+## 10. Design system mapping
+
+Broadcast-console register within the existing tokens (`#080808`, `#e8e4d9`, signal-green
+**live-only**, monospace chrome, **borders not fills, no rounded corners, no icon libraries,
+no spinners — `loading..`/text states**). Components to build (hand-rolled, atomic):
+`AdminShell`, `SidebarNav` (flat, lowercase, opacity states), `LiveStrip`, `ArrangementList`
+(drag-reorder + staged changes), `UploadDrawer`, `SeriesSwatch` (print-ink: red/green-sage/
+yellow, square — distinct from the live dot), `MediaGrid`, `EditorialEditor`,
+`ModerationQueue`, `LoginForm`, `SootSprite`.
+
+**Justified new dependencies (confirm):** a drag-and-drop primitive — try native HTML5 DnD
+first, reach for `@dnd-kit` only if needed (behavior lib, not a UI kit). Possibly a test
+runner (see §13). Nothing else.
+
+---
+
+## 11. Phased build plan
+
+Each phase ships independently and must pass **lint + typecheck + build** before completion.
+
+- **Phase 0 — Security foundation.** Secret Manager secrets + deploy wiring; session lib
+  (sign/verify); middleware 404 gate + per-route guard; login API (Argon2id, rate-limited);
+  login page; hidden sprite entry (sequence → sprite → login). *Proves the gate before any
+  content editing exists.*
+- **Phase 1 — Content store.** `store.ts` (read/write, versioning, optimistic concurrency,
+  cache + revalidate); seed/migration script; refactor public pages to read manifests
+  (behavior-preserving). Retire `mixes.ts` as source (manifest takes over; allowlist derived).
+- **Phase 2 — Broadcast admin.** Arrangement list (reorder, edit, staged publish); audio
+  upload (target **R2**, not GCS — see §4.3) + duration probe. Stream proxy keeps sourcing
+  from R2; **not** extended to GCS.
+- **Phase 3 — Media admin** *(DONE — branch `adnan`, 2026-06-09)*. Photography + work grid
+  managers; through-app image upload **to R2** (`photos/`/`work/` prefixes — **no GCS
+  `MEDIA_BUCKET`**, see §4.3); public photography + work pages read manifests. Work is grid-only
+  v1 (cover = `images[0]`; no `/work/[id]` detail pages).
+- **Phase 4 — Editorial** *(DONE — branch `adnan`, 2026-06-09)*. News + information editors; both
+  the public `/news` and `/information` pages now render through a shared, extracted block parser
+  (`src/components/EditorialBody.tsx` — `# h1` / `---` / paragraph). **v1 DECISION: News is
+  text-only** (title, date, markdown body, draft/publish status, order) — inline post images are
+  deferred, so **no `news/` R2 prefix, no news upload route, and no parser image block** were
+  built. When post images are added later they MUST upload to R2 under a `news/` prefix reusing
+  `putImage` + the §4.3 pattern (not GCS), alongside an image block in the parser (TODO noted in
+  `EditorialBody.tsx`). Information edits the single `information.md` document (text in
+  `CONFIG_BUCKET`, same parser). **No new infra, secrets, or env — reuses the Phase 0/1 gates and
+  needs no R2.**
+- **Phase 5 — Transmissions moderation** *(DONE — branch `adnan`, 2026-06-09)*. Moderation queue:
+  list → play → keep → delete, with state encoded purely by **object prefix** (no manifest, no
+  staged-publish — each action is an immediate GCS move). **DECISIONS:** (a) **dedicated `new/` +
+  `kept/` + `trash/` prefixes** — the public upload route now writes incoming uploads to
+  `transmissions/new/` (`src/app/api/transmissions/route.ts`); `listQueue` surfaces `new/` **plus
+  any legacy bare-root** `transmissions/*.webm` so nothing is stranded (no migration script).
+  (b) **Playback proxies through an admin route** (`GET /api/admin/transmissions/audio`) that streams
+  the private GCS bytes behind `requireAdmin()`, mirroring `/api/audio/stream` — **no signed URLs**,
+  so no `signBlob` IAM grant / IAM Credentials API. (c) **Delete is soft** — the bucket has no object
+  versioning, so `delete` **moves** the object to `transmissions/trash/` (recoverable via console)
+  guarded by a two-click inline confirm; `keep` moves it to `transmissions/kept/`. New code:
+  `src/lib/transmissions/{names,store}.ts` (own `Storage()` singleton on `TRANSMISSIONS_BUCKET`),
+  `src/app/api/admin/transmissions/{route,audio/route}.ts`,
+  `src/components/admin/ModerationQueue.tsx`. Security-critical name validation
+  (`assertSafeTransmissionName`) is unit-tested against traversal. **The one manual gate: the runtime
+  SA needs list/copy/delete on `TRANSMISSIONS_BUCKET`** (see the runbook step 9) — upload only ever
+  needed create. No new env, secrets, buckets, or APIs.
+- **Phase 6 — Hardening & docs** *(this round DONE — branch `adnan`, 2026-06-09)*. Scoped to the
+  **docs + cleanup** items: (1) extracted the manual setup into a follow-along runbook (kept in the
+  team's **private** docs, out of this public repo) and slimmed §14.2 to the gate map; (2) refreshed `AGENTS.md`
+  (Vercel→Cloud Run/GCS, `mixes.ts`→`broadcast.json`, manifest-driven routes, new admin section);
+  (3) renamed `src/middleware.ts` → **`src/proxy.ts`** (Next 16 deprecation); (4) final security
+  review. **Deferred to "Future hardening" (§15)** by decision: security headers + CSP, explicit
+  admin `no-store`, double-submit CSRF token, structured audit logging + audit-log view, and the
+  settings section — the current posture (404 gate + per-route `requireAdmin` + `sameOrigin` +
+  `SameSite=Strict` + scrypt + login rate-limit + noindex) is already solid; these are defense-in-
+  depth add-ons.
+
+Each phase got its own implementation plan (via writing-plans) when we reached it.
+
+---
+
+## 12. Open items / risks
+
+1. **VPN vs direct-to-R2 uploads** (§8) — test whether the known VPN hang affects browser
+   uploads of large mixes to R2; pick the default path accordingly. (Audio stays on R2 per
+   §4.3, so this is an R2 upload concern, not GCS.) *Phase 3 note:* image upload is through-app
+   (small) and the photo migration writes to R2 (Cloudflare, **not** Google) — the Google-VPN
+   hang does not apply to either.
+2. ~~**Org policy on public buckets**~~ **RESOLVED (Phase 3):** images reuse R2 (public
+   `pub-…r2.dev`), so there is no public GCS bucket and the org-policy question never arises.
+3. ~~**Markdown**~~ **RESOLVED (Phase 4):** the info page's block parser (`# h1` / `---` /
+   paragraph) was extracted to `src/components/EditorialBody.tsx` and reused as-is for both news
+   and information — no new lib. Confirmed enough for v1; a follow-up TODO in that file tracks
+   extending it (`##`/`###`, lists, inline links/images) once the editorial flow is in use.
+4. ~~**DnD approach**~~ **RESOLVED:** native HTML5 DnD across broadcast/photo/work managers —
+   no `@dnd-kit`.
+5. ~~**Transmissions**~~ **RESOLVED (Phase 5):** moderation now exists (list/play/keep/delete via
+   `new/`→`kept/`/`trash/` prefix moves; private playback proxied behind `requireAdmin()`). Delete is
+   **soft** (move to `transmissions/trash/`) since the bucket has no versioning. Still private —
+   "feature on site" remains out of v1.
+6. **Session secret rotation** — document the bump-to-revoke procedure.
+7. **Backups** — rely on GCS object versioning for content history/rollback.
+
+---
+
+## 13. Testing
+
+The repo has **no test framework today**; auth/session/store logic is exactly the kind of code
+that warrants one. **Recommendation:** add **Vitest** (dev-only) for unit tests of: session
+sign/verify + expiry, middleware gate (404 vs pass), login rate limiting, `store.ts`
+read/write + `ifGenerationMatch` conflict, and upload validation (magic bytes/size). Follow
+TDD for these. UI/DnD verified manually + via the existing build. *Adding Vitest is the one
+tooling addition to confirm (strong justification: security-critical logic).*
+
+---
+
+## 14. Environment variables & manual setup
+
+Tracks every runtime variable the panel needs and the manual (non-code) steps to provision
+them, in order. Secrets live in **Secret Manager** (injected via `--set-secrets`); plain
+config lives as Cloud Run env. Nothing sensitive is committed.
+
+### 14.1 Environment variables
+
+| Var | Where | Phase | Purpose |
+|---|---|---|---|
+| `ADMIN_USERNAME` | Secret Manager | 0 | Admin login username (constant-time compared in the login route). |
+| `ADMIN_PASSWORD_HASH` | Secret Manager | 0 | `scrypt$N$r$p$salt$key` hash — generate with `src/lib/auth/password.ts`. Never store plaintext. |
+| `SESSION_SECRET` | Secret Manager | 0 | HMAC-SHA256 session signing key (long random). |
+| `SESSION_VERSION` | env (opt, def `1`) | 0 | Bump to revoke all live sessions. |
+| `SESSION_TTL_MS` | env (opt, def 8h) | 0 | Session lifetime (idle expiry). |
+| `CONFIG_BUCKET` | env | 1 | GCS bucket holding `content/*.json` manifests. Unset locally → bundled-seed fallback. |
+| `TRANSMISSIONS_BUCKET` | env | pre-admin | GCS bucket for user transmissions. Already wired. |
+| `R2_ACCOUNT_ID` | Secret Manager | 2 | Cloudflare account id → S3 endpoint `https://<id>.r2.cloudflarestorage.com`. |
+| `R2_BUCKET` | Secret Manager | 2 | R2 bucket for audio. **Must be the same bucket bound to the public `pub-…r2.dev` URL** the stream proxy reads. |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Secret Manager | 2 | R2 S3-API token (Object Read & Write) for through-app uploads (audio **and** images). |
+| ~~`MEDIA_BUCKET`~~ | — | — | **Not used.** Phase 3 reuses R2 for images (see §4.3); no GCS image bucket. Images write via the same `R2_*` creds, under `photos/`/`work/` prefixes. |
+
+R2 **read** needs no env — the public `pub-…r2.dev` URL is hardcoded in the stream proxy, the
+duration prober, and the image resolver (`src/lib/content/media.ts`). Only R2 **writes** (Phase 2
+audio + Phase 3 image uploads, and the photo migration) need credentials.
+
+### 14.2 Manual setup
+
+**→ Follow the team's private deployment runbook** (kept out of this public repo — it carries the
+concrete SA/bucket/WIF identifiers; ask Adnan). The ordered, follow-along provisioning steps live
+there — every secret/env/bucket with *what* it is, *why* it's needed, *who* provisions it (Adnan/GCP
+vs Ameen/repo), *where to get the value*, the exact command, and a verify check. The §14.1 table above
+remains the env-var reference; this section
+keeps only the **design-level gate map** (what must exist before each feature works).
+
+**Gate map** (feature → prerequisite):
+- **Panel reachable at all** (hidden login + 404 gate): the auth secrets (`ADMIN_USERNAME`,
+  `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`) + their `secretAccessor` grant + the deploy itself
+  (runbook §B, §E).
+- **Content edit/publish** (broadcast order; photo/work/news metadata; the information doc): the
+  `CONFIG_BUCKET` + its `objectAdmin` grant + seed (runbook §C, §E). **No R2 needed.** Until the first
+  **Publish**, pages serve the bundled seed/doc; that Publish creates the manifest via
+  `ifGenerationMatch:0`.
+- **Audio upload, image upload, and the one-time photo→R2 migration**: gated on the **four `R2_*`
+  secrets existing in Secret Manager** (runbook §D). The deploy wiring (`--set-secrets`) is already in
+  place, so creating the secrets is all that's needed; the code is shipped + unit-tested, but every R2
+  write fails until the secrets exist.
+- **Transmissions moderation** (Phase 5): the panel gate + the runtime SA having **list/copy/delete on
+  `TRANSMISSIONS_BUCKET`** (runbook step 9). No R2, no new env/secrets/buckets.
+
+---
+
+## 15. Future hardening (deferred from Phase 6)
+
+These were scoped out of the Phase 6 round by decision. The shipped posture is already solid
+(404 gate + per-route `requireAdmin` + `sameOrigin` + `SameSite=Strict` cookies + scrypt password
+hash + login rate-limit + `noindex`); each item below is **defense-in-depth**, safe to schedule later.
+None requires new infrastructure.
+
+- **Security headers + CSP** *(§5.7)* — add a `headers()` policy in `next.config.ts`:
+  `Content-Security-Policy` (allowlist `'self'` + the public `pub-…r2.dev` host for images/audio),
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`,
+  `Strict-Transport-Security`. Apply CSP carefully (Report-Only first) so it can't break R2 media or
+  Next's hydration scripts.
+- **Explicit `Cache-Control: no-store` on admin responses** *(§5.3)* — admin pages already use
+  `force-dynamic` (no caching) + `noindex`; add the explicit header for completeness.
+- **Double-submit CSRF token** *(§5.4)* — layer a token cookie + matching request header on every
+  admin mutation, on top of the existing `sameOrigin` + `SameSite=Strict` defense. Touches all
+  `/api/admin/*` mutating routes + their client fetches.
+- **Structured audit logging** *(§5.7)* — a small helper emitting JSON to stdout (Cloud Run forwards
+  to Cloud Logging) for login success/failure + publish/upload/delete/keep, with timestamp + IP.
+  IP extraction already exists (`clientIp` in `src/proxy.ts` and the login route); today only ad-hoc
+  `console.error` on failures exists.
+- **Settings section + audit-log view** *(§3)* — `/admin/settings` (session/account basics, featured
+  home links via a `settings.json` manifest) and an in-panel view over the audit log above.
+- **Trusted rate-limit identity** *(§5.5)* — the login brute-force limiter keys on the spoofable
+  `X-Forwarded-For` header (`clientIp` in `src/proxy.ts` / the login route), so an attacker can rotate
+  the key. Derive the client IP from a trusted hop (Cloud Run's right-most XFF entry) and/or move to a
+  shared global counter. (Surfaced by the Phase 6 security review; not exploitable beyond weakening the
+  per-instance limiter, which the slow scrypt hash + long shared secret already backstop.)
