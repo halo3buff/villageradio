@@ -52,7 +52,7 @@ export function SootSprite() {
         <button
           aria-label="enter"
           onClick={() => setLoginOpen(true)}
-          className="soot-sprite fixed top-3 left-[124px] z-[60] h-9 w-9 cursor-pointer bg-transparent border-0 p-0"
+          className="soot-sprite fixed top-3 left-[400px] z-[60] h-9 w-9 cursor-pointer bg-transparent border-0 p-0"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icons/soot-sprite.png" alt="" className="h-full w-full object-contain" />
