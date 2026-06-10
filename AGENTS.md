@@ -34,7 +34,8 @@ brand-design portfolio, and photography. Built for atmosphere, not features.
   - Admin panel: `CONFIG_BUCKET` (GCS content manifests) + auth secrets (`ADMIN_USERNAME`,
     `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`) + R2 write creds (`R2_ACCOUNT_ID` / `R2_BUCKET` /
     `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`) for uploads. Unset `CONFIG_BUCKET` → pages serve the
-    bundled seed. Full provisioning: `docs/admin-deployment-runbook.md`.
+    bundled seed. Full provisioning lives in the team's **private deployment runbook** (kept out of
+    this public repo — ask Adnan).
 - Install: `npm install`.
 
 ## Commands
@@ -102,8 +103,8 @@ This repo targets macOS, Linux, and Windows. To keep agents portable:
 
 ## Admin panel
 A hidden, authenticated console to edit all site content without a deploy (branch `adnan`, phases
-0–6). Full design: `docs/superpowers/specs/2026-06-08-admin-panel-design.md`; provisioning + deploy:
-`docs/admin-deployment-runbook.md`.
+0–6). Full design: `docs/superpowers/specs/2026-06-08-admin-panel-design.md`. Provisioning + deploy
+steps live in the team's **private deployment runbook** (kept out of this public repo — ask Adnan).
 
 - **Entry & gating.** On the **homepage only** (`src/components/SootSprite.tsx`, mounted by
   `src/app/page.tsx`), the key sequence `→ → → ← ↓` reveals a soot-sprite; clicking it opens the login

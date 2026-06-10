@@ -353,8 +353,8 @@ Each phase ships independently and must pass **lint + typecheck + build** before
   SA needs list/copy/delete on `TRANSMISSIONS_BUCKET`** (see the runbook step 9) — upload only ever
   needed create. No new env, secrets, buckets, or APIs.
 - **Phase 6 — Hardening & docs** *(this round DONE — branch `adnan`, 2026-06-09)*. Scoped to the
-  **docs + cleanup** items: (1) extracted the manual setup into a follow-along runbook
-  (`docs/admin-deployment-runbook.md`) and slimmed §14.2 to the gate map; (2) refreshed `AGENTS.md`
+  **docs + cleanup** items: (1) extracted the manual setup into a follow-along runbook (kept in the
+  team's **private** docs, out of this public repo) and slimmed §14.2 to the gate map; (2) refreshed `AGENTS.md`
   (Vercel→Cloud Run/GCS, `mixes.ts`→`broadcast.json`, manifest-driven routes, new admin section);
   (3) renamed `src/middleware.ts` → **`src/proxy.ts`** (Next 16 deprecation); (4) final security
   review. **Deferred to "Future hardening" (§15)** by decision: security headers + CSP, explicit
@@ -430,10 +430,11 @@ audio + Phase 3 image uploads, and the photo migration) need credentials.
 
 ### 14.2 Manual setup
 
-**→ Follow the runbook: [`docs/admin-deployment-runbook.md`](../../admin-deployment-runbook.md).**
-The ordered, follow-along provisioning steps now live there — every secret/env/bucket with *what* it
-is, *why* it's needed, *who* provisions it (Adnan/GCP vs Ameen/repo), *where to get the value*, the
-exact command, and a verify check. The §14.1 table above remains the env-var reference; this section
+**→ Follow the team's private deployment runbook** (kept out of this public repo — it carries the
+concrete SA/bucket/WIF identifiers; ask Adnan). The ordered, follow-along provisioning steps live
+there — every secret/env/bucket with *what* it is, *why* it's needed, *who* provisions it (Adnan/GCP
+vs Ameen/repo), *where to get the value*, the exact command, and a verify check. The §14.1 table above
+remains the env-var reference; this section
 keeps only the **design-level gate map** (what must exist before each feature works).
 
 **Gate map** (feature → prerequisite):
