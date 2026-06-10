@@ -18,6 +18,8 @@ export function SootSprite() {
   useEffect(() => {
     let pos = 0;
     function onKey(e: KeyboardEvent) {
+      // Some events (autofill, password managers, IME) fire keydown with no `key` — ignore them.
+      if (typeof e.key !== 'string') return;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       pos = key === SEQUENCE[pos] ? pos + 1 : key === SEQUENCE[0] ? 1 : 0;
       if (pos === SEQUENCE.length) {
