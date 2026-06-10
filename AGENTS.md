@@ -105,10 +105,12 @@ A hidden, authenticated console to edit all site content without a deploy (branc
 0–6). Full design: `docs/superpowers/specs/2026-06-08-admin-panel-design.md`; provisioning + deploy:
 `docs/admin-deployment-runbook.md`.
 
-- **Entry & gating.** A client-side key sequence reveals a soot-sprite linking to an unguessable login
-  path (`ADMIN_LOGIN_PATH`, default `/relay`). `src/proxy.ts` gates `/admin/*` + `/api/admin/*`: no
-  valid session → rewrite to a 404 ("the panel doesn't exist"). Every admin route/page also calls
-  `requireAdmin()` (`src/lib/auth/guard.ts`) — never trust the proxy gate alone.
+- **Entry & gating.** On the **homepage only** (`src/components/SootSprite.tsx`, mounted by
+  `src/app/page.tsx`), the key sequence `→ → → ← ↓` reveals a soot-sprite; clicking it opens the login
+  as an inline overlay (`src/components/LoginForm.tsx`). **There is no login route** — the old `/relay`
+  was removed, so direct visits 404. `src/proxy.ts` gates `/admin/*` + `/api/admin/*`: no valid session
+  → rewrite to a 404 ("the panel doesn't exist"). Every admin route/page also calls `requireAdmin()`
+  (`src/lib/auth/guard.ts`) — never trust the proxy gate alone.
 - **Auth & session.** Single shared login: `ADMIN_USERNAME` + scrypt `ADMIN_PASSWORD_HASH` (Secret
   Manager), constant-time compared, login rate-limited. Stateless HMAC session cookie
   (httpOnly/Secure/SameSite=Strict) signed with `SESSION_SECRET`. Mutations also check `sameOrigin`.

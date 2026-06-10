@@ -182,13 +182,17 @@ from authentication, authorization, and validation — never from hiding.
   `Referrer-Policy`, etc., tightened for `/admin`.
 
 ### 5.8 Hidden entry (client-side only)
-- A key-sequence listener (the final sequence is the team's to choose) reveals the **soot
-  sprite** beside the logo: the team's transparent PNG, with a **very subtle white outline**
-  (low-opacity layered `drop-shadow` tracing the alpha) + gentle bob. **Auto-hides after 15s**
-  if ignored; re-summon with the sequence. Clicking it navigates to the login.
-- Nothing in the public markup/URLs reveals the panel. The login lives at an **unguessable,
-  unlinked path** that serves the form; the **actual `/admin/*` panel 404s without a session**,
-  so finding the login path still yields nothing without credentials.
+- A key-sequence listener — **`→ → → ← ↓`** (`ArrowRight ×3, ArrowLeft, ArrowDown`), mounted **only on
+  the homepage** (`src/components/SootSprite.tsx`, rendered by `src/app/page.tsx`) — reveals the **soot
+  sprite** beside the logo: the team's transparent PNG + gentle bob. **Auto-hides after 15s** if
+  ignored; re-summon with the sequence. Clicking it opens the login as an **inline overlay on the
+  homepage** (Escape / backdrop closes).
+- **There is no login route.** The login form lives only behind the sprite (`src/components/LoginForm.tsx`);
+  the former `/relay` page was removed, so a direct visit 404s. Nothing in the page's rendered markup
+  reveals the entry before the keystroke. The **`/admin/*` panel 404s without a session** regardless —
+  the real lock is the credentials + the gate, the sprite is doorknob obscurity only. *(MVP: the
+  sequence + the login component ship in the homepage JS bundle — accepted; security is the auth, not
+  the hiding.)*
 
 ---
 
@@ -271,7 +275,7 @@ No new dependencies: duration probing and markdown parsing reuse existing in-rep
 ## 9. Routes & surface
 
 **Pages**
-- `/<secret-login-path>` — login form (unlinked, unguessable).
+- *(no login route)* — login is a homepage overlay revealed by the sprite (§5.8); there is no `/relay`.
 - `/admin` → redirect to `/admin/broadcast`.
 - `/admin/{broadcast,photography,work,news,information,transmissions,settings}`.
 
@@ -413,7 +417,6 @@ config lives as Cloud Run env. Nothing sensitive is committed.
 | `SESSION_SECRET` | Secret Manager | 0 | HMAC-SHA256 session signing key (long random). |
 | `SESSION_VERSION` | env (opt, def `1`) | 0 | Bump to revoke all live sessions. |
 | `SESSION_TTL_MS` | env (opt, def 8h) | 0 | Session lifetime (idle expiry). |
-| `ADMIN_LOGIN_PATH` | env (opt, def `/relay`) | 0 | Unguessable login path the sprite links to. |
 | `CONFIG_BUCKET` | env | 1 | GCS bucket holding `content/*.json` manifests. Unset locally → bundled-seed fallback. |
 | `TRANSMISSIONS_BUCKET` | env | pre-admin | GCS bucket for user transmissions. Already wired. |
 | `R2_ACCOUNT_ID` | Secret Manager | 2 | Cloudflare account id → S3 endpoint `https://<id>.r2.cloudflarestorage.com`. |

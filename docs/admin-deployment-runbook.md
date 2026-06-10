@@ -102,11 +102,11 @@ printf '%s' 'NEW_VALUE' | gcloud secrets versions add SECRET_NAME --data-file=-
        --role="roles/secretmanager.secretAccessor"
    done
    ```
-7. **(Optional) session/obscurity env** — defaults are fine; only set these to change behaviour:
-   `SESSION_VERSION` (bump to revoke all sessions), `SESSION_TTL_MS` (default 8h), `ADMIN_LOGIN_PATH`
-   (default `/relay`). *Note:* these are intentionally **not** wired in `deploy.yml` (they default
-   safely in code; wiring an unset GitHub var would inject an empty value and override the default).
-   To set one, append it to the `--set-env-vars` line in `deploy.yml`, e.g. `,ADMIN_LOGIN_PATH=/your-path`.
+7. **(Optional) session env** — defaults are fine; only set these to change behaviour:
+   `SESSION_VERSION` (bump to revoke all sessions), `SESSION_TTL_MS` (default 8h). *Note:* these are
+   intentionally **not** wired in `deploy.yml` (they default safely in code; wiring an unset GitHub var
+   would inject an empty value and override the default). To set one, append it to the `--set-env-vars`
+   line in `deploy.yml`, e.g. `,SESSION_TTL_MS=14400000`.
 
 ---
 
@@ -216,9 +216,9 @@ API. Reads are public (the hardcoded `pub-…r2.dev` URL) and need no creds; onl
     *Why last:* the app reads the secrets/env/buckets created above at startup; deploying before they
     exist fails closed (a `--set-secrets` ref to a missing secret aborts the deploy).
 15. **Smoke-test (anyone, in prod).**
-    - Visit the site → trigger the hidden entry (key sequence → soot sprite) → land on the login at
-      `ADMIN_LOGIN_PATH` (default `/relay`). Visiting `/admin` directly **without a session must
-      404**.
+    - On the **homepage**, press **`→ → → ← ↓`** (ArrowRight ×3, ArrowLeft, ArrowDown) → the soot
+      sprite appears → click it → the login overlay opens. The sequence works on **no other page**, and
+      visiting `/relay` or `/admin` directly **must 404**.
     - Log in → each section loads. **Broadcast:** upload a small `.mp3` → `GET https://pub-…r2.dev/<returned
       file>` is `200` → add to lineup → Publish → it streams via `/api/audio/stream`.
     - **Photography:** upload a `.jpg` → `GET https://pub-…r2.dev/photos/<key>` is `200` → Publish →
