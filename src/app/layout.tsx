@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import { Space_Mono, DM_Sans, IBM_Plex_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
 import { getBroadcast } from '@/lib/content/loaders';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { NewsStrip } from '@/components/NewsStrip';
+import { SiteFrame } from '@/components/SiteFrame';
 
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
@@ -24,6 +26,19 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ['400', '500'],
   subsets: ['latin'],
   variable: '--font-ibm-plex-mono',
+  display: 'swap',
+});
+
+// Display + body faces for the redesigned homepage (used via CSS variables).
+const helveticaBlack = localFont({
+  src: './fonts/HelveticaNeueBlack.otf',
+  variable: '--font-hn-black',
+  display: 'swap',
+});
+
+const helveticaMedium = localFont({
+  src: './fonts/HelveticaNeueMedium.otf',
+  variable: '--font-hn-medium',
   display: 'swap',
 });
 
@@ -53,18 +68,18 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const playlist = await getBroadcast();
   return (
-    <html lang="en" className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable}`}>
+    <html
+      lang="en"
+      className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${helveticaBlack.variable} ${helveticaMedium.variable}`}
+    >
       <head>
         <meta name="theme-color" content="#080808" />
       </head>
       <body className="bg-[#080808] text-vr-white min-h-screen font-sans">
         <AudioProvider playlist={playlist}>
-          <Nav />
-          <div className="pb-[76px]">
+          <SiteFrame nav={<Nav />} newsStrip={<NewsStrip />} audioPlayer={<AudioPlayer />}>
             {children}
-          </div>
-          <NewsStrip />
-          <AudioPlayer />
+          </SiteFrame>
         </AudioProvider>
       </body>
     </html>

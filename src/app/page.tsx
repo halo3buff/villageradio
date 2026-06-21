@@ -1,60 +1,92 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { LissajousScope } from '@/components/LissajousScope';
 import { SootSprite } from '@/components/SootSprite';
+import { FitStage } from '@/components/FitStage';
+import { HeaderCluster } from '@/components/HeaderCluster';
+import { LissajousScope } from '@/components/LissajousScope';
 
-const featured = [
-  { href: '/listen', label: 'Signal 001 — New Mix' },
-  { href: '/work', label: 'Brand Archive — Identity Systems' },
-  { href: '/news', label: 'Transmission Notes' },
-];
+const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
+const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
+const RED = '#ff0000';
+
+// Inline red link used inside the justified body copy
+function RedLink({ href, children }: { href: string; children: string }) {
+  return (
+    <Link href={href} style={{ color: RED, textDecoration: 'none' }}>
+      {children}
+    </Link>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="px-4 sm:px-5 pt-2 sm:pt-3 page-enter">
+    <>
       {/* Hidden admin entry — homepage only (secret key sequence → sprite → login overlay) */}
       <SootSprite />
 
-      {/* Featured links */}
-      <div className="mb-3 sm:mb-4 space-y-1">
-        {featured.map(item => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="block text-sm text-[rgba(200,196,187,0.7)] hover:text-[#e8e4d9] transition-colors duration-150"
-          >
-            {item.label}
-          </Link>
-        ))}
-      </div>
+      <FitStage
+        left={
+          <>
+            {/* Vectorscope — grid lands at X=274 Y=334; header bar sits just above */}
+            <div style={{ position: 'absolute', left: 274, top: 300, pointerEvents: 'auto' }}>
+              <LissajousScope size={430} />
+            </div>
 
-      {/* Scope (left / top on mobile) + Image (right / bottom on mobile) */}
-      <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
-        {/* Lissajous scope — primary element */}
-        <div className="flex-1 min-w-0 max-w-full md:max-w-[400px]">
-          <LissajousScope />
-        </div>
+            {/* send transmission — X=33 Y=847, HN Black 36, -13% tracking */}
+            <Link
+              href="/transmit"
+              style={{
+                position: 'absolute',
+                left: 33,
+                top: 847,
+                pointerEvents: 'auto',
+                fontFamily: DISPLAY,
+                fontSize: 36,
+                lineHeight: 1,
+                letterSpacing: '-0.13em',
+                color: '#000000',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              send transmission
+            </Link>
+          </>
+        }
+        right={
+          <>
+            {/* VILLAGE RADIO logo cluster — top right */}
+            <HeaderCluster />
 
-        {/* Right column: transmit link + thermal photograph */}
-        <div className="flex flex-col gap-2 w-full max-w-[260px] md:max-w-[200px] md:self-end md:ml-auto shrink-0">
-          <Link
-            href="/transmit"
-            className="block text-right text-xs tracking-[0.15em] uppercase text-[rgba(200,196,187,0.7)] hover:text-[#e8e4d9] transition-colors duration-150"
-          >
-            ► send transmission
-          </Link>
-          <div className="relative aspect-square w-full">
-            <Image
-              src="/images/photography/infrared/Home_page_1.PNG"
-              alt=""
-              fill
-              className="object-cover"
-              priority
-              sizes="(max-width: 768px) 260px, 200px"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+            {/* Right-hand justified body copy — X=1178 Y=208 W=194, HN Medium 20 */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 1178,
+                top: 208,
+                width: 194,
+                pointerEvents: 'auto',
+                fontFamily: BODY,
+                fontSize: 20,
+                lineHeight: '23px',
+                letterSpacing: '-0.01em',
+                textAlign: 'justify',
+                textTransform: 'uppercase',
+                color: '#000000',
+              }}
+            >
+              {'Finding a balance in the digital age requires a conscious effort to log off. If you want to protect your mental health, you have to learn to '}
+              <RedLink href="/listen">listen</RedLink>
+              {' to your body’s need for a break. Spend less time scrolling through the daily '}
+              <RedLink href="/news">news</RedLink>
+              {' cycle or stressing over your professional '}
+              <RedLink href="/work">work</RedLink>
+              {'. Instead, channel that energy into a creative hobby that keeps you present in the physical world, whether that means exploring local trails, practicing amateur '}
+              <RedLink href="/photography">photography</RedLink>
+              {', or learning to cook a new meal.'}
+            </div>
+          </>
+        }
+      />
+    </>
   );
 }
