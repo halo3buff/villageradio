@@ -6,17 +6,21 @@ import { useAudio } from '@/lib/audio-context';
 const VR_FONT = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const SAMPLE_COUNT = 512;
 
-// "Found screenshot" of real audio software — native plugin colors on a dark
-// window, exempt from the page's black/white/red rule.
-const BG = '#191a22';
-const BG_DECAY = 'rgba(25, 26, 34, 0.20)';
-const GRID = 'rgba(150, 162, 196, 0.28)';
-const GRID_STRONG = 'rgba(150, 162, 196, 0.40)';
-const TRACE = 'rgba(96, 214, 236, 0.85)';
-const LABEL = 'rgba(210, 216, 236, 0.88)';
+// Colors sampled from the reference screenshot (Goniometer_1.png).
+const OUTER = '#5c5f68';            // outer window frame — medium grey
+const OUTER_BORDER = '#3c3e45';     // thin dark outline
+const HEADER_TOP = '#94a3c4';       // header — light blueish grey
+const HEADER_BOT = '#828fb1';
+const TITLE_TEXT = '#13212c';       // dark navy
+const INNER_TOP = '#31323a';        // inner display — dark grey gradient
+const INNER_BOT = '#202127';
+const GRID = 'rgba(216, 220, 230, 0.20)';
+const GRID_STRONG = 'rgba(216, 220, 230, 0.30)';
+const TRACE = 'rgba(113, 207, 241, 0.9)';
+const LABEL = 'rgba(176, 184, 202, 0.85)';
+const FOOTER_TEXT = 'rgba(214, 218, 228, 0.7)';
 
 function drawPolarGrid(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number): void {
-  // Concentric rings
   ctx.strokeStyle = GRID;
   ctx.lineWidth = 1;
   for (const f of [0.33, 0.66, 1]) {
@@ -24,7 +28,6 @@ function drawPolarGrid(ctx: CanvasRenderingContext2D, cx: number, cy: number, R:
     ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
     ctx.stroke();
   }
-  // Diagonal X — two lines crossing at 45° through the center
   ctx.strokeStyle = GRID_STRONG;
   const d = R * Math.SQRT1_2;
   ctx.beginPath(); ctx.moveTo(cx - d, cy - d); ctx.lineTo(cx + d, cy + d); ctx.stroke();
@@ -35,7 +38,7 @@ function drawPolarGrid(ctx: CanvasRenderingContext2D, cx: number, cy: number, R:
 function SixFingerHand() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style={{ display: 'block' }}>
-      <g fill="#6f86e0">
+      <g fill="#5566c8">
         <rect x="4" y="11" width="16" height="9" rx="3" />
         <rect x="4.0" y="5.5" width="2.1" height="7.5" rx="1.05" />
         <rect x="6.7" y="4.0" width="2.1" height="9" rx="1.05" />
@@ -53,8 +56,8 @@ function ChromeButton({ children }: { children: React.ReactNode }) {
   return (
     <span
       style={{
-        width: 17, height: 14, borderRadius: 3, background: 'rgba(255,255,255,0.07)',
-        border: '1px solid rgba(255,255,255,0.10)', display: 'inline-flex',
+        width: 19, height: 15, borderRadius: 3, background: '#34363f',
+        border: '1px solid rgba(0,0,0,0.25)', display: 'inline-flex',
         alignItems: 'center', justifyContent: 'center',
       }}
     >
@@ -63,7 +66,7 @@ function ChromeButton({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Goniometer({ size = 430 }: { size?: number }) {
+export function Goniometer({ size = 384 }: { size?: number }) {
   const { isPlaying, mode, broadcastPlay, pause, analyserL, analyserR } = useAudio();
   const analyserLRef = useRef<AnalyserNode | null>(null);
   const analyserRRef = useRef<AnalyserNode | null>(null);
@@ -79,10 +82,21 @@ export function Goniometer({ size = 430 }: { size?: number }) {
 
   const cx = size / 2;
   const cy = size / 2;
-  const R = size * 0.44;          // grid radius
-  const plot = R * 0.92;          // full-scale plotting radius
+  const R = size * 0.44;
+  const plot = R * 0.92;
+  const PAD = 8;
 
-  // Initialise canvas
+  const fillGradient = useCallback((ctx: CanvasRenderingContext2D, alpha: number) => {
+    const g = ctx.createLinearGradient(0, 0, 0, size);
+    g.addColorStop(0, INNER_TOP);
+    g.addColorStop(1, INNER_BOT);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    ctx.restore();
+  }, [size]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -90,35 +104,24 @@ export function Goniometer({ size = 430 }: { size?: number }) {
     canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.fillStyle = BG;
-      ctx.fillRect(0, 0, size, size);
+      fillGradient(ctx, 1);
       drawPolarGrid(ctx, cx, cy, R);
     }
-  }, [size, cx, cy, R]);
+  }, [size, cx, cy, R, fillGradient]);
 
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || canvas.width === 0) {
-      rafRef.current = requestAnimationFrame(animate);
-      return;
-    }
+    if (!canvas || canvas.width === 0) { rafRef.current = requestAnimationFrame(animate); return; }
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      rafRef.current = requestAnimationFrame(animate);
-      return;
-    }
-    const w = canvas.width;
-    const h = canvas.height;
+    if (!ctx) { rafRef.current = requestAnimationFrame(animate); return; }
 
-    // Phosphor decay toward the dark window background
-    ctx.fillStyle = BG_DECAY;
-    ctx.fillRect(0, 0, w, h);
+    // Phosphor decay toward the gradient background
+    fillGradient(ctx, 0.18);
     drawPolarGrid(ctx, cx, cy, R);
 
     const aL = analyserLRef.current;
     const aR = analyserRRef.current;
 
-    // Clip the trace to the circle so it never spills into the corners
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, R, 0, Math.PI * 2);
@@ -129,7 +132,6 @@ export function Goniometer({ size = 430 }: { size?: number }) {
       const bufR = new Float32Array(aR.fftSize);
       aL.getFloatTimeDomainData(bufL);
       aR.getFloatTimeDomainData(bufR);
-
       const stride = Math.max(1, Math.floor(bufL.length / SAMPLE_COUNT));
 
       ctx.strokeStyle = TRACE;
@@ -140,8 +142,7 @@ export function Goniometer({ size = 430 }: { size?: number }) {
         const idx = i * stride;
         const l = bufL[idx];
         const r = bufR[idx];
-        // 45°-rotated goniometer mapping: mono (L=R) → straight up,
-        // L-only → up-left, R-only → up-right.
+        // 45°-rotated goniometer mapping: mono → straight up.
         const x = cx + (r - l) * plot * 0.5;
         const y = cy - (l + r) * plot * 0.5;
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -149,7 +150,6 @@ export function Goniometer({ size = 430 }: { size?: number }) {
       }
       ctx.stroke();
 
-      // Throttled correlation for the bottom meter
       const now = performance.now();
       if (now - lastCorrRef.current > 120) {
         lastCorrRef.current = now;
@@ -157,7 +157,6 @@ export function Goniometer({ size = 430 }: { size?: number }) {
         setCorrelation(denom > 1e-6 ? Math.max(-1, Math.min(1, sumLR / denom)) : 0);
       }
     } else {
-      // Idle: faint noise floor at center
       ctx.fillStyle = TRACE;
       for (let i = 0; i < 40; i++) {
         const l = (Math.random() - 0.5) * 0.04;
@@ -168,45 +167,39 @@ export function Goniometer({ size = 430 }: { size?: number }) {
     ctx.restore();
 
     rafRef.current = requestAnimationFrame(animate);
-  }, [cx, cy, R, plot]);
+  }, [cx, cy, R, plot, fillGradient]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafRef.current);
   }, [animate]);
 
-  const handleToggle = () => {
-    if (isBroadcasting) pause();
-    else broadcastPlay();
-  };
+  const handleToggle = () => { if (isBroadcasting) pause(); else broadcastPlay(); };
 
-  // Label anchor points on the circle boundary
   const diag = R * Math.SQRT1_2;
   const labelStyle: React.CSSProperties = {
     position: 'absolute', fontFamily: VR_FONT, fontSize: 11, color: LABEL,
     letterSpacing: '0.05em', pointerEvents: 'none',
   };
-
-  // Bottom correlation meter: map [-1,1] → bar from center
-  const corrPct = (correlation * 50); // -50%..+50% from center
+  const corrPct = correlation * 50;
 
   return (
     <div
       style={{
-        width: size,
+        width: size + PAD * 2,
+        background: OUTER,
+        border: `1px solid ${OUTER_BORDER}`,
+        borderRadius: 7,
         fontFamily: VR_FONT,
-        border: '1px solid #000000',
-        background: BG,
-        transform: 'rotate(-1.5deg)',
-        transformOrigin: 'center center',
+        overflow: 'hidden',
       }}
     >
-      {/* Title bar — plugin window chrome */}
+      {/* Header — outer window title bar */}
       <div
         style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '6px 8px', background: '#23242e',
-          borderBottom: '1px solid rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', gap: 8, height: 34,
+          padding: '0 9px',
+          background: `linear-gradient(180deg, ${HEADER_TOP}, ${HEADER_BOT})`,
         }}
       >
         {/* Ableton on/off → red play/stop */}
@@ -214,23 +207,30 @@ export function Goniometer({ size = 430 }: { size?: number }) {
           onClick={handleToggle}
           aria-label={isBroadcasting ? 'Stop broadcast' : 'Play broadcast'}
           style={{
-            width: 15, height: 15, borderRadius: '50%', cursor: 'pointer', padding: 0,
+            width: 14, height: 14, borderRadius: '50%', cursor: 'pointer', padding: 0, flex: 'none',
             background: isBroadcasting ? '#ff2a2a' : 'transparent',
-            border: `2px solid ${isBroadcasting ? '#ff2a2a' : 'rgba(255,42,42,0.65)'}`,
-            boxShadow: isBroadcasting ? '0 0 6px rgba(255,42,42,0.55)' : 'none',
+            border: `2px solid ${isBroadcasting ? '#ff2a2a' : 'rgba(196,42,42,0.9)'}`,
+            boxShadow: isBroadcasting ? '0 0 5px rgba(255,42,42,0.6)' : 'none',
             transition: 'background 0.15s ease, box-shadow 0.15s ease',
           }}
         />
-        <span style={{ color: '#e8e6ef', fontSize: 13, letterSpacing: '0.02em' }}>Broadcast</span>
+        <span style={{ color: TITLE_TEXT, fontSize: 13, fontWeight: 500, letterSpacing: '0.01em' }}>Broadcast</span>
         <SixFingerHand />
         <span style={{ flex: 1 }} />
-        <ChromeButton><span style={{ width: 8, height: 6, border: '1px solid rgba(220,224,240,0.7)', borderRadius: 1, display: 'block' }} /></ChromeButton>
-        <ChromeButton><span style={{ width: 7, height: 7, border: '1px solid rgba(220,224,240,0.7)', borderRadius: '50%', display: 'block' }} /></ChromeButton>
-        <ChromeButton><span style={{ width: 7, height: 7, background: 'rgba(220,224,240,0.7)', borderRadius: 1, display: 'block' }} /></ChromeButton>
+        <ChromeButton><span style={{ width: 9, height: 6, border: '1px solid rgba(220,224,235,0.8)', borderRadius: 1, display: 'block' }} /></ChromeButton>
+        <ChromeButton><span style={{ width: 7, height: 7, border: '1px solid rgba(220,224,235,0.8)', borderRadius: '50%', display: 'block' }} /></ChromeButton>
+        <ChromeButton><span style={{ width: 7, height: 7, background: 'rgba(220,224,235,0.8)', borderRadius: 1, display: 'block' }} /></ChromeButton>
       </div>
 
-      {/* Goniometer display */}
-      <div style={{ position: 'relative', width: size, height: size, background: BG }}>
+      {/* Inner window — the goniometer display */}
+      <div
+        style={{
+          position: 'relative', width: size, height: size, margin: `${PAD}px ${PAD}px 0`,
+          borderRadius: 5, overflow: 'hidden',
+          background: `linear-gradient(180deg, ${INNER_TOP}, ${INNER_BOT})`,
+          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.35)',
+        }}
+      >
         <canvas ref={canvasRef} style={{ display: 'block', width: size, height: size }} />
         <span style={{ ...labelStyle, left: cx, top: cy - R - 16, transform: 'translateX(-50%)' }}>M</span>
         <span style={{ ...labelStyle, left: cx - diag - 14, top: cy - diag - 14 }}>L</span>
@@ -238,30 +238,24 @@ export function Goniometer({ size = 430 }: { size?: number }) {
         <span style={{ ...labelStyle, left: cx + R + 5, top: cy + R * 0.12 }}>S</span>
       </div>
 
-      {/* Bottom correlation meter */}
+      {/* Footer — correlation meter */}
       <div
         style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '5px 10px', background: '#23242e',
-          borderTop: '1px solid rgba(0,0,0,0.5)',
-          fontSize: 10, color: 'rgba(206,212,232,0.7)', letterSpacing: '0.05em',
+          display: 'flex', alignItems: 'center', gap: 8, height: 36,
+          padding: `0 ${PAD + 2}px`, fontSize: 10, color: FOOTER_TEXT, letterSpacing: '0.05em',
         }}
       >
         <span>-1</span>
-        <div style={{ position: 'relative', flex: 1, height: 8, background: 'rgba(255,255,255,0.06)' }}>
-          {/* center tick */}
-          <span style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.18)' }} />
-          {/* correlation bar from center */}
+        <div style={{ position: 'relative', flex: 1, height: 8, background: 'rgba(0,0,0,0.30)', borderRadius: 2 }}>
+          <span style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.16)' }} />
           <span
             style={{
               position: 'absolute', top: 1, bottom: 1,
               left: corrPct >= 0 ? '50%' : `${50 + corrPct}%`,
-              width: `${Math.abs(corrPct)}%`,
-              background: TRACE,
+              width: `${Math.abs(corrPct)}%`, background: TRACE, borderRadius: 1,
             }}
           />
-          {/* center "0" label */}
-          <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', color: 'rgba(206,212,232,0.5)', fontSize: 9 }}>0</span>
+          <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', color: 'rgba(214,218,228,0.45)', fontSize: 9 }}>0</span>
         </div>
         <span>+1</span>
       </div>
