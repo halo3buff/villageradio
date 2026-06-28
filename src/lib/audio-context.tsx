@@ -85,6 +85,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
   const durationsRef    = useRef<number[] | null>(null); // cached on first broadcastPlay
   const serverOffsetRef = useRef<number | null>(null);  // ms to add to Date.now() for server-accurate time
   const rateResetRef    = useRef<ReturnType<typeof setTimeout>  | null>(null); // resets playbackRate after a nudge
+  const intendedRateRef = useRef(1); // the rate WE want — guards against external overrides (e.g. speed-control browser extensions)
   const correctTimerRef = useRef<ReturnType<typeof setInterval> | null>(null); // periodic drift check
   const timeRefreshRef  = useRef<ReturnType<typeof setInterval> | null>(null); // periodic server-clock refresh
 
@@ -100,8 +101,22 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
   function getOrCreateAudio(): HTMLAudioElement {
     if (!audioRef.current) {
-      audioRef.current = new Audio();
-      audioRef.current.crossOrigin = 'anonymous';
+      const a = new Audio();
+      a.crossOrigin = 'anonymous';
+      // Keep pitch constant if the drift corrector nudges playbackRate — a tempo
+      // nudge stays imperceptible, never a pitch shift. (Default is true, but pin it.)
+      a.preservesPitch = true;
+      a.defaultPlaybackRate = 1;
+      a.playbackRate = 1;
+      // Defend the broadcast tempo: some media-speed browser extensions force a
+      // remembered rate (e.g. 0.9×) onto every <audio>/<video>, which would make the
+      // stream play slow. If anything sets a rate we didn't ask for, snap it back.
+      a.addEventListener('ratechange', () => {
+        if (Math.abs(a.playbackRate - intendedRateRef.current) > 1e-3) {
+          a.playbackRate = intendedRateRef.current;
+        }
+      });
+      audioRef.current = a;
     }
     return audioRef.current;
   }
@@ -180,6 +195,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
   async function tuneIntoBroadcast() {
     const audio = audioRef.current!;
+    intendedRateRef.current = 1;
     audio.playbackRate = 1; // clear any leftover nudge from a previous track
 
     // All tracks have durationSec hardcoded — resolves instantly, no network requests
@@ -250,9 +266,11 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     if (!audio) return;
     let rate = 1 + driftSec / RATE_WINDOW_SEC;            // behind → >1, ahead → <1
     rate = Math.max(1 - RATE_MAX, Math.min(1 + RATE_MAX, rate));
+    intendedRateRef.current = rate;                       // tell the guard this rate is ours
     audio.playbackRate = rate;
     if (rateResetRef.current) clearTimeout(rateResetRef.current);
     rateResetRef.current = setTimeout(() => {
+      intendedRateRef.current = 1;
       if (audioRef.current) audioRef.current.playbackRate = 1;
     }, RATE_WINDOW_SEC * 1000);
   }
@@ -270,6 +288,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
     // On the wrong track entirely — re-derive from the clock, hidden behind a gain dip
     if (expected.trackIdx !== broadcastIdxRef.current) {
+      intendedRateRef.current = 1;
       audio.playbackRate = 1;
       fadeOutThen(() => { tuneIntoBroadcast(); fadeIn(); });
       console.log('[VR broadcast] resync: wrong track → re-tune');
@@ -280,6 +299,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     const absDrift = Math.abs(drift);
 
     if (absDrift > HARD_SEEK_SEC) {
+      intendedRateRef.current = 1;
       audio.playbackRate = 1;
       fadeOutThen(() => { safeSeek(audio, expected.offsetSec); fadeIn(); });
       console.log('[VR broadcast] resync: hard seek', { drift: +drift.toFixed(2) });
@@ -301,6 +321,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     if (correctTimerRef.current) { clearInterval(correctTimerRef.current); correctTimerRef.current = null; }
     if (timeRefreshRef.current)  { clearInterval(timeRefreshRef.current);  timeRefreshRef.current  = null; }
     if (rateResetRef.current)    { clearTimeout(rateResetRef.current);     rateResetRef.current    = null; }
+    intendedRateRef.current = 1;
     if (audioRef.current) audioRef.current.playbackRate = 1;
   }
 

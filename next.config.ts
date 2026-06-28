@@ -2,6 +2,8 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Hide the Next.js dev-tools indicator (the floating "N" badge shown in development).
+  devIndicators: false,
   images: {
     formats: ['image/webp', 'image/avif'],
     // Admin-uploaded photos/work images are served from the public R2 bucket via next/image.

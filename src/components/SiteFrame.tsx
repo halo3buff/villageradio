@@ -4,10 +4,11 @@ import { usePathname } from 'next/navigation';
 
 /**
  * Wraps the global site chrome (nav, news strip, persistent audio player). The
- * redesigned homepage ("/") is a full-bleed, chromeless composition, so we hide
- * the chrome there only. Every other route — including /admin — renders exactly
- * as before.
+ * redesigned homepage ("/") and listen page ("/listen") are full-bleed,
+ * chromeless compositions, so we hide the chrome there only. Every other route
+ * — including /admin — renders exactly as before.
  */
+const CHROMELESS = new Set(['/', '/listen', '/transmit']);
 export function SiteFrame({
   nav,
   newsStrip,
@@ -21,7 +22,7 @@ export function SiteFrame({
 }) {
   const pathname = usePathname();
 
-  if (pathname === '/') {
+  if (CHROMELESS.has(pathname)) {
     return <>{children}</>;
   }
 

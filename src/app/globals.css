@@ -42,9 +42,20 @@
   to   { opacity: 1; }
 }
 
+@keyframes vr-blink {
+  0%, 50%      { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
 @keyframes ticker {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
+}
+
+/* Listen page — pulsing "on air" status dot in the archive list */
+@keyframes vrPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
 }
 
 .page-enter {

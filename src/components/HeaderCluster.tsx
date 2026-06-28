@@ -23,7 +23,7 @@ const WORDS: Word[] = [
   { text: 'VILLAGE', x: 1226, y: 25, flipX: true },
   // Vertical word-mark down the right edge — flipped horizontally and rotated so
   // the V reads at the BOTTOM, E at the top (reading upward).
-  { text: 'VILLAGE', x: 1436, y: 160, rotate: 90, flipX: true, origin: 'top left' },
+  { text: 'VILLAGE', x: 1411, y: 160, rotate: 90, flipX: true, origin: 'top left' },
 ];
 
 // Pre-rendered VILL + VGE sub-cluster (supplied as an asset). Placed so the "VG"
