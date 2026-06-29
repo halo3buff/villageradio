@@ -27,18 +27,24 @@ export function MobileWork() {
   const [blockedHours, setBlockedHours] = useState(5);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [centerY, setCenterY] = useState<number | null>(null);
   useEffect(() => {
     const update = () => {
-      const vw = window.visualViewport?.width ?? window.innerWidth;
-      const vh = window.visualViewport?.height ?? window.innerHeight;
+      const vp = window.visualViewport;
+      const vw = vp?.width ?? window.innerWidth;
+      const vh = vp?.height ?? window.innerHeight;
+      const offsetTop = vp?.offsetTop ?? 0;
       setScale(Math.min(vw / SW, vh / SH));
+      setCenterY(offsetTop + vh / 2);
     };
     update();
     window.addEventListener('resize', update);
     window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
     return () => {
       window.removeEventListener('resize', update);
       window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
     };
   }, []);
 
@@ -96,7 +102,9 @@ export function MobileWork() {
       <div
         className="page-enter"
         style={{
-          position: 'absolute', left: '50%', top: '50%', width: SW, height: SH,
+          position: 'absolute', left: '50%',
+          top: centerY !== null ? centerY : '50%',
+          width: SW, height: SH,
           transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: 'center center',
         }}
       >

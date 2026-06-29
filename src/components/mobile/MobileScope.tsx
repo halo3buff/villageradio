@@ -154,11 +154,17 @@ export function MobileScope({ width, height }: { width: number; height: number }
     }}>
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width, height }} />
       {/* play / pause glyph — bottom-left, reflects broadcast state */}
-      <span style={{
-        position: 'absolute', left: 8, bottom: 6, fontSize: 13, lineHeight: 1,
-        color: '#000', pointerEvents: 'none',
-      }}>
-        {isBroadcasting ? '❚❚' : '▶'}
+      <span style={{ position: 'absolute', left: 8, bottom: 6, pointerEvents: 'none', lineHeight: 1 }}>
+        {isBroadcasting ? (
+          <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden>
+            <rect x="0" y="0" width="3" height="12" fill="#000" />
+            <rect x="6" y="0" width="3" height="12" fill="#000" />
+          </svg>
+        ) : (
+          <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden>
+            <polygon points="0,0 0,12 9,6" fill="#000" />
+          </svg>
+        )}
       </span>
     </div>
   );

@@ -76,18 +76,24 @@ export function ListenConsole() {
   const onVideoReady = () => setTimeout(() => setBooted(true), 1200);
 
   const [scale, setScale] = useState(1);
+  const [centerY, setCenterY] = useState<number | null>(null);
   useEffect(() => {
     const update = () => {
-      const vw = window.visualViewport?.width ?? window.innerWidth;
-      const vh = window.visualViewport?.height ?? window.innerHeight;
+      const vp = window.visualViewport;
+      const vw = vp?.width ?? window.innerWidth;
+      const vh = vp?.height ?? window.innerHeight;
+      const offsetTop = vp?.offsetTop ?? 0;
       setScale(Math.min(vw / STAGE_W, vh / STAGE_H));
+      setCenterY(offsetTop + vh / 2);
     };
     update();
     window.addEventListener('resize', update);
     window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
     return () => {
       window.removeEventListener('resize', update);
       window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
     };
   }, []);
 
@@ -116,7 +122,9 @@ export function ListenConsole() {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#fff' }}>
       <div className="page-enter" style={{
-        position: 'absolute', left: '50%', top: '50%', width: STAGE_W, height: STAGE_H,
+        position: 'absolute', left: '50%',
+          top: centerY !== null ? centerY : '50%',
+          width: STAGE_W, height: STAGE_H,
         transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: 'center center',
       }}>
         <Link href="/" aria-label="Back home" style={{ position: 'absolute', left: 8, top: 22, width: 52, height: 52, display: 'block' }}>
