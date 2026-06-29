@@ -30,7 +30,7 @@ export function MobileInfo({ content }: { content: string }) {
       const vw = vp?.width ?? window.innerWidth;
       const vh = vp?.height ?? window.innerHeight;
       const offsetTop = vp?.offsetTop ?? 0;
-      setScale(Math.min(vw / SW, vh / SH));
+      setScale(Math.min(vw / SW, document.documentElement.clientHeight / SH));
       setCenterY(offsetTop + vh / 2);
     };
     update();
