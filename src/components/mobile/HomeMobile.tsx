@@ -88,7 +88,7 @@ export function HomeMobile() {
   }, []);
 
   return (
-    <main style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden', background: '#fff' }}>
+    <main style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#fff' }}>
       <div
         className="page-enter"
         style={{
@@ -215,9 +215,10 @@ M987.457`}
           {'__________send transmission'}
         </Link>
 
-        {/* CRT scanline texture */}
+        {/* CRT scanlines — scope box only */}
         <div aria-hidden style={{
-          position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none',
+          position: 'absolute', left: 17, top: 117, width: 368, height: 400,
+          zIndex: 7, pointerEvents: 'none',
           background: SCANLINES, opacity: 0.6,
         }} />
       </div>

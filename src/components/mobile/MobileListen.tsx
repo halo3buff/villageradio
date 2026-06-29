@@ -51,7 +51,7 @@ export function MobileListen() {
   const liveSelected = mode === 'broadcast';
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden', background: '#fff' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#fff' }}>
       <div
         className="page-enter"
         style={{

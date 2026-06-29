@@ -92,7 +92,7 @@ export function MobileScope({ width, height }: { width: number; height: number }
       const gx = Math.round(x / GRID), gy = Math.round(y / GRID);
       const thresh = BAYER[(gy & 3) * 4 + (gx & 3)] / 16;
       if (amp < thresh * 0.4) return;
-      ctx.fillStyle = `rgba(${TRACE},${0.82 + 0.18 * amp})`;
+      ctx.fillStyle = `rgba(${TRACE},1)`;
       ctx.fillRect(gx * GRID, gy * GRID, DOT, DOT);
     };
 

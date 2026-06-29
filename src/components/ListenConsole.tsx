@@ -106,7 +106,7 @@ export function ListenConsole() {
   const ledState = live ? 'live' as const : 'idle' as const;
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden', background: '#fff' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#fff' }}>
       <div className="page-enter" style={{
         position: 'absolute', left: '50%', top: '50%', width: STAGE_W, height: STAGE_H,
         transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: 'center center',
