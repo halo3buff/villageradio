@@ -31,10 +31,18 @@ export function MobileListen() {
   const { isPlaying, mode, currentTrack, playlist, broadcastPlay, play, toggle } = useAudio();
 
   useEffect(() => {
-    const update = () => setScale(Math.min(window.innerWidth / SW, window.innerHeight / SH));
+    const update = () => {
+      const vw = window.visualViewport?.width ?? window.innerWidth;
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      setScale(Math.min(vw / SW, vh / SH));
+    };
     update();
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.visualViewport?.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
+    };
   }, []);
 
   const onLive = () => {

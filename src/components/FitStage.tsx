@@ -15,10 +15,17 @@ export function FitStage({ left, right }: { left: React.ReactNode; right: React.
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
-    const update = () => setScale(Math.min(1, window.innerHeight / STAGE_H));
+    const update = () => {
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      setScale(Math.min(1, vh / STAGE_H));
+    };
     update();
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.visualViewport?.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
+    };
   }, []);
 
   const frame: React.CSSProperties = {

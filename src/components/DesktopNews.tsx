@@ -10,10 +10,18 @@ const SH = 1024;
 export function DesktopNews() {
   const [scale, setScale] = useState(1);
   useEffect(() => {
-    const update = () => setScale(Math.min(1, window.innerWidth / SW, window.innerHeight / SH));
+    const update = () => {
+      const vw = window.visualViewport?.width ?? window.innerWidth;
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      setScale(Math.min(1, vw / SW, vh / SH));
+    };
     update();
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.visualViewport?.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
+    };
   }, []);
 
   return (
