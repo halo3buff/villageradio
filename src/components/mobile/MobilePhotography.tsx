@@ -2,19 +2,17 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
 
 const SW = 402;
 const SH = 874;
+const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
+const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 
 const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.08) 3px)';
 
-// Six cards — same image, rotated 90° CW. Positions from Figma node 2096:5.
-// Outer container is landscape (163×123); inner portrait div (123×163) rotates 90° CW
-// so the image fills the outer box as a landscape crop.
 const IMG = '/images/photography/IMG_3961.jpg';
 const CARDS = [
   { left: 80,  top: 316 },
@@ -24,57 +22,28 @@ const CARDS = [
   { left: 130, top: 590 },
   { left: 179, top: 643 },
 ];
-
+// Maintain card aspect ratio with vw units on both axes
 const CARD_W = 163;
 const CARD_H = 123;
 
 export function MobilePhotography() {
-  const [scale, setScale] = useState(1);
-  const [centerY, setCenterY] = useState<number | null>(null);
-  useEffect(() => {
-    const update = () => {
-      const vp = window.visualViewport;
-      const vw = vp?.width ?? window.innerWidth;
-      const vh = vp?.height ?? window.innerHeight;
-      const offsetTop = vp?.offsetTop ?? 0;
-      setScale(Math.min(vw / SW, document.documentElement.clientHeight / SH));
-      setCenterY(offsetTop + vh / 2);
-    };
-    update();
-    window.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('scroll', update);
-    return () => {
-      window.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('scroll', update);
-    };
-  }, []);
-
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
-      <div
-        className="page-enter"
-        style={{
-          position: 'absolute', left: '50%',
-          top: centerY !== null ? centerY : '50%',
-          width: SW, height: SH,
-          transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: 'center center',
-        }}
-      >
-        {/* Back arrow — Figma node 2096:5 left=322, top=17 */}
+    <div style={{ position: 'fixed', inset: 0, background: '#fff', overflow: 'hidden' }}>
+      <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
+
+        {/* Back arrow */}
         <Link href="/" style={{
-          position: 'absolute', left: 322, top: 17, display: 'block',
-          width: 50, height: 50,
+          position: 'absolute', left: vw(322), top: dvh(17), display: 'block',
+          width: vw(50), height: vw(50),
         }}>
           <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
-            style={{ width: 50, height: 50, objectFit: 'contain' }} />
+            style={{ width: vw(50), height: vw(50), objectFit: 'contain' }} />
         </Link>
 
-        {/* Address / contact text block — centered, y=138–231 */}
+        {/* Address / contact text block */}
         <div style={{
-          position: 'absolute', left: 70, top: 130, width: 262,
-          fontFamily: BODY, fontSize: 11, lineHeight: '15px',
+          position: 'absolute', left: vw(70), top: dvh(130), width: vw(262),
+          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(15),
           color: '#000', textTransform: 'uppercase', textAlign: 'center',
           whiteSpace: 'pre',
         }}>
@@ -89,26 +58,24 @@ export function MobilePhotography() {
           ].join('\n')}
         </div>
 
-        {/* Six stacked thermal cards — positions from Figma node 2096:5.
-            Outer div: landscape CARD_W×CARD_H.
-            Inner div: portrait CARD_H×CARD_W, rotated 90° CW so image fills as landscape. */}
+        {/* Stacked thermal cards — both W and H use vw to preserve aspect ratio */}
         {CARDS.map((card, i) => (
           <div
             key={i}
             style={{
               position: 'absolute',
-              left: card.left,
-              top: card.top,
-              width: CARD_W,
-              height: CARD_H,
+              left: vw(card.left),
+              top: dvh(card.top),
+              width: vw(CARD_W),
+              height: vw(CARD_H),
               overflow: 'hidden',
             }}
           >
             <div style={{
               position: 'absolute',
               top: '50%', left: '50%',
-              width: CARD_H,
-              height: CARD_W,
+              width: vw(CARD_H),
+              height: vw(CARD_W),
               transform: 'translate(-50%, -50%) rotate(90deg)',
             }}>
               <Image
@@ -116,16 +83,15 @@ export function MobilePhotography() {
                 alt=""
                 fill
                 style={{ objectFit: 'cover' }}
-                sizes={`${CARD_H}px`}
+                sizes={`${(CARD_H / SW * 100).toFixed(0)}vw`}
               />
             </div>
           </div>
         ))}
 
       </div>
-      {/* CRT scanlines — on outer container so they cover the full screen */}
       <div aria-hidden style={{
-        position: 'absolute', inset: 0, zIndex: 1010, pointerEvents: 'none',
+        position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none',
         background: SCANLINES, opacity: 0.5,
       }} />
     </div>

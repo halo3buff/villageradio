@@ -37,7 +37,7 @@ export function HomeDesktop() {
 
           {/* Chromeless vectorscope — same component as mobile */}
           <div style={{ position: 'absolute', left: 274, top: 200, width: 600, height: 660, pointerEvents: 'auto' }}>
-            <MobileScope width={600} height={660} />
+            <MobileScope />
           </div>
 
           {/* Telemetry overlays: headers, clock, SNR, ticker, scanlines */}

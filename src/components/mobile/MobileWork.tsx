@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { solvePoW } from '@/lib/pow';
 
 const SW = 402;
 const SH = 874;
+const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
+const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
@@ -15,38 +17,17 @@ const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.10) 3px)';
 
 const ARROW_ROTATIONS = [0, -90, 90, 180];
+const ARROW_LEFTS = [39, 130, 221, 312];
 
 type State = 'idle' | 'solving' | 'wrong' | 'blocked' | 'error' | 'granted';
 
 export function MobileWork() {
-  const [scale, setScale]           = useState(1);
   const [inputValue, setInputValue] = useState('');
   const [focused, setFocused]       = useState(false);
   const [state, setState]           = useState<State>('idle');
   const [remaining, setRemaining]   = useState(3);
   const [blockedHours, setBlockedHours] = useState(5);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const [centerY, setCenterY] = useState<number | null>(null);
-  useEffect(() => {
-    const update = () => {
-      const vp = window.visualViewport;
-      const vw = vp?.width ?? window.innerWidth;
-      const vh = vp?.height ?? window.innerHeight;
-      const offsetTop = vp?.offsetTop ?? 0;
-      setScale(Math.min(vw / SW, document.documentElement.clientHeight / SH));
-      setCenterY(offsetTop + vh / 2);
-    };
-    update();
-    window.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('scroll', update);
-    return () => {
-      window.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('scroll', update);
-    };
-  }, []);
 
   const submit = async () => {
     if (!inputValue || state === 'solving' || state === 'blocked' || state === 'granted') return;
@@ -62,7 +43,6 @@ export function MobileWork() {
 
       if (res.ok && data.ok) {
         if (!data.bypass) {
-          // Regular password — run the puzzle first (~1–2 s of CPU)
           await solvePoW('vlg-work-puzzle', 20);
         }
         sessionStorage.setItem('work_unlocked', '1');
@@ -98,57 +78,54 @@ export function MobileWork() {
                       state === 'granted' ? '#000' : '#000';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
-      <div
-        className="page-enter"
-        style={{
-          position: 'absolute', left: '50%',
-          top: centerY !== null ? centerY : '50%',
-          width: SW, height: SH,
-          transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: 'center center',
-        }}
-      >
-        {/* Arrow buttons — Figma: y=71, x=[39,130,221,312], w=h=50 */}
-        <Link
-          href="/"
-          style={{
-            position: 'absolute', left: 39, top: 71, width: 50, height: 50,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <Image
-            src="/icons/left-arrow.png"
-            alt="Back"
-            width={50}
-            height={50}
-            style={{ width: 50, height: 50, objectFit: 'contain', transform: `rotate(${ARROW_ROTATIONS[0]}deg)` }}
-          />
-        </Link>
+    <div style={{ position: 'fixed', inset: 0, background: '#fff', overflow: 'hidden' }}>
+      <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute', left: [39, 130, 221, 312][i], top: 71,
-              width: 50, height: 50,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Image
-              src="/icons/left-arrow.png"
-              alt=""
-              aria-hidden
-              width={50}
-              height={50}
-              style={{ width: 50, height: 50, objectFit: 'contain', transform: `rotate(${ARROW_ROTATIONS[i]}deg)` }}
-            />
-          </div>
+        {/* Arrow buttons */}
+        {ARROW_LEFTS.map((left, i) => (
+          i === 0 ? (
+            <Link
+              key={i}
+              href="/"
+              style={{
+                position: 'absolute', left: vw(left), top: dvh(71),
+                width: vw(50), height: vw(50),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Image
+                src="/icons/left-arrow.png"
+                alt="Back"
+                width={50}
+                height={50}
+                style={{ width: vw(50), height: vw(50), objectFit: 'contain', transform: `rotate(${ARROW_ROTATIONS[i]}deg)` }}
+              />
+            </Link>
+          ) : (
+            <div
+              key={i}
+              style={{
+                position: 'absolute', left: vw(left), top: dvh(71),
+                width: vw(50), height: vw(50),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Image
+                src="/icons/left-arrow.png"
+                alt=""
+                aria-hidden
+                width={50}
+                height={50}
+                style={{ width: vw(50), height: vw(50), objectFit: 'contain', transform: `rotate(${ARROW_ROTATIONS[i]}deg)` }}
+              />
+            </div>
+          )
         ))}
 
         {/* "enter password" label */}
         <div style={{
-          position: 'absolute', left: 79, top: 241,
-          fontFamily: BODY, fontSize: 15, color: '#000',
+          position: 'absolute', left: vw(79), top: dvh(241),
+          fontFamily: BODY, fontSize: vw(15), color: '#000',
         }}>
           enter password
         </div>
@@ -165,7 +142,7 @@ export function MobileWork() {
           disabled={disabled}
           autoComplete="off"
           style={{
-            position: 'absolute', left: 79, top: 274, width: 243, height: 28,
+            position: 'absolute', left: vw(79), top: dvh(274), width: vw(243), height: dvh(28),
             opacity: 0, zIndex: 2, fontSize: 16,
           }}
         />
@@ -174,17 +151,17 @@ export function MobileWork() {
         <div
           onClick={focusInput}
           style={{
-            position: 'absolute', left: 79, top: 274, width: 243, height: 28,
+            position: 'absolute', left: vw(79), top: dvh(274), width: vw(243), height: dvh(28),
             background: '#fff', border: '1px solid #000', boxSizing: 'border-box',
-            display: 'flex', alignItems: 'center', paddingLeft: 8, cursor: 'text',
-            fontFamily: BODY, fontSize: 14, color: '#000',
+            display: 'flex', alignItems: 'center', paddingLeft: vw(8), cursor: 'text',
+            fontFamily: BODY, fontSize: vw(14), color: '#000',
             opacity: disabled ? 0.4 : 1,
           }}
         >
           {'•'.repeat(inputValue.length)}
           {focused && !disabled && (
             <span style={{
-              display: 'inline-block', width: 1, height: 14,
+              display: 'inline-block', width: 1, height: vw(14),
               background: '#000', marginLeft: inputValue.length ? 1 : 0,
               animation: 'vr-blink 1s step-end infinite',
             }} />
@@ -194,8 +171,8 @@ export function MobileWork() {
         {/* Status line */}
         {statusText && (
           <div style={{
-            position: 'absolute', left: 79, top: 310,
-            fontFamily: MONO, fontSize: 9, lineHeight: '11px',
+            position: 'absolute', left: vw(79), top: dvh(310),
+            fontFamily: MONO, fontSize: vw(9), lineHeight: dvh(11),
             color: statusColor, letterSpacing: '0.04em',
           }}>
             {statusText}
@@ -209,15 +186,14 @@ export function MobileWork() {
           alt=""
           aria-hidden
           style={{
-            position: 'absolute', left: 81, top: 540, width: 120, height: 240,
+            position: 'absolute', left: vw(81), top: dvh(540), width: vw(120), height: dvh(240),
             objectFit: 'cover',
           }}
         />
 
       </div>
-      {/* CRT scanlines — on outer container so they cover the full screen */}
       <div aria-hidden style={{
-        position: 'absolute', inset: 0, zIndex: 1010, pointerEvents: 'none',
+        position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none',
         background: SCANLINES, opacity: 0.6,
       }} />
     </div>

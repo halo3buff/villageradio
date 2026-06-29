@@ -4,18 +4,11 @@ import { useRef, useEffect, useCallback } from 'react';
 import { useAudio } from '@/lib/audio-context';
 import { MONO, downsample } from '@/components/instruments/retro';
 
-/**
- * Mobile waterfall — same 3-D spectral-decay algorithm as Waterfall3D but rendered
- * black-on-white to match the MobileScope signal-artifact aesthetic. No cyan, no
- * magenta chrome: just aliased black terrain lines on a white field inside the
- * black-border box the parent provides.
- */
-
 const BINS = 84;
 const ROWS = 46;
 const PUSH_EVERY = 2;
 
-export function MobileWaterfall({ width, height }: { width: number; height: number }) {
+export function MobileWaterfall() {
   const { analyserFreq, isPlaying, mode } = useAudio();
   const aRef = useRef<AnalyserNode | null>(null);
   const liveRef = useRef(false);
@@ -23,22 +16,32 @@ export function MobileWaterfall({ width, height }: { width: number; height: numb
   useEffect(() => { liveRef.current = isPlaying && mode !== 'idle'; }, [isPlaying, mode]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dimsRef = useRef({ width: 0, height: 0 });
   const rowsRef = useRef<Float32Array[]>([]);
   const freqRef = useRef<Uint8Array<ArrayBuffer>>(new Uint8Array(2048));
   const frameRef = useRef(0);
   const rafRef = useRef(0);
 
   useEffect(() => {
-    const c = canvasRef.current; if (!c) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    c.width = Math.round(width * dpr); c.height = Math.round(height * dpr);
-    const ctx = c.getContext('2d'); if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    rowsRef.current = Array.from({ length: ROWS }, () => new Float32Array(BINS).fill(0.02));
-  }, [width, height]);
+    const el = canvasRef.current; if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      const w = Math.round(width), h = Math.round(height);
+      dimsRef.current = { width: w, height: h };
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      el.width = Math.round(w * dpr);
+      el.height = Math.round(h * dpr);
+      const ctx = el.getContext('2d'); if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      rowsRef.current = Array.from({ length: ROWS }, () => new Float32Array(BINS).fill(0.02));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const pushRow = useCallback((live: boolean) => {
     const rows = rowsRef.current;
+    if (!rows.length) return;
     const row = rows.pop()!;
     const a = aRef.current;
     if (live && a) {
@@ -55,9 +58,9 @@ export function MobileWaterfall({ width, height }: { width: number; height: numb
   const draw = useCallback(() => {
     const c = canvasRef.current; if (!c) return;
     const ctx = c.getContext('2d'); if (!ctx) return;
-    const w = width, h = height;
+    const { width: w, height: h } = dimsRef.current;
+    if (w === 0 || h === 0) return;
 
-    // white field — no border (parent div handles the 1px black border)
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, w, h);
 
@@ -77,7 +80,6 @@ export function MobileWaterfall({ width, height }: { width: number; height: numb
       const ys = -t * dyBack;
       const row = rows[r];
 
-      // fill white beneath each row → occludes ridges behind (hidden-line removal)
       ctx.beginPath();
       for (let i = 0; i < BINS; i++) {
         const x = xs + (i / (BINS - 1)) * usableW;
@@ -90,7 +92,6 @@ export function MobileWaterfall({ width, height }: { width: number; height: numb
       ctx.fillStyle = '#fff';
       ctx.fill();
 
-      // black trace — dimmer toward the back via opacity
       ctx.beginPath();
       for (let i = 0; i < BINS; i++) {
         const x = xs + (i / (BINS - 1)) * usableW;
@@ -102,7 +103,6 @@ export function MobileWaterfall({ width, height }: { width: number; height: numb
       ctx.stroke();
     }
 
-    // Technical axis labels — black, small mono type
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.font = `7px ${MONO}`;
@@ -131,7 +131,7 @@ export function MobileWaterfall({ width, height }: { width: number; height: numb
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.textBaseline = 'bottom'; ctx.textAlign = 'right';
     ctx.fillText('TIME ↗', w - MR - dxBack * 0.7, h - MB - 2);
-  }, [width, height]);
+  }, []);
 
   const animate = useCallback(() => {
     if (frameRef.current % PUSH_EVERY === 0) pushRow(liveRef.current);
@@ -146,6 +146,6 @@ export function MobileWaterfall({ width, height }: { width: number; height: numb
   }, [animate]);
 
   return (
-    <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width, height }} />
+    <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
   );
 }

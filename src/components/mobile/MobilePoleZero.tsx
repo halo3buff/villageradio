@@ -64,7 +64,7 @@ function findRoots(a: Float64Array, n: number, re: Float64Array, im: Float64Arra
   }
 }
 
-export function MobilePoleZero({ width, height }: { width: number; height: number }) {
+export function MobilePoleZero() {
   const { analyserL, isPlaying, mode } = useAudio();
   const aRef = useRef<AnalyserNode | null>(null);
   const liveRef = useRef(false);
@@ -72,6 +72,7 @@ export function MobilePoleZero({ width, height }: { width: number; height: numbe
   useEffect(() => { liveRef.current = isPlaying && mode !== 'idle'; }, [isPlaying, mode]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dimsRef = useRef({ width: 0, height: 0 });
   const bufRef = useRef<Float32Array<ArrayBuffer>>(new Float32Array(2048));
   const winRef = useRef<Float64Array>(new Float64Array(NSAMP));
   const corrRef = useRef<Float64Array>(new Float64Array(ORDER + 1));
@@ -81,14 +82,22 @@ export function MobilePoleZero({ width, height }: { width: number; height: numbe
   const rafRef = useRef(0);
 
   useEffect(() => {
-    const c = canvasRef.current; if (!c) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    c.width = Math.round(width * dpr); c.height = Math.round(height * dpr);
-    const ctx = c.getContext('2d'); if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height);
-    for (let i = 0; i < NSAMP; i++) winRef.current[i] = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (NSAMP - 1));
-  }, [width, height]);
+    const el = canvasRef.current; if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      const w = Math.round(width), h = Math.round(height);
+      dimsRef.current = { width: w, height: h };
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      el.width = Math.round(w * dpr);
+      el.height = Math.round(h * dpr);
+      const ctx = el.getContext('2d'); if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < NSAMP; i++) winRef.current[i] = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (NSAMP - 1));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const analyse = useCallback((live: boolean) => {
     const re = reRef.current, im = imRef.current, r = corrRef.current;
@@ -113,15 +122,15 @@ export function MobilePoleZero({ width, height }: { width: number; height: numbe
   const draw = useCallback(() => {
     const c = canvasRef.current; if (!c) return;
     const ctx = c.getContext('2d'); if (!ctx) return;
-    const w = width, h = height, live = liveRef.current;
+    const { width: w, height: h } = dimsRef.current;
+    if (w === 0 || h === 0) return;
+    const live = liveRef.current;
     const cx = w / 2, cy = h / 2 + 4, R = Math.min(w, h - 20) / 2 - 14;
 
-    // White background with phosphor-style persistence when live
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = live ? 'rgba(255,255,255,0.38)' : '#fff';
     ctx.fillRect(0, 0, w, h);
 
-    // Graticule — 0.5-radius ring, Re/Im axes
     ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(cx, cy, R * 0.5, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath();
@@ -129,11 +138,9 @@ export function MobilePoleZero({ width, height }: { width: number; height: numbe
     ctx.moveTo(cx, cy - R * 1.12); ctx.lineTo(cx, cy + R * 1.12);
     ctx.stroke();
 
-    // Unit circle — slightly stronger
     ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
 
-    // Axis tick labels
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.font = `7px ${MONO}`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     ctx.fillText('+1', cx + R, cy + 3); ctx.fillText('−1', cx - R, cy + 3);
@@ -141,7 +148,6 @@ export function MobilePoleZero({ width, height }: { width: number; height: numbe
     ctx.fillText('Re', cx + R * 1.12 - 12, cy - 6);
     ctx.fillText('jIm', cx + 3, cy - R * 1.12 + 7);
 
-    // Poles (×)
     const re = reRef.current, im = imRef.current;
     for (let i = 0; i < ORDER; i++) {
       let pr = re[i], pi = im[i];
@@ -157,14 +163,13 @@ export function MobilePoleZero({ width, height }: { width: number; height: numbe
       ctx.stroke();
     }
 
-    // Header labels
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.font = `7px ${MONO}`;
     ctx.textBaseline = 'top'; ctx.textAlign = 'left';
     ctx.fillText(`LPC ORDER ${ORDER}`, 6, 4);
     ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillText('× POLES', w - 6, 4);
-  }, [width, height]);
+  }, []);
 
   const animate = useCallback(() => {
     if (frameRef.current % 2 === 0) analyse(liveRef.current);
@@ -179,6 +184,6 @@ export function MobilePoleZero({ width, height }: { width: number; height: numbe
   }, [animate]);
 
   return (
-    <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width, height }} />
+    <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
   );
 }
