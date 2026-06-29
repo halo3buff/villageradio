@@ -17,7 +17,7 @@
 
   html {
     background-color: #080808;
-    overflow: hidden;
+    overflow-x: hidden;
     overscroll-behavior: none;
     touch-action: pan-y;
   }
@@ -27,7 +27,7 @@
     color: #e8e4d9;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow: hidden;
+    overflow-x: hidden;
     overscroll-behavior: none;
     touch-action: pan-y;
   }

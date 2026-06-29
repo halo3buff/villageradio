@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useRef, useState } from 'react';
+import { createContext, useContext, useRef, useState, useEffect } from 'react';
 import type { Mix } from '@/lib/types';
 
 type AudioMode = 'idle' | 'broadcast' | 'individual';
@@ -98,6 +98,14 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
   const [analyserR,     setAnalyserR]     = useState<AnalyserNode | null>(null);
   const [analyserFreq,  setAnalyserFreq]  = useState<AnalyserNode | null>(null);
   const [volume,        setVolumeState]   = useState(0.8);
+
+  // Pre-fetch server clock offset on mount so the first broadcastPlay() tap
+  // has no network round-trip delay — it can compute broadcast position instantly.
+  useEffect(() => {
+    fetchServerOffsetMs()
+      .then(offset => { serverOffsetRef.current = offset; })
+      .catch(() => {});
+  }, []);
 
   function getOrCreateAudio(): HTMLAudioElement {
     if (!audioRef.current) {
