@@ -122,12 +122,12 @@ export function MobilePhotography() {
           </div>
         ))}
 
-        {/* CRT scanlines */}
-        <div aria-hidden style={{
-          position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none',
-          background: SCANLINES, opacity: 0.5,
-        }} />
       </div>
+      {/* CRT scanlines — on outer container so they cover the full screen */}
+      <div aria-hidden style={{
+        position: 'absolute', inset: 0, zIndex: 1010, pointerEvents: 'none',
+        background: SCANLINES, opacity: 0.5,
+      }} />
     </div>
   );
 }

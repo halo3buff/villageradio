@@ -18,6 +18,7 @@
   html {
     background-color: #080808;
     overflow-x: hidden;
+    overscroll-behavior: none;
   }
 
   body {
@@ -26,6 +27,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    overscroll-behavior: none;
   }
 
   ::selection {

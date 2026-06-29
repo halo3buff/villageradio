@@ -65,7 +65,7 @@ export function MobileListen() {
   const liveSelected = mode === 'broadcast';
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#fff' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, overflow: 'hidden', background: '#fff' }}>
       <div
         className="page-enter"
         style={{
@@ -213,12 +213,12 @@ export function MobileListen() {
           })}
         </div>
 
-        {/* CRT scanlines */}
-        <div aria-hidden style={{
-          position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none',
-          background: SCANLINES, opacity: 0.6,
-        }} />
       </div>
+      {/* CRT scanlines — on outer container so they cover the full screen */}
+      <div aria-hidden style={{
+        position: 'absolute', inset: 0, zIndex: 1010, pointerEvents: 'none',
+        background: SCANLINES, opacity: 0.6,
+      }} />
     </div>
   );
 }

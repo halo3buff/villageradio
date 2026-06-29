@@ -166,7 +166,7 @@ export function MobileWork() {
           autoComplete="off"
           style={{
             position: 'absolute', left: 79, top: 274, width: 243, height: 28,
-            opacity: 0, zIndex: 2,
+            opacity: 0, zIndex: 2, fontSize: 16,
           }}
         />
 
@@ -214,12 +214,12 @@ export function MobileWork() {
           }}
         />
 
-        {/* CRT scanlines */}
-        <div aria-hidden style={{
-          position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none',
-          background: SCANLINES, opacity: 0.6,
-        }} />
       </div>
+      {/* CRT scanlines — on outer container so they cover the full screen */}
+      <div aria-hidden style={{
+        position: 'absolute', inset: 0, zIndex: 1010, pointerEvents: 'none',
+        background: SCANLINES, opacity: 0.6,
+      }} />
     </div>
   );
 }
