@@ -75,11 +75,10 @@ export function HomeMobile() {
     const update = () => {
       const vp = window.visualViewport;
       const vw = vp?.width ?? window.innerWidth;
-      const visualVh = vp?.height ?? window.innerHeight;
-      const layoutH = window.innerHeight;
+      const vh = vp?.height ?? window.innerHeight;
       const offsetTop = vp?.offsetTop ?? 0;
-      setScale(Math.min(vw / SW, layoutH / SH));
-      setCenterY(offsetTop + visualVh / 2);
+      setScale(vw / SW);
+      setCenterY(offsetTop + vh / 2);
     };
     update();
     window.addEventListener('resize', update);
@@ -115,7 +114,7 @@ export function HomeMobile() {
       >
         {/* README — top-left label, links to /information */}
         <Link href="/information" style={{
-          position: 'absolute', left: 35, top: 52, fontFamily: SEGOE, fontSize: 11,
+          position: 'absolute', left: 35, top: 96, fontFamily: SEGOE, fontSize: 11,
           lineHeight: '11px', color: '#000', textDecoration: 'none',
         }}>README</Link>
 
@@ -225,7 +224,7 @@ M987.457`}
 
         {/* send transmission — fontSize:32 and letterSpacing:'-0.13em' are LOCKED */}
         <Link href="/transmit" style={{
-          position: 'absolute', left: 31, top: 824,
+          position: 'absolute', left: 31, top: 778,
           fontFamily: DISPLAY, fontSize: 32, lineHeight: '31px', letterSpacing: '-0.13em',
           color: '#000', textDecoration: 'none', whiteSpace: 'nowrap', zIndex: 3,
         }}>

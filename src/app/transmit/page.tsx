@@ -14,13 +14,15 @@ export const metadata = {
 
 export default function TransmitPage() {
   return (
-    <div style={{ background: '#fff', minHeight: '100dvh', color: '#000', position: 'relative' }}
-         className="px-4 sm:px-5 pt-16 sm:pt-20 pb-8 page-enter">
-      <Link href="/" style={{ position: 'absolute', top: 16, left: 16, display: 'block' }}>
-        <Image src="/icons/left-arrow.png" alt="Back" width={32} height={32}
-          style={{ width: 32, height: 32, objectFit: 'contain' }} />
-      </Link>
-      <Oscilloscope />
+    <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: '#fff', color: '#000' }}>
+      <div style={{ position: 'relative', minHeight: '100%' }}
+           className="px-4 sm:px-6 pt-14 sm:pt-20 pb-8 page-enter">
+        <Link href="/" style={{ position: 'absolute', top: 16, left: 16, display: 'block' }}>
+          <Image src="/icons/left-arrow.png" alt="Back" width={32} height={32}
+            style={{ width: 32, height: 32, objectFit: 'contain' }} />
+        </Link>
+        <Oscilloscope />
+      </div>
     </div>
   );
 }
