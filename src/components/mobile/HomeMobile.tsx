@@ -29,12 +29,13 @@ const LOGO_LETTERS: { t: string; x: number; y: number; rot: number; flipY: boole
   { t: 'VGE',  x: 155, y: 647, rot: 90,  flipY: false },
 ];
 
-const LOGO_OVAL_TOPS = [577, 613, 619, 624, 630, 635, 641, 651, 652, 653];
+const LOGO_OVAL_TOPS = [613, 619, 624, 630, 635, 641, 651, 652, 653];
 const LOGO_OVAL_X = 145;
 const LOGO_OVAL = 15;
 
+// Figma: Helvetica Neue Medium 11.566px / line-height 14.111px (= 1.22)
 const PARA: React.CSSProperties = {
-  fontFamily: BODY, fontSize: vw(11), lineHeight: 1.22,
+  fontFamily: BODY, fontSize: vw(11.57), lineHeight: 1.22,
   textAlign: 'left', textTransform: 'uppercase', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
   color: '#000',
 };
@@ -77,10 +78,10 @@ export function HomeMobile() {
     <main style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#fff' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
-        {/* README — links to /information */}
+        {/* README — top right (Figma 186:68), links to /information */}
         <Link href="/information" style={{
-          position: 'absolute', left: vw(35), top: dvh(96),
-          fontFamily: SEGOE, fontSize: vw(11), lineHeight: dvh(11),
+          position: 'absolute', left: vw(315), top: dvh(61),
+          fontFamily: SEGOE, fontSize: vw(11.57), lineHeight: dvh(11.57),
           color: '#000', textDecoration: 'none',
         }}>README</Link>
 
@@ -145,58 +146,57 @@ export function HomeMobile() {
           }}>{l.t}</span>
         ))}
 
-        {/* Main structure paragraph */}
-        <div style={{ position: 'absolute', left: vw(198), top: dvh(603), width: vw(182), zIndex: 3, ...PARA }}>
+        {/* Main structure paragraph — Figma 186:36 */}
+        <div style={{ position: 'absolute', left: vw(198), top: dvh(615), width: vw(182), zIndex: 3, ...PARA }}>
           {`[STRUCTURE_01:VOID]
   0X1440X // STNSION
   <RECT:FILL_NULL>
-   987.4 `}<RedLink href="/listen">1181819413</RedLink>{` 57-740.093-X:804.608_CONST_Y
-1053.031.95⌠1028.6Λ804.60⌠1028.44793.1■1024.351053.46Λ804Σ1
-031.95⌠1028.44793.1024.35  77`}<RedLink href="/photography">15 7 14 19 14 6 17 0 15 7 24</RedLink>{`9.509  1021.73■  1   7  1021.73  7779.509/768.364/759.846  //
+   987.4 `}<RedLink href="/news">13 4 22 18</RedLink>{` 57-740.09ONST_Y
+   1053.804.60⌠1028.447                     93.1■1024.351053.46Λ804Σ1
+4.35  77`}<RedLink href="/photography">15 7 14 19 14 6 17 0 15 7 24</RedLink>{`509  1021.73■  1   7  1021.73  77/759.846  //
 E
   </PATH_NULL>`}
         </div>
 
-        {/* "0X228" — mirrored */}
+        {/* "0X228" — mirrored (Figma 186:61) */}
         <div aria-hidden style={{
-          position: 'absolute', left: vw(315), top: dvh(623), width: vw(36), zIndex: 3,
+          position: 'absolute', left: vw(315), top: dvh(635), width: vw(36), zIndex: 3,
           transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA,
         }}>
           {'0X228 '}
         </div>
 
-        {/* Censor bar 1 */}
+        {/* Censor bar 1 — Figma 186:62 */}
         <div aria-hidden style={{
-          position: 'absolute', left: vw(195), top: dvh(660), width: vw(156), height: dvh(9),
+          position: 'absolute', left: vw(195), top: dvh(672), width: vw(156), height: dvh(9.46),
           background: '#000', zIndex: 5,
         }} />
 
-        {/* Censor bar 2 */}
+        {/* Censor bar 2 — Figma 186:63 */}
         <div aria-hidden style={{
-          position: 'absolute', left: vw(250), top: dvh(689), width: vw(46), height: dvh(9),
+          position: 'absolute', left: vw(250), top: dvh(701), width: vw(46), height: dvh(9.46),
           background: '#000', zIndex: 5,
         }} />
 
-        {/* M1231 mirrored block */}
-        <div style={{ position: 'absolute', left: vw(298), top: dvh(641), width: vw(97), zIndex: 3, transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA }}>
-          {`M1231.81:745.2.8.`}<RedLink href="/work">22.14.17.10</RedLink>{`.938.834:756.675
-  {TRANS_LAYER:000:000:000}
-  /SIG_PATH_END
+        {/* M1231 mirrored block — Figma 186:37 (leading blank line is in the design) */}
+        <div style={{ position: 'absolute', left: vw(298), top: dvh(653), width: vw(97), zIndex: 3, transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA }}>
+          {`
+M1231.81:745.2.8.`}<RedLink href="/work">22.14.17.10</RedLink>{`.938.834:756.675
+  {TR
 
-M987.457`}
+M987.457 `}
         </div>
 
-        {/* ░▒▓▓▒░ mirrored block */}
-        <div style={{ position: 'absolute', left: vw(293), top: dvh(745), width: vw(102), zIndex: 3, transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA }}>
-          {` ░▒▓▓▒░ 740.093HΩ1032.73MΔ1053.46Λ80`}<RedLink href="/news">13 4 22 18</RedLink>{`
-134.608Σ10.31.95⌠1028.44793.1■1024.35  779.509  1021.73  76
-8.364  1020.56  759.846  1019.39`}
+        {/* ░▒▓▓▒░ mirrored block — Figma 186:38 */}
+        <div style={{ position: 'absolute', left: vw(293), top: dvh(757), width: vw(102), zIndex: 3, transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA }}>
+          {` ░▒▓▓▒░ 740.02.73MΔ1053.46Λ80`}<RedLink href="/listen">1181819413</RedLink>{`
+1■1024.35  779.509  1021.73  76`}
         </div>
 
-        {/* send transmission — fontSize and letterSpacing are LOCKED */}
+        {/* send transmission — Figma 186:39: 33.648px / -0.13em (LOCKED), y=824 */}
         <Link href="/transmit" style={{
-          position: 'absolute', left: vw(31), top: dvh(778),
-          fontFamily: DISPLAY, fontSize: vw(32), lineHeight: dvh(31), letterSpacing: '-0.13em',
+          position: 'absolute', left: vw(31), top: dvh(824),
+          fontFamily: DISPLAY, fontSize: vw(33.65), lineHeight: 0.97, letterSpacing: '-0.13em',
           color: '#000', textDecoration: 'none', whiteSpace: 'nowrap', zIndex: 3,
         }}>
           {'__________send transmission'}
