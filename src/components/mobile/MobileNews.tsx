@@ -16,7 +16,7 @@ const SCANLINES =
 
 export function MobileNews() {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#fff', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
