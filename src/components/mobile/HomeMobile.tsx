@@ -2,13 +2,18 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { MobileScope } from '@/components/mobile/MobileScope';
 
+/**
+ * Figma frame is 402×874 (iPhone 17). The entire composition is laid out in
+ * design pixels on a fixed 402×874 canvas, then uniformly scaled with a single
+ * factor — min(viewportW/402, viewportH/874) — so proportions are ALWAYS
+ * identical to Figma. Never mix vw/dvh per-axis units here: dynamic viewport
+ * height shrinks under browser chrome and squashes everything vertically.
+ */
 const SW = 402;
 const SH = 874;
-const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
-const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
@@ -29,13 +34,13 @@ const LOGO_LETTERS: { t: string; x: number; y: number; rot: number; flipY: boole
   { t: 'VGE',  x: 155, y: 647, rot: 90,  flipY: false },
 ];
 
-const LOGO_OVAL_TOPS = [577, 613, 619, 624, 630, 635, 641, 651, 652, 653];
+const LOGO_OVAL_TOPS = [613, 619, 624, 630, 635, 641, 651, 652, 653];
 const LOGO_OVAL_X = 145;
 const LOGO_OVAL = 15;
 
 const PARA: React.CSSProperties = {
-  fontFamily: BODY, fontSize: vw(11), lineHeight: 1.22,
-  textAlign: 'left', textTransform: 'uppercase', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+  fontFamily: BODY, fontSize: 11, lineHeight: 1.22,
+  textAlign: 'left', textTransform: 'uppercase', whiteSpace: 'pre',
   color: '#000',
 };
 
@@ -59,7 +64,28 @@ function RedLink({ href, children }: { href: string; children: string }) {
   return <Link href={href} style={{ color: RED, textDecoration: 'none' }}>{children}</Link>;
 }
 
+/** One uniform scale factor — aspect ratio is locked to the Figma frame. */
+function useUniformScale() {
+  const [scale, setScale] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const update = () => {
+      const w = window.visualViewport?.width ?? window.innerWidth;
+      const h = window.visualViewport?.height ?? window.innerHeight;
+      setScale(Math.min(w / SW, h / SH));
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
+    };
+  }, []);
+  return scale;
+}
+
 export function HomeMobile() {
+  const scale = useUniformScale();
   const [clock, setClock] = useState(() => buildClock(new Date()));
   const [ticker, setTicker] = useState(() => hexLine(0));
 
@@ -75,24 +101,29 @@ export function HomeMobile() {
 
   return (
     <main style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#fff' }}>
-      <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
+      <div className="page-enter" style={{
+        position: 'absolute', left: '50%', top: '50%',
+        width: SW, height: SH,
+        transform: `translate(-50%, -50%) scale(${scale ?? 1})`,
+        visibility: scale === null ? 'hidden' : 'visible',
+      }}>
 
-        {/* README — links to /information */}
+        {/* README — top-right, links to /information */}
         <Link href="/information" style={{
-          position: 'absolute', left: vw(35), top: dvh(96),
-          fontFamily: SEGOE, fontSize: vw(11), lineHeight: dvh(11),
+          position: 'absolute', left: 315, top: 61,
+          fontFamily: SEGOE, fontSize: 11, lineHeight: '12px',
           color: '#000', textDecoration: 'none',
         }}>README</Link>
 
         {/* Chromeless vectorscope */}
-        <div style={{ position: 'absolute', left: vw(17), top: dvh(117), width: vw(368), height: dvh(400) }}>
+        <div style={{ position: 'absolute', left: 17, top: 117, width: 368, height: 400 }}>
           <MobileScope />
         </div>
 
         {/* Broadcast status — top-left of the scope box */}
         <div style={{
-          position: 'absolute', left: vw(24), top: dvh(124), width: vw(320),
-          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase',
+          position: 'absolute', left: 24, top: 124, width: 320,
+          fontFamily: BODY, fontSize: 11, lineHeight: '13px', textTransform: 'uppercase',
           color: '#000', zIndex: 3, pointerEvents: 'none',
         }}>
           {'> BROADCAST '}
@@ -102,23 +133,23 @@ export function HomeMobile() {
 
         {/* Timecode — top-right inside the scope box */}
         <div style={{
-          position: 'absolute', left: vw(285), top: dvh(125), width: vw(92),
+          position: 'absolute', left: 285, top: 125, width: 92,
           textAlign: 'right', zIndex: 3, pointerEvents: 'none',
         }}>
-          <div style={{ fontFamily: MONO, fontSize: vw(7), lineHeight: dvh(12), fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontFamily: MONO, fontSize: 7, lineHeight: '12px', fontVariantNumeric: 'tabular-nums' }}>
             <div style={{ color: '#000' }}>{clock.utc}</div>
             <div style={{ color: '#555' }}>{clock.mil}</div>
-            <div style={{ color: RED, fontSize: vw(6) }}>{clock.bc}</div>
+            <div style={{ color: RED, fontSize: 6 }}>{clock.bc}</div>
           </div>
         </div>
 
         {/* Freq ticker — scrolling strip below the scope box */}
         <div style={{
-          position: 'absolute', left: vw(17), top: dvh(523), width: vw(368), height: dvh(14),
+          position: 'absolute', left: 17, top: 523, width: 368, height: 14,
           overflow: 'hidden', pointerEvents: 'none', zIndex: 3,
         }}>
           <div className="ticker" style={{
-            fontFamily: MONO, fontSize: vw(6), lineHeight: dvh(10), letterSpacing: '0.04em',
+            fontFamily: MONO, fontSize: 6, lineHeight: '10px', letterSpacing: '0.04em',
             color: '#555', whiteSpace: 'nowrap',
           }}>
             {ticker}&nbsp;&nbsp;&nbsp;&nbsp;{ticker}
@@ -129,8 +160,8 @@ export function HomeMobile() {
         {LOGO_OVAL_TOPS.map((t, i) => (
           <Image key={`ov-${i}`} src="/images/IMG_2411.png" alt="" aria-hidden width={LOGO_OVAL} height={LOGO_OVAL}
             style={{
-              position: 'absolute', left: vw(LOGO_OVAL_X), top: dvh(t),
-              width: vw(LOGO_OVAL), height: vw(LOGO_OVAL),
+              position: 'absolute', left: LOGO_OVAL_X, top: t,
+              width: LOGO_OVAL, height: LOGO_OVAL,
               zIndex: 4, pointerEvents: 'none',
             }} />
         ))}
@@ -138,65 +169,60 @@ export function HomeMobile() {
         {/* VILLAGE word-mark cluster — letters */}
         {LOGO_LETTERS.map((l, i) => (
           <span key={`lt-${i}`} aria-hidden style={{
-            position: 'absolute', left: vw(l.x), top: dvh(l.y),
-            fontFamily: DISPLAY, fontSize: vw(34),
+            position: 'absolute', left: l.x, top: l.y,
+            fontFamily: DISPLAY, fontSize: 34,
             lineHeight: 1, color: '#000', zIndex: 4, whiteSpace: 'nowrap',
             transform: `rotate(${l.rot}deg) scaleY(${l.flipY ? -1 : 1})`, transformOrigin: 'center',
           }}>{l.t}</span>
         ))}
 
         {/* Main structure paragraph */}
-        <div style={{ position: 'absolute', left: vw(198), top: dvh(603), width: vw(182), zIndex: 3, ...PARA }}>
-          {`[STRUCTURE_01:VOID]
-  0X1440X // STNSION
-  <RECT:FILL_NULL>
-   987.4 `}<RedLink href="/listen">1181819413</RedLink>{` 57-740.093-X:804.608_CONST_Y
-1053.031.95⌠1028.6Λ804.60⌠1028.44793.1■1024.351053.46Λ804Σ1
-031.95⌠1028.44793.1024.35  77`}<RedLink href="/photography">15 7 14 19 14 6 17 0 15 7 24</RedLink>{`9.509  1021.73■  1   7  1021.73  7779.509/768.364/759.846  //
+        <div style={{ position: 'absolute', left: 212, top: 556, zIndex: 3, ...PARA }}>
+          {`  <RECT:FILL_NULL>
+   987.4 `}<RedLink href="/news">13 4 22 18</RedLink>{`
+93.1■1024.351053.4
+4.35  77`}<RedLink href="/photography">{`15 7 14 19 14 6 17 0 15 7
+24`}</RedLink>{`509  1021.73■  1   7  1021.73
+77/759.846  //
 E
   </PATH_NULL>`}
         </div>
 
-        {/* "0X228" — mirrored */}
+        {/* Censor bar — end of the 93.1 line */}
         <div aria-hidden style={{
-          position: 'absolute', left: vw(315), top: dvh(623), width: vw(36), zIndex: 3,
+          position: 'absolute', left: 321, top: 587, width: 46, height: 9.5,
+          background: '#000', zIndex: 5,
+        }} />
+
+        {/* Censor bar — long bar under the paragraph */}
+        <div aria-hidden style={{
+          position: 'absolute', left: 195, top: 672, width: 156, height: 9.5,
+          background: '#000', zIndex: 5,
+        }} />
+
+        {/* Mirrored fragment — overlays the E / PATH_NULL lines */}
+        <div style={{
+          position: 'absolute', left: 264, top: 641, width: 97, zIndex: 3,
           transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA,
         }}>
-          {'0X228 '}
+          {`.`}<RedLink href="/work">22.14.17.10</RedLink>{`.938.8
+34:756.675`}
         </div>
 
-        {/* Censor bar 1 */}
-        <div aria-hidden style={{
-          position: 'absolute', left: vw(195), top: dvh(660), width: vw(156), height: dvh(9),
-          background: '#000', zIndex: 5,
-        }} />
-
-        {/* Censor bar 2 */}
-        <div aria-hidden style={{
-          position: 'absolute', left: vw(250), top: dvh(689), width: vw(46), height: dvh(9),
-          background: '#000', zIndex: 5,
-        }} />
-
-        {/* M1231 mirrored block */}
-        <div style={{ position: 'absolute', left: vw(298), top: dvh(641), width: vw(97), zIndex: 3, transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA }}>
-          {`M1231.81:745.2.8.`}<RedLink href="/work">22.14.17.10</RedLink>{`.938.834:756.675
-  {TRANS_LAYER:000:000:000}
-  /SIG_PATH_END
-
-M987.457`}
-        </div>
-
-        {/* ░▒▓▓▒░ mirrored block */}
-        <div style={{ position: 'absolute', left: vw(293), top: dvh(745), width: vw(102), zIndex: 3, transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA }}>
-          {` ░▒▓▓▒░ 740.093HΩ1032.73MΔ1053.46Λ80`}<RedLink href="/news">13 4 22 18</RedLink>{`
-134.608Σ10.31.95⌠1028.44793.1■1024.35  779.509  1021.73  76
-8.364  1020.56  759.846  1019.39`}
+        {/* Mirrored dither + signal block — below the long censor bar */}
+        <div style={{
+          position: 'absolute', left: 265, top: 686, width: 102, zIndex: 3,
+          transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA,
+        }}>
+          {` ░▒▓▓▒░
+740.02.73MΔ1053.
+46Λ80`}<RedLink href="/listen">1181819413</RedLink>
         </div>
 
         {/* send transmission — fontSize and letterSpacing are LOCKED */}
         <Link href="/transmit" style={{
-          position: 'absolute', left: vw(31), top: dvh(778),
-          fontFamily: DISPLAY, fontSize: vw(32), lineHeight: dvh(31), letterSpacing: '-0.13em',
+          position: 'absolute', left: 31, top: 824,
+          fontFamily: DISPLAY, fontSize: 32, lineHeight: '31px', letterSpacing: '-0.13em',
           color: '#000', textDecoration: 'none', whiteSpace: 'nowrap', zIndex: 3,
         }}>
           {'__________send transmission'}
@@ -204,7 +230,7 @@ M987.457`}
 
         {/* CRT scanlines — scope box only */}
         <div aria-hidden style={{
-          position: 'absolute', left: vw(17), top: dvh(117), width: vw(368), height: dvh(400),
+          position: 'absolute', left: 17, top: 117, width: 368, height: 400,
           zIndex: 7, pointerEvents: 'none',
           background: SCANLINES, opacity: 0.6,
         }} />
