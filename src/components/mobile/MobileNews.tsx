@@ -2,11 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-
-const SW = 402;
-const SH = 874;
-const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
-const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
+import { MobileStage, px } from '@/components/mobile/MobileStage';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
@@ -16,22 +12,22 @@ const SCANLINES =
 
 export function MobileNews() {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
+    <MobileStage zIndex={1000}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
         <Link href="/" style={{
-          position: 'absolute', left: vw(17), top: dvh(16), display: 'block',
-          width: vw(50), height: vw(50), zIndex: 10,
+          position: 'absolute', left: px(17), top: px(16), display: 'block',
+          width: px(50), height: px(50), zIndex: 10,
         }}>
           <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
-            style={{ width: vw(50), height: vw(50), objectFit: 'contain' }} />
+            style={{ width: px(50), height: px(50), objectFit: 'contain' }} />
         </Link>
 
         {/* Section label */}
         <div style={{
-          position: 'absolute', left: vw(22), top: dvh(80),
-          fontFamily: MONO, fontSize: vw(8), lineHeight: dvh(10),
+          position: 'absolute', left: px(22), top: px(80),
+          fontFamily: MONO, fontSize: px(8), lineHeight: px(10),
           color: '#000', letterSpacing: '0.08em', textTransform: 'uppercase',
         }}>
           {'// TRANSMISSION_LOG — VLG.FM'}
@@ -39,7 +35,7 @@ export function MobileNews() {
 
         {/* Newspaper artifact image */}
         <div style={{
-          position: 'absolute', left: vw(22), top: dvh(100), width: vw(358), height: dvh(580),
+          position: 'absolute', left: px(22), top: px(100), width: px(358), height: px(580),
           overflow: 'hidden',
         }}>
           <Image
@@ -53,8 +49,8 @@ export function MobileNews() {
 
         {/* Bottom info strip */}
         <div style={{
-          position: 'absolute', left: vw(22), top: dvh(694), width: vw(358),
-          fontFamily: MONO, fontSize: vw(7), lineHeight: dvh(9),
+          position: 'absolute', left: px(22), top: px(694), width: px(358),
+          fontFamily: MONO, fontSize: px(7), lineHeight: px(9),
           color: '#000', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
         }}>
           {'VLG/FM — VILLAGE RADIO\n'}
@@ -65,8 +61,8 @@ export function MobileNews() {
 
         {/* Date marker */}
         <div style={{
-          position: 'absolute', right: vw(22), top: dvh(694),
-          fontFamily: BODY, fontSize: vw(9), lineHeight: dvh(9),
+          position: 'absolute', right: px(22), top: px(694),
+          fontFamily: BODY, fontSize: px(9), lineHeight: px(9),
           color: '#000', textAlign: 'right',
         }}>
           {'VLGFM.LIVE'}
@@ -77,6 +73,6 @@ export function MobileNews() {
         position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none',
         background: SCANLINES, opacity: 0.5,
       }} />
-    </div>
+    </MobileStage>
   );
 }

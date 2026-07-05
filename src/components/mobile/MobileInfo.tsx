@@ -2,11 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-
-const SW = 402;
-const SH = 874;
-const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
-const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
+import { MobileStage, px } from '@/components/mobile/MobileStage';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
@@ -23,21 +19,21 @@ const BOTTOM_TEXT =
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function MobileInfo({ content }: { content: string }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
+    <MobileStage zIndex={1000}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
         <Link href="/" style={{
-          position: 'absolute', left: vw(17), top: dvh(16), display: 'block',
-          width: vw(50), height: vw(50),
+          position: 'absolute', left: px(17), top: px(16), display: 'block',
+          width: px(50), height: px(50),
         }}>
           <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
-            style={{ width: vw(50), height: vw(50), objectFit: 'contain' }} />
+            style={{ width: px(50), height: px(50), objectFit: 'contain' }} />
         </Link>
 
         {/* Stripe background */}
         <div style={{
-          position: 'absolute', left: vw(22), top: dvh(82), width: vw(354), height: dvh(746),
+          position: 'absolute', left: px(22), top: px(82), width: px(354), height: px(746),
           background: STRIPES,
         }} />
 
@@ -45,9 +41,9 @@ export function MobileInfo({ content }: { content: string }) {
         <div style={{
           position: 'absolute',
           left: '50%',
-          top: dvh(218),
-          width: vw(175),
-          height: vw(175),
+          top: px(218),
+          width: px(175),
+          height: px(175),
           transform: 'translateX(-50%)',
         }}>
           <Image
@@ -60,11 +56,11 @@ export function MobileInfo({ content }: { content: string }) {
 
         {/* Bottom text block */}
         <div style={{
-          position: 'absolute', left: vw(22), top: dvh(733), width: vw(354),
+          position: 'absolute', left: px(22), top: px(733), width: px(354),
           background: '#fff', paddingBottom: 4,
         }}>
           <div style={{
-            fontFamily: MONO, fontSize: vw(8), lineHeight: dvh(10),
+            fontFamily: MONO, fontSize: px(8), lineHeight: px(10),
             color: '#000', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>
             {BOTTOM_TEXT}
@@ -72,6 +68,6 @@ export function MobileInfo({ content }: { content: string }) {
         </div>
 
       </div>
-    </div>
+    </MobileStage>
   );
 }
