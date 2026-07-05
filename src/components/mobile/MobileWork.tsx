@@ -4,7 +4,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useRef } from 'react';
 import { solvePoW } from '@/lib/pow';
-import { MobileStage, px } from '@/components/mobile/MobileStage';
+
+const SW = 402;
+const SH = 874;
+const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
+const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
@@ -74,7 +78,7 @@ export function MobileWork() {
                       state === 'granted' ? '#000' : '#000';
 
   return (
-    <MobileStage zIndex={1000}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Arrow buttons */}
@@ -84,8 +88,8 @@ export function MobileWork() {
               key={i}
               href="/"
               style={{
-                position: 'absolute', left: px(left), top: px(71),
-                width: px(50), height: px(50),
+                position: 'absolute', left: vw(left), top: dvh(71),
+                width: vw(50), height: vw(50),
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
@@ -94,15 +98,15 @@ export function MobileWork() {
                 alt="Back"
                 width={50}
                 height={50}
-                style={{ width: px(50), height: px(50), objectFit: 'contain', transform: `rotate(${ARROW_ROTATIONS[i]}deg)` }}
+                style={{ width: vw(50), height: vw(50), objectFit: 'contain', transform: `rotate(${ARROW_ROTATIONS[i]}deg)` }}
               />
             </Link>
           ) : (
             <div
               key={i}
               style={{
-                position: 'absolute', left: px(left), top: px(71),
-                width: px(50), height: px(50),
+                position: 'absolute', left: vw(left), top: dvh(71),
+                width: vw(50), height: vw(50),
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
@@ -112,7 +116,7 @@ export function MobileWork() {
                 aria-hidden
                 width={50}
                 height={50}
-                style={{ width: px(50), height: px(50), objectFit: 'contain', transform: `rotate(${ARROW_ROTATIONS[i]}deg)` }}
+                style={{ width: vw(50), height: vw(50), objectFit: 'contain', transform: `rotate(${ARROW_ROTATIONS[i]}deg)` }}
               />
             </div>
           )
@@ -120,8 +124,8 @@ export function MobileWork() {
 
         {/* "enter password" label */}
         <div style={{
-          position: 'absolute', left: px(79), top: px(241),
-          fontFamily: BODY, fontSize: px(15), color: '#000',
+          position: 'absolute', left: vw(79), top: dvh(241),
+          fontFamily: BODY, fontSize: vw(15), color: '#000',
         }}>
           enter password
         </div>
@@ -138,7 +142,7 @@ export function MobileWork() {
           disabled={disabled}
           autoComplete="off"
           style={{
-            position: 'absolute', left: px(79), top: px(274), width: px(243), height: px(28),
+            position: 'absolute', left: vw(79), top: dvh(274), width: vw(243), height: dvh(28),
             opacity: 0, zIndex: 2, fontSize: 16,
           }}
         />
@@ -147,17 +151,17 @@ export function MobileWork() {
         <div
           onClick={focusInput}
           style={{
-            position: 'absolute', left: px(79), top: px(274), width: px(243), height: px(28),
+            position: 'absolute', left: vw(79), top: dvh(274), width: vw(243), height: dvh(28),
             background: '#fff', border: '1px solid #000', boxSizing: 'border-box',
-            display: 'flex', alignItems: 'center', paddingLeft: px(8), cursor: 'text',
-            fontFamily: BODY, fontSize: px(14), color: '#000',
+            display: 'flex', alignItems: 'center', paddingLeft: vw(8), cursor: 'text',
+            fontFamily: BODY, fontSize: vw(14), color: '#000',
             opacity: disabled ? 0.4 : 1,
           }}
         >
           {'•'.repeat(inputValue.length)}
           {focused && !disabled && (
             <span style={{
-              display: 'inline-block', width: 1, height: px(14),
+              display: 'inline-block', width: 1, height: vw(14),
               background: '#000', marginLeft: inputValue.length ? 1 : 0,
               animation: 'vr-blink 1s step-end infinite',
             }} />
@@ -167,8 +171,8 @@ export function MobileWork() {
         {/* Status line */}
         {statusText && (
           <div style={{
-            position: 'absolute', left: px(79), top: px(310),
-            fontFamily: MONO, fontSize: px(9), lineHeight: px(11),
+            position: 'absolute', left: vw(79), top: dvh(310),
+            fontFamily: MONO, fontSize: vw(9), lineHeight: dvh(11),
             color: statusColor, letterSpacing: '0.04em',
           }}>
             {statusText}
@@ -182,7 +186,7 @@ export function MobileWork() {
           alt=""
           aria-hidden
           style={{
-            position: 'absolute', left: px(81), top: px(540), width: px(120), height: px(240),
+            position: 'absolute', left: vw(81), top: dvh(540), width: vw(120), height: dvh(240),
             objectFit: 'cover',
           }}
         />
@@ -192,6 +196,6 @@ export function MobileWork() {
         position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none',
         background: SCANLINES, opacity: 0.6,
       }} />
-    </MobileStage>
+    </div>
   );
 }

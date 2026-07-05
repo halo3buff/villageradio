@@ -2,7 +2,11 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { MobileStage, px } from '@/components/mobile/MobileStage';
+
+const SW = 402;
+const SH = 874;
+const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
+const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 
@@ -18,27 +22,28 @@ const CARDS = [
   { left: 130, top: 590 },
   { left: 179, top: 643 },
 ];
+// Maintain card aspect ratio with vw units on both axes
 const CARD_W = 163;
 const CARD_H = 123;
 
 export function MobilePhotography() {
   return (
-    <MobileStage zIndex={1000}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
         <Link href="/" style={{
-          position: 'absolute', left: px(322), top: px(17), display: 'block',
-          width: px(50), height: px(50),
+          position: 'absolute', left: vw(322), top: dvh(17), display: 'block',
+          width: vw(50), height: vw(50),
         }}>
           <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
-            style={{ width: px(50), height: px(50), objectFit: 'contain' }} />
+            style={{ width: vw(50), height: vw(50), objectFit: 'contain' }} />
         </Link>
 
         {/* Address / contact text block */}
         <div style={{
-          position: 'absolute', left: px(70), top: px(130), width: px(262),
-          fontFamily: BODY, fontSize: px(11), lineHeight: px(15),
+          position: 'absolute', left: vw(70), top: dvh(130), width: vw(262),
+          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(15),
           color: '#000', textTransform: 'uppercase', textAlign: 'center',
           whiteSpace: 'pre',
         }}>
@@ -53,24 +58,24 @@ export function MobilePhotography() {
           ].join('\n')}
         </div>
 
-        {/* Stacked thermal cards */}
+        {/* Stacked thermal cards — both W and H use vw to preserve aspect ratio */}
         {CARDS.map((card, i) => (
           <div
             key={i}
             style={{
               position: 'absolute',
-              left: px(card.left),
-              top: px(card.top),
-              width: px(CARD_W),
-              height: px(CARD_H),
+              left: vw(card.left),
+              top: dvh(card.top),
+              width: vw(CARD_W),
+              height: vw(CARD_H),
               overflow: 'hidden',
             }}
           >
             <div style={{
               position: 'absolute',
               top: '50%', left: '50%',
-              width: px(CARD_H),
-              height: px(CARD_W),
+              width: vw(CARD_H),
+              height: vw(CARD_W),
               transform: 'translate(-50%, -50%) rotate(90deg)',
             }}>
               <Image
@@ -78,7 +83,7 @@ export function MobilePhotography() {
                 alt=""
                 fill
                 style={{ objectFit: 'cover' }}
-                sizes={`${CARD_H}px`}
+                sizes={`${(CARD_H / SW * 100).toFixed(0)}vw`}
               />
             </div>
           </div>
@@ -89,6 +94,6 @@ export function MobilePhotography() {
         position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none',
         background: SCANLINES, opacity: 0.5,
       }} />
-    </MobileStage>
+    </div>
   );
 }

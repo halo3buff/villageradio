@@ -6,7 +6,11 @@ import { useAudio } from '@/lib/audio-context';
 import { MobileWaterfall } from '@/components/mobile/MobileWaterfall';
 import { MobilePoleZero } from '@/components/mobile/MobilePoleZero';
 import type { Mix } from '@/lib/types';
-import { MobileStage, px } from '@/components/mobile/MobileStage';
+
+const SW = 402;
+const SH = 874;
+const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
+const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const RED = '#ff0000';
@@ -39,22 +43,22 @@ export function MobileListen() {
   const liveSelected = mode === 'broadcast';
 
   return (
-    <MobileStage zIndex={1000}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, overflow: 'hidden', background: '#fff' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
         <Link href="/" style={{
-          position: 'absolute', left: px(WFALL_X), top: px(16), display: 'block',
-          width: px(50), height: px(50),
+          position: 'absolute', left: vw(WFALL_X), top: dvh(16), display: 'block',
+          width: vw(50), height: vw(50),
         }}>
           <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
-            style={{ width: px(50), height: px(50), objectFit: 'contain' }} />
+            style={{ width: vw(50), height: vw(50), objectFit: 'contain' }} />
         </Link>
 
         {/* WFALL label */}
         <div style={{
-          position: 'absolute', left: px(WFALL_X + 7), top: px(WFALL_Y + 7), zIndex: 2, pointerEvents: 'none',
-          fontFamily: BODY, fontSize: px(11), lineHeight: px(11), textTransform: 'uppercase', color: '#000',
+          position: 'absolute', left: vw(WFALL_X + 7), top: dvh(WFALL_Y + 7), zIndex: 2, pointerEvents: 'none',
+          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: '#000',
         }}>
           {'WFALL '}
           <span style={{ color: RED }}>[{live ? 'LIVE' : 'IDLE'}]</span>
@@ -65,14 +69,14 @@ export function MobileListen() {
         <div
           onClick={onLive}
           style={{
-            position: 'absolute', left: px(WFALL_X), top: px(WFALL_Y),
-            width: px(WFALL_W), height: px(WFALL_H),
+            position: 'absolute', left: vw(WFALL_X), top: dvh(WFALL_Y),
+            width: vw(WFALL_W), height: dvh(WFALL_H),
             border: '1px solid #000', boxSizing: 'border-box', cursor: 'pointer', background: 'transparent',
           }}
         >
           <MobileWaterfall />
           <span style={{
-            position: 'absolute', left: 8, bottom: 6, fontSize: px(13), lineHeight: 1,
+            position: 'absolute', left: 8, bottom: 6, fontSize: vw(13), lineHeight: 1,
             color: '#000', pointerEvents: 'none',
           }}>
             {liveSelected && isPlaying ? '❚❚' : '▶'}
@@ -81,8 +85,8 @@ export function MobileListen() {
 
         {/* LPC POLE-ZERO label */}
         <div style={{
-          position: 'absolute', left: px(WFALL_X + 7), top: px(LPC_Y + 7), zIndex: 2, pointerEvents: 'none',
-          fontFamily: BODY, fontSize: px(11), lineHeight: px(11), textTransform: 'uppercase', color: '#000',
+          position: 'absolute', left: vw(WFALL_X + 7), top: dvh(LPC_Y + 7), zIndex: 2, pointerEvents: 'none',
+          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: '#000',
         }}>
           {'LPC '}
           <span style={{ color: RED }}>[Z-PLANE]</span>
@@ -90,8 +94,8 @@ export function MobileListen() {
 
         {/* LPC Pole-Zero scope */}
         <div style={{
-          position: 'absolute', left: px(WFALL_X), top: px(LPC_Y),
-          width: px(WFALL_W), height: px(LPC_H),
+          position: 'absolute', left: vw(WFALL_X), top: dvh(LPC_Y),
+          width: vw(WFALL_W), height: dvh(LPC_H),
           border: '1px solid #000', boxSizing: 'border-box', background: 'transparent',
         }}>
           <MobilePoleZero />
@@ -99,8 +103,8 @@ export function MobileListen() {
 
         {/* ARCHIVE label */}
         <div style={{
-          position: 'absolute', left: px(WFALL_X), top: px(ARCHIVE_Y),
-          fontFamily: BODY, fontSize: px(11), lineHeight: px(11), textTransform: 'uppercase', color: '#000',
+          position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y),
+          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: '#000',
         }}>
           ARCHIVE
         </div>
@@ -109,22 +113,22 @@ export function MobileListen() {
         <button
           onClick={onLive}
           style={{
-            position: 'absolute', left: px(WFALL_X), top: px(ARCHIVE_Y + 18),
-            width: px(WFALL_W), height: px(32),
+            position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 18),
+            width: vw(WFALL_W), height: dvh(32),
             background: liveSelected ? '#000' : 'transparent',
             border: '1px solid #000', boxSizing: 'border-box',
-            display: 'flex', alignItems: 'center', gap: px(8), paddingLeft: px(10),
+            display: 'flex', alignItems: 'center', gap: vw(8), paddingLeft: vw(10),
             cursor: 'pointer',
           }}
         >
           <span style={{
-            width: px(7), height: px(7), borderRadius: '50%',
+            width: vw(7), height: vw(7), borderRadius: '50%',
             background: live ? RED : 'transparent',
             border: `1px solid ${live ? RED : '#000'}`,
             flexShrink: 0,
           }} />
           <span style={{
-            fontFamily: BODY, fontSize: px(11), textTransform: 'uppercase', lineHeight: 1,
+            fontFamily: BODY, fontSize: vw(11), textTransform: 'uppercase', lineHeight: 1,
             color: liveSelected ? '#fff' : '#000',
           }}>
             {live && liveSelected ? 'LIVE — on air' : 'LIVE BROADCAST'}
@@ -133,15 +137,15 @@ export function MobileListen() {
 
         {/* Separator */}
         <div style={{
-          position: 'absolute', left: px(WFALL_X), top: px(ARCHIVE_Y + 50),
-          width: px(WFALL_W), height: 1, background: '#000', opacity: 0.15,
+          position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 50),
+          width: vw(WFALL_W), height: 1, background: '#000', opacity: 0.15,
         }} />
 
         {/* Archive track list — stretches to bottom */}
         <div style={{
           position: 'absolute',
-          left: px(WFALL_X), top: px(ARCHIVE_Y + 51),
-          width: px(WFALL_W), bottom: px(10),
+          left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 51),
+          width: vw(WFALL_W), bottom: dvh(10),
           overflowY: 'auto',
         }}>
           {playlist.map((track, i) => {
@@ -152,29 +156,29 @@ export function MobileListen() {
                 key={track.id}
                 onClick={() => onSelectClip(track)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: px(10),
-                  width: '100%', height: px(26), paddingLeft: px(10), paddingRight: px(10),
+                  display: 'flex', alignItems: 'center', gap: vw(10),
+                  width: '100%', height: dvh(26), paddingLeft: vw(10), paddingRight: vw(10),
                   background: isActive ? '#000' : 'transparent',
                   border: 'none', borderBottom: '1px solid rgba(0,0,0,0.08)',
                   cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
                 }}
               >
                 <span style={{
-                  fontFamily: BODY, fontSize: px(9), letterSpacing: '0.1em',
+                  fontFamily: BODY, fontSize: vw(9), letterSpacing: '0.1em',
                   color: isActive ? '#fff' : 'rgba(0,0,0,0.35)',
-                  minWidth: px(16), textAlign: 'right',
+                  minWidth: vw(16), textAlign: 'right',
                 }}>
                   {String(i + 1).padStart(2, '0')}
                 </span>
                 <span style={{
-                  fontFamily: BODY, fontSize: px(11), textTransform: 'uppercase', lineHeight: 1,
+                  fontFamily: BODY, fontSize: vw(11), textTransform: 'uppercase', lineHeight: 1,
                   color: isActive ? '#fff' : '#000',
                   flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {track.title}
                 </span>
                 {isPlayingClip && (
-                  <span style={{ fontSize: px(9), color: '#fff', letterSpacing: '0.1em' }}>▶</span>
+                  <span style={{ fontSize: vw(9), color: '#fff', letterSpacing: '0.1em' }}>▶</span>
                 )}
               </button>
             );
@@ -186,6 +190,6 @@ export function MobileListen() {
         position: 'absolute', inset: 0, zIndex: 1010, pointerEvents: 'none',
         background: SCANLINES, opacity: 0.6,
       }} />
-    </MobileStage>
+    </div>
   );
 }
