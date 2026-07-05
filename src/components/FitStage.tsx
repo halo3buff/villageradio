@@ -7,17 +7,21 @@ export const STAGE_H = 1024;
 
 /**
  * Two 1440×1024 coordinate frames pinned to the left and right viewport edges,
- * uniformly scaled down (never up) so the full design height fits the viewport
- * with no scrolling. Each frame scales from its own top corner, so left-side
- * elements stay pinned left and right-side elements stay pinned right.
+ * uniformly scaled down (never up) so the full design fits the viewport on both
+ * axes with no scrolling. Each frame scales from its own top corner, so left-side
+ * elements stay pinned left and right-side elements stay pinned right; below the
+ * stage width the two frames coincide and the composition scales as one.
  */
 export function FitStage({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
     const update = () => {
+      const vw = window.visualViewport?.width ?? window.innerWidth;
       const vh = window.visualViewport?.height ?? window.innerHeight;
-      setScale(Math.min(1, vh / STAGE_H));
+      // Never scale up, and fit BOTH axes: below the stage width the two frames
+      // coincide exactly (the 1440 design scaled down) instead of colliding.
+      setScale(Math.min(1, vw / STAGE_W, vh / STAGE_H));
     };
     update();
     window.addEventListener('resize', update);
