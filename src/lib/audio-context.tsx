@@ -229,18 +229,26 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
     wireBroadcastTrack(trackIdx);
 
-    // Seek and play must happen inside canplay — setting currentTime before the
-    // element is ready silently fails, causing playback to start from position 0.
-    const seekTo = offsetSec;
+    // Media-fragment start (#t=offset): the browser opens its FIRST range
+    // request directly at the broadcast position, instead of the slow path of
+    // load → canplay → seek → re-buffer (two network round-trips). play() is
+    // called immediately — it resolves as soon as data at the offset arrives.
+    audio.src = `${playlist[trackIdx].src}#t=${offsetSec.toFixed(2)}`;
+    audio.load();
+    audio.play().catch(() => setIsPlaying(false));
+    setIsPlaying(true);
+
+    // Verify the landing position once playable — if the browser ignored the
+    // fragment (or buffering took long enough to drift), correct with a seek
+    // against a freshly computed broadcast position.
     audio.oncanplay = () => {
       audio.oncanplay = null;
-      safeSeek(audio, seekTo);
-      audio.play().catch(() => setIsPlaying(false));
-      setIsPlaying(true);
+      if (!durationsRef.current || serverOffsetRef.current === null) return;
+      const now = getBroadcastPosition(durationsRef.current, serverOffsetRef.current);
+      if (now.trackIdx === broadcastIdxRef.current && Math.abs(audio.currentTime - now.offsetSec) > HARD_SEEK_SEC) {
+        safeSeek(audio, now.offsetSec);
+      }
     };
-
-    audio.src = playlist[trackIdx].src;
-    audio.load();
   }
 
   // Briefly dip the gain to ~silence, run `action` (a seek/re-tune) while muted,
@@ -337,6 +345,10 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     const audio = getOrCreateAudio();
     modeRef.current = 'broadcast';
     setMode('broadcast');
+    // Optimistic: flip the UI on the tap itself (scope leaves idle mode
+    // instantly) — audio follows as soon as the stream buffers. onerror and
+    // the play() rejection handler roll this back if tuning fails.
+    setIsPlaying(true);
     initWebAudio(audio);
     tuneIntoBroadcast();
     startBroadcastTimers();

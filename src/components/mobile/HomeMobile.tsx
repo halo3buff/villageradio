@@ -8,9 +8,11 @@ import { MobileScope } from '@/components/mobile/MobileScope';
 /**
  * Figma frame is 402×874 (iPhone 17). The entire composition is laid out in
  * design pixels on a fixed 402×874 canvas, then uniformly scaled with a single
- * factor — min(viewportW/402, viewportH/874) — so proportions are ALWAYS
- * identical to Figma. Never mix vw/dvh per-axis units here: dynamic viewport
- * height shrinks under browser chrome and squashes everything vertically.
+ * WIDTH-driven factor (viewportW/402) so it always fills the full screen width
+ * with zero side padding and proportions identical to Figma. If the scaled
+ * canvas is taller than the visible viewport the page scrolls naturally.
+ * Never mix vw/dvh per-axis units here: dynamic viewport height shrinks under
+ * browser chrome and squashes everything vertically.
  */
 const SW = 402;
 const SH = 874;
@@ -23,6 +25,10 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 
 const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.10) 3px)';
+
+// Vertical nudge for the whole mid-page cluster (paragraph, jumbled letters,
+// ovals, censor bars, mirrored blocks) — sits it closer to "send transmission".
+const CLUSTER_DY = 15;
 
 const LOGO_LETTERS: { t: string; x: number; y: number; rot: number; flipY: boolean }[] = [
   { t: 'E',    x: 143, y: 568, rot: 0,   flipY: false },
@@ -64,14 +70,13 @@ function RedLink({ href, children }: { href: string; children: string }) {
   return <Link href={href} style={{ color: RED, textDecoration: 'none' }}>{children}</Link>;
 }
 
-/** One uniform scale factor — aspect ratio is locked to the Figma frame. */
+/** One uniform, width-driven scale factor — aspect ratio is locked to the Figma frame. */
 function useUniformScale() {
   const [scale, setScale] = useState<number | null>(null);
   useLayoutEffect(() => {
     const update = () => {
       const w = window.visualViewport?.width ?? window.innerWidth;
-      const h = window.visualViewport?.height ?? window.innerHeight;
-      setScale(Math.min(w / SW, h / SH));
+      setScale(w / SW);
     };
     update();
     window.addEventListener('resize', update);
@@ -99,12 +104,30 @@ export function HomeMobile() {
     return () => clearInterval(id);
   }, []);
 
+  // The site chrome paints html/body near-black; this page is white and can
+  // scroll, so force a white document behind it (kills the black band that
+  // shows behind the page when iOS resizes the visual viewport after nav).
+  useEffect(() => {
+    const html = document.documentElement, body = document.body;
+    const prevHtml = html.style.backgroundColor, prevBody = body.style.backgroundColor;
+    html.style.backgroundColor = '#fff';
+    body.style.backgroundColor = '#fff';
+    return () => {
+      html.style.backgroundColor = prevHtml;
+      body.style.backgroundColor = prevBody;
+    };
+  }, []);
+
   return (
-    <main style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#fff' }}>
+    <main style={{
+      position: 'relative', minHeight: '100dvh', overflowX: 'hidden', background: '#fff',
+      // Reserve the true scaled height so the page scrolls exactly to the canvas bottom
+      height: scale === null ? SH : SH * scale,
+    }}>
       <div className="page-enter" style={{
-        position: 'absolute', left: '50%', top: '50%',
+        position: 'absolute', left: 0, top: 0,
         width: SW, height: SH,
-        transform: `translate(-50%, -50%) scale(${scale ?? 1})`,
+        transform: `scale(${scale ?? 1})`, transformOrigin: 'top left',
         visibility: scale === null ? 'hidden' : 'visible',
       }}>
 
@@ -115,8 +138,8 @@ export function HomeMobile() {
           color: '#000', textDecoration: 'none',
         }}>README</Link>
 
-        {/* Chromeless vectorscope */}
-        <div style={{ position: 'absolute', left: 17, top: 117, width: 368, height: 400 }}>
+        {/* Chromeless vectorscope — perfect square, every side equal */}
+        <div style={{ position: 'absolute', left: 17, top: 117, width: 368, height: 368 }}>
           <MobileScope />
         </div>
 
@@ -145,7 +168,7 @@ export function HomeMobile() {
 
         {/* Freq ticker — scrolling strip below the scope box */}
         <div style={{
-          position: 'absolute', left: 17, top: 523, width: 368, height: 14,
+          position: 'absolute', left: 17, top: 491, width: 368, height: 14,
           overflow: 'hidden', pointerEvents: 'none', zIndex: 3,
         }}>
           <div className="ticker" style={{
@@ -160,7 +183,7 @@ export function HomeMobile() {
         {LOGO_OVAL_TOPS.map((t, i) => (
           <Image key={`ov-${i}`} src="/images/IMG_2411.png" alt="" aria-hidden width={LOGO_OVAL} height={LOGO_OVAL}
             style={{
-              position: 'absolute', left: LOGO_OVAL_X, top: t,
+              position: 'absolute', left: LOGO_OVAL_X, top: t + CLUSTER_DY,
               width: LOGO_OVAL, height: LOGO_OVAL,
               zIndex: 4, pointerEvents: 'none',
             }} />
@@ -169,7 +192,7 @@ export function HomeMobile() {
         {/* VILLAGE word-mark cluster — letters */}
         {LOGO_LETTERS.map((l, i) => (
           <span key={`lt-${i}`} aria-hidden style={{
-            position: 'absolute', left: l.x, top: l.y,
+            position: 'absolute', left: l.x, top: l.y + CLUSTER_DY,
             fontFamily: DISPLAY, fontSize: 34,
             lineHeight: 1, color: '#000', zIndex: 4, whiteSpace: 'nowrap',
             transform: `rotate(${l.rot}deg) scaleY(${l.flipY ? -1 : 1})`, transformOrigin: 'center',
@@ -177,7 +200,7 @@ export function HomeMobile() {
         ))}
 
         {/* Main structure paragraph */}
-        <div style={{ position: 'absolute', left: 212, top: 556, zIndex: 3, ...PARA }}>
+        <div style={{ position: 'absolute', left: 212, top: 556 + CLUSTER_DY, zIndex: 3, ...PARA }}>
           {`  <RECT:FILL_NULL>
    987.4 `}<RedLink href="/news">13 4 22 18</RedLink>{`
 93.1■1024.351053.4
@@ -190,19 +213,19 @@ E
 
         {/* Censor bar — end of the 93.1 line */}
         <div aria-hidden style={{
-          position: 'absolute', left: 321, top: 587, width: 46, height: 9.5,
+          position: 'absolute', left: 321, top: 587 + CLUSTER_DY, width: 46, height: 9.5,
           background: '#000', zIndex: 5,
         }} />
 
         {/* Censor bar — long bar under the paragraph */}
         <div aria-hidden style={{
-          position: 'absolute', left: 195, top: 672, width: 156, height: 9.5,
+          position: 'absolute', left: 195, top: 672 + CLUSTER_DY, width: 156, height: 9.5,
           background: '#000', zIndex: 5,
         }} />
 
         {/* Mirrored fragment — overlays the E / PATH_NULL lines */}
         <div style={{
-          position: 'absolute', left: 264, top: 641, width: 97, zIndex: 3,
+          position: 'absolute', left: 264, top: 641 + CLUSTER_DY, width: 97, zIndex: 3,
           transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA,
         }}>
           {`.`}<RedLink href="/work">22.14.17.10</RedLink>{`.938.8
@@ -211,7 +234,7 @@ E
 
         {/* Mirrored dither + signal block — below the long censor bar */}
         <div style={{
-          position: 'absolute', left: 265, top: 686, width: 102, zIndex: 3,
+          position: 'absolute', left: 265, top: 686 + CLUSTER_DY, width: 102, zIndex: 3,
           transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA,
         }}>
           {` ░▒▓▓▒░
@@ -230,7 +253,7 @@ E
 
         {/* CRT scanlines — scope box only */}
         <div aria-hidden style={{
-          position: 'absolute', left: 17, top: 117, width: 368, height: 400,
+          position: 'absolute', left: 17, top: 117, width: 368, height: 368,
           zIndex: 7, pointerEvents: 'none',
           background: SCANLINES, opacity: 0.6,
         }} />
