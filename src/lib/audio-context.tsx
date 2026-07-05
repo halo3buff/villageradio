@@ -107,6 +107,49 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
       .catch(() => {});
   }, []);
 
+  // Warm the broadcast pipeline on mount so the first tap starts near-instantly:
+  //  1) point the (paused) element at the on-air track/offset — browsers that
+  //     honour preload buffer the exact region the tap will need, and
+  //  2) pull a small byte range at that position through /api/audio/stream,
+  //     which opens the browser→server and server→R2 connections and warms the
+  //     caches along the path. iOS ignores element preload before a gesture,
+  //     so (2) is what cuts the tap latency on iPhones.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const durations = playlist.map(t => t.durationSec || 0);
+        if (durations.length === 0 || durations.some(d => d <= 0)) return;
+        durationsRef.current = durations;
+
+        // Give the server-clock prefetch a moment; fall back to the local clock.
+        for (let i = 0; i < 20 && serverOffsetRef.current === null; i++) {
+          await new Promise(r => setTimeout(r, 100));
+        }
+        if (cancelled || modeRef.current !== 'idle') return;
+
+        const { trackIdx, offsetSec } = getBroadcastPosition(durations, serverOffsetRef.current ?? 0);
+        const track = playlist[trackIdx];
+
+        // (1) element priming — buffers at the broadcast offset where allowed
+        const audio = getOrCreateAudio();
+        if (!audio.src) {
+          audio.preload = 'auto';
+          audio.src = `${track.src}#t=${offsetSec.toFixed(2)}`;
+          audio.load();
+        }
+
+        // (2) connection + cache warmup at the estimated byte position
+        const probe = await fetch(track.src, { headers: { Range: 'bytes=0-1' } });
+        const total = Number(probe.headers.get('Content-Range')?.split('/')[1] ?? 0);
+        if (!total || cancelled || modeRef.current !== 'idle') return;
+        const byteStart = Math.floor(total * (offsetSec / durations[trackIdx]));
+        await fetch(track.src, { headers: { Range: `bytes=${byteStart}-${byteStart + 196607}` } });
+      } catch { /* warmup is best-effort — the tap path works without it */ }
+    })();
+    return () => { cancelled = true; };
+  }, [playlist]);
+
   function getOrCreateAudio(): HTMLAudioElement {
     if (!audioRef.current) {
       const a = new Audio();
@@ -229,12 +272,22 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
     wireBroadcastTrack(trackIdx);
 
-    // Media-fragment start (#t=offset): the browser opens its FIRST range
-    // request directly at the broadcast position, instead of the slow path of
-    // load → canplay → seek → re-buffer (two network round-trips). play() is
-    // called immediately — it resolves as soon as data at the offset arrives.
-    audio.src = `${playlist[trackIdx].src}#t=${offsetSec.toFixed(2)}`;
-    audio.load();
+    // Fast path: the mount-time warmup already pointed the element at this
+    // track and (on preload-friendly browsers) buffered around the broadcast
+    // position. If metadata is in, a direct seek lands in/near that buffer —
+    // do NOT reset src, that would discard the primed data.
+    const trackHref = new URL(playlist[trackIdx].src, window.location.href).href;
+    const sameTrack = audio.src.split('#')[0] === trackHref;
+    if (sameTrack && audio.readyState >= 1 /* HAVE_METADATA */) {
+      safeSeek(audio, offsetSec);
+    } else {
+      // Media-fragment start (#t=offset): the browser opens its FIRST range
+      // request directly at the broadcast position, instead of the slow path
+      // of load → canplay → seek → re-buffer (two network round-trips).
+      audio.src = `${trackHref}#t=${offsetSec.toFixed(2)}`;
+      audio.load();
+    }
+    // play() immediately — it resolves as soon as data at the offset arrives.
     audio.play().catch(() => setIsPlaying(false));
     setIsPlaying(true);
 

@@ -6,16 +6,20 @@ import { useState, useEffect, useLayoutEffect } from 'react';
 import { MobileScope } from '@/components/mobile/MobileScope';
 
 /**
- * Figma frame is 402×874 (iPhone 17). The entire composition is laid out in
- * design pixels on a fixed 402×874 canvas, then uniformly scaled with a single
- * WIDTH-driven factor (viewportW/402) so it always fills the full screen width
- * with zero side padding and proportions identical to Figma. If the scaled
- * canvas is taller than the visible viewport the page scrolls naturally.
+ * Figma frame is 402pt wide (iPhone 17). The entire composition is laid out in
+ * design pixels on a fixed-size canvas, then uniformly scaled with a single
+ * WIDTH-driven factor (layoutViewportW/402) so it always fills the full screen
+ * width with zero side padding and proportions identical to Figma. If the
+ * scaled canvas is taller than the visible viewport the page scrolls naturally.
  * Never mix vw/dvh per-axis units here: dynamic viewport height shrinks under
  * browser chrome and squashes everything vertically.
+ *
+ * SH is the canvas height: Figma's 874 minus 91px of trimmed open space
+ * (top −33, box→paragraph −28, paragraph→send-transmission −30) so the page
+ * fits a phone viewport with little to no scrolling.
  */
 const SW = 402;
-const SH = 874;
+const SH = 783;
 
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
@@ -26,9 +30,11 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.10) 3px)';
 
-// Vertical nudge for the whole mid-page cluster (paragraph, jumbled letters,
-// ovals, censor bars, mirrored blocks) — sits it closer to "send transmission".
-const CLUSTER_DY = 15;
+// Vertical shift for the whole mid-page cluster (paragraph, jumbled letters,
+// ovals, censor bars, mirrored blocks) relative to the Figma-frame coordinates.
+// −46 = the +15 "closer to send transmission" nudge minus the 61px of open
+// space trimmed above the cluster (33 top + 28 box→paragraph).
+const CLUSTER_DY = -46;
 
 const LOGO_LETTERS: { t: string; x: number; y: number; rot: number; flipY: boolean }[] = [
   { t: 'E',    x: 143, y: 568, rot: 0,   flipY: false },
@@ -70,20 +76,23 @@ function RedLink({ href, children }: { href: string; children: string }) {
   return <Link href={href} style={{ color: RED, textDecoration: 'none' }}>{children}</Link>;
 }
 
-/** One uniform, width-driven scale factor — aspect ratio is locked to the Figma frame. */
+/**
+ * One uniform, width-driven scale factor — aspect ratio is locked to the Figma
+ * frame. Reads the LAYOUT viewport (documentElement.clientWidth), never the
+ * visual viewport: pinch-zooming shrinks the visual viewport, and reacting to
+ * it re-scaled the whole canvas mid-pinch, throwing the page to the top-left.
+ * The layout viewport is stable under zoom, so zoom now behaves normally.
+ */
 function useUniformScale() {
   const [scale, setScale] = useState<number | null>(null);
   useLayoutEffect(() => {
-    const update = () => {
-      const w = window.visualViewport?.width ?? window.innerWidth;
-      setScale(w / SW);
-    };
+    const update = () => setScale(document.documentElement.clientWidth / SW);
     update();
     window.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
     return () => {
       window.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
     };
   }, []);
   return scale;
@@ -133,19 +142,19 @@ export function HomeMobile() {
 
         {/* README — top-right, links to /information */}
         <Link href="/information" style={{
-          position: 'absolute', left: 315, top: 61,
+          position: 'absolute', left: 315, top: 28,
           fontFamily: SEGOE, fontSize: 11, lineHeight: '12px',
           color: '#000', textDecoration: 'none',
         }}>README</Link>
 
         {/* Chromeless vectorscope — perfect square, every side equal */}
-        <div style={{ position: 'absolute', left: 17, top: 117, width: 368, height: 368 }}>
+        <div style={{ position: 'absolute', left: 17, top: 84, width: 368, height: 368 }}>
           <MobileScope />
         </div>
 
         {/* Broadcast status — top-left of the scope box */}
         <div style={{
-          position: 'absolute', left: 24, top: 124, width: 320,
+          position: 'absolute', left: 24, top: 91, width: 320,
           fontFamily: BODY, fontSize: 11, lineHeight: '13px', textTransform: 'uppercase',
           color: '#000', zIndex: 3, pointerEvents: 'none',
         }}>
@@ -156,7 +165,7 @@ export function HomeMobile() {
 
         {/* Timecode — top-right inside the scope box */}
         <div style={{
-          position: 'absolute', left: 285, top: 125, width: 92,
+          position: 'absolute', left: 285, top: 92, width: 92,
           textAlign: 'right', zIndex: 3, pointerEvents: 'none',
         }}>
           <div style={{ fontFamily: MONO, fontSize: 7, lineHeight: '12px', fontVariantNumeric: 'tabular-nums' }}>
@@ -168,7 +177,7 @@ export function HomeMobile() {
 
         {/* Freq ticker — scrolling strip below the scope box */}
         <div style={{
-          position: 'absolute', left: 17, top: 491, width: 368, height: 14,
+          position: 'absolute', left: 17, top: 458, width: 368, height: 14,
           overflow: 'hidden', pointerEvents: 'none', zIndex: 3,
         }}>
           <div className="ticker" style={{
@@ -244,7 +253,7 @@ E
 
         {/* send transmission — fontSize and letterSpacing are LOCKED */}
         <Link href="/transmit" style={{
-          position: 'absolute', left: 31, top: 824,
+          position: 'absolute', left: 31, top: 733,
           fontFamily: DISPLAY, fontSize: 32, lineHeight: '31px', letterSpacing: '-0.13em',
           color: '#000', textDecoration: 'none', whiteSpace: 'nowrap', zIndex: 3,
         }}>
@@ -253,7 +262,7 @@ E
 
         {/* CRT scanlines — scope box only */}
         <div aria-hidden style={{
-          position: 'absolute', left: 17, top: 117, width: 368, height: 368,
+          position: 'absolute', left: 17, top: 84, width: 368, height: 368,
           zIndex: 7, pointerEvents: 'none',
           background: SCANLINES, opacity: 0.6,
         }} />
