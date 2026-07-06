@@ -121,21 +121,32 @@ export function HomeMobile() {
   // The site chrome paints html/body near-black; this page is white and can
   // scroll, so force a white document behind it (kills the black band that
   // shows behind the page when iOS resizes the visual viewport after nav).
+  // Also neutralise the body's Tailwind `min-h-screen` (100vh): on iOS, 100vh
+  // is the LARGE viewport height (chrome collapsed), so with the URL bar
+  // expanded it forces the body taller than the visible area — a permanent
+  // scrollbar on load no matter how short this page's content is.
   useEffect(() => {
     const html = document.documentElement, body = document.body;
     const prevHtml = html.style.backgroundColor, prevBody = body.style.backgroundColor;
+    const prevMinH = body.style.minHeight;
     html.style.backgroundColor = '#fff';
     body.style.backgroundColor = '#fff';
+    body.style.minHeight = '0';
     return () => {
       html.style.backgroundColor = prevHtml;
       body.style.backgroundColor = prevBody;
+      body.style.minHeight = prevMinH;
     };
   }, []);
 
   return (
     <main style={{
-      position: 'relative', minHeight: '100dvh', overflowX: 'hidden', background: '#fff',
-      // Reserve the true scaled height so the page scrolls exactly to the canvas bottom
+      // `overflow: hidden` swallows sub-pixel spill from the fractional scale
+      // (e.g. canvas 698.4px in a 698px round) — without it, browsers can show
+      // a scrollbar for <1px of internal overflow. If the main element itself
+      // is taller than a small viewport, the DOCUMENT still scrolls normally.
+      position: 'relative', minHeight: '100dvh', overflow: 'hidden', background: '#fff',
+      // Reserve the true scaled height so the page ends exactly at the canvas bottom
       height: scale === null ? SH : SH * scale,
     }}>
       <div className="page-enter" style={{
