@@ -14,12 +14,13 @@ import { MobileScope } from '@/components/mobile/MobileScope';
  * Never mix vw/dvh per-axis units here: dynamic viewport height shrinks under
  * browser chrome and squashes everything vertically.
  *
- * SH is the canvas height: Figma's 874 minus 148px of trimmed open space
- * (top −33, box→paragraph −52, paragraph→send-transmission −54, bottom −9)
- * so the whole composition fits a phone viewport with no scrolling.
+ * SH is the canvas height: Figma's 874 minus 160px of trimmed open space
+ * (everything below the README shifted up; gaps: top −33, README→box −12,
+ * box→paragraph −52, paragraph→send-transmission −54, bottom −9) so the
+ * whole composition fits a phone viewport with no scrolling.
  */
 const SW = 402;
-const SH = 726;
+const SH = 714;
 
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
@@ -34,7 +35,7 @@ const SCANLINES =
 // ovals, censor bars, mirrored blocks) relative to the Figma-frame coordinates.
 // −70 = the +15 "closer to send transmission" nudge minus the 85px of open
 // space trimmed above the cluster (33 top + 52 box→paragraph).
-const CLUSTER_DY = -70;
+const CLUSTER_DY = -82;
 
 const LOGO_LETTERS: { t: string; x: number; y: number; rot: number; flipY: boolean }[] = [
   { t: 'E',    x: 143, y: 568, rot: 0,   flipY: false },
@@ -152,13 +153,13 @@ export function HomeMobile() {
         }}>README</Link>
 
         {/* Chromeless vectorscope — perfect square, every side equal */}
-        <div style={{ position: 'absolute', left: 17, top: 84, width: 368, height: 368 }}>
+        <div style={{ position: 'absolute', left: 17, top: 72, width: 368, height: 368 }}>
           <MobileScope />
         </div>
 
         {/* Broadcast status — top-left of the scope box */}
         <div style={{
-          position: 'absolute', left: 24, top: 91, width: 320,
+          position: 'absolute', left: 24, top: 79, width: 320,
           fontFamily: BODY, fontSize: 11, lineHeight: '13px', textTransform: 'uppercase',
           color: '#000', zIndex: 3, pointerEvents: 'none',
         }}>
@@ -169,7 +170,7 @@ export function HomeMobile() {
 
         {/* Timecode — top-right inside the scope box */}
         <div style={{
-          position: 'absolute', left: 285, top: 92, width: 92,
+          position: 'absolute', left: 285, top: 80, width: 92,
           textAlign: 'right', zIndex: 3, pointerEvents: 'none',
         }}>
           <div style={{ fontFamily: MONO, fontSize: 7, lineHeight: '12px', fontVariantNumeric: 'tabular-nums' }}>
@@ -181,7 +182,7 @@ export function HomeMobile() {
 
         {/* Freq ticker — scrolling strip below the scope box */}
         <div style={{
-          position: 'absolute', left: 17, top: 458, width: 368, height: 14,
+          position: 'absolute', left: 17, top: 446, width: 368, height: 14,
           overflow: 'hidden', pointerEvents: 'none', zIndex: 3,
         }}>
           <div className="ticker" style={{
@@ -257,7 +258,7 @@ E
 
         {/* send transmission — fontSize and letterSpacing are LOCKED */}
         <Link href="/transmit" style={{
-          position: 'absolute', left: 31, top: 685,
+          position: 'absolute', left: 31, top: 673,
           fontFamily: DISPLAY, fontSize: 32, lineHeight: '31px', letterSpacing: '-0.13em',
           color: '#000', textDecoration: 'none', whiteSpace: 'nowrap', zIndex: 3,
         }}>
@@ -266,7 +267,7 @@ E
 
         {/* CRT scanlines — scope box only */}
         <div aria-hidden style={{
-          position: 'absolute', left: 17, top: 84, width: 368, height: 368,
+          position: 'absolute', left: 17, top: 72, width: 368, height: 368,
           zIndex: 7, pointerEvents: 'none',
           background: SCANLINES, opacity: 0.6,
         }} />
