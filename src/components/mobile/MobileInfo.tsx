@@ -12,11 +12,20 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 
 const STRIPES = 'repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px)';
 
+// Reads like an ordinary system README dumped at the end of the page — the
+// "commands" table is the homepage prompt's navigation cheat-sheet, cited
+// here and nowhere else. Deliberately not called out as anything special.
 const BOTTOM_TEXT =
   '///////////// end_signal_not_end /////////////////\n' +
   '111000111000111000111000111000111000111000111000111000110\n' +
   '0011100011100\n' +
-  'cloudmain2stock@gmail.com\n' +
+  'contact: cloudmain2stock@gmail.com\n' +
+  'commands:\n' +
+  "  '..          listen\n" +
+  '  2&#          news\n' +
+  '  ppp          photography\n' +
+  '  [[;]]        work\n' +
+  "  ^^'          transmit\n" +
   '99.00.88.77.66.55.44.33.22.11.00.err.null.void.0x0000000000000000\n' +
   '0000000000000000000000000000000000000000000000000000000000';
 

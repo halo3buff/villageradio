@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect, useLayoutEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { MobileScope } from '@/components/mobile/MobileScope';
 
 /**
@@ -14,10 +15,8 @@ import { MobileScope } from '@/components/mobile/MobileScope';
  * Never mix vw/dvh per-axis units here: dynamic viewport height shrinks under
  * browser chrome and squashes everything vertically.
  *
- * SH is the canvas height: Figma's 874 minus 160px of trimmed open space
- * (everything below the README shifted up; gaps: top −33, README→box −12,
- * box→paragraph −52, paragraph→send-transmission −54, bottom −9) so the
- * whole composition fits a phone viewport with no scrolling.
+ * SH is the canvas height: Figma's 874 minus 160px of trimmed open space so
+ * the whole composition fits a phone viewport with no scrolling.
  */
 const SW = 402;
 const SH = 714;
@@ -31,11 +30,20 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.10) 3px)';
 
-// Vertical shift for the whole mid-page cluster (paragraph, jumbled letters,
-// ovals, censor bars, mirrored blocks) relative to the Figma-frame coordinates.
-// −70 = the +15 "closer to send transmission" nudge minus the 85px of open
-// space trimmed above the cluster (33 top + 52 box→paragraph).
+// Vertical shift for the decorative word-mark cluster (jumbled letters +
+// ovals) relative to the Figma-frame coordinates.
 const CLUSTER_DY = -82;
+
+// Command-prompt navigation: the ONLY usable thing under the vectorscope.
+// Typing an exact command navigates; the commands are cited (quietly) in the
+// information page's bottom README block.
+const COMMANDS: Record<string, string> = {
+  "'..": '/listen',
+  '2&#': '/news',
+  'ppp': '/photography',
+  '[[;]]': '/work',
+  "^^'": '/transmit',
+};
 
 const LOGO_LETTERS: { t: string; x: number; y: number; rot: number; flipY: boolean }[] = [
   { t: 'E',    x: 143, y: 568, rot: 0,   flipY: false },
@@ -51,15 +59,6 @@ const LOGO_OVAL_TOPS = [613, 619, 624, 630, 635, 641, 651, 652, 653];
 const LOGO_OVAL_X = 145;
 const LOGO_OVAL = 15;
 
-// Paragraph text uses the info/README-page face (IBM Plex Mono). Mono glyphs
-// are wider than the old HN-medium, so fontSize drops 11→9 to keep the block
-// the same width; the fixed 13.4px lineHeight preserves the original row grid
-// that the censor bars and mirrored overlays are aligned to.
-const PARA: React.CSSProperties = {
-  fontFamily: MONO, fontSize: 9, lineHeight: '13.4px',
-  textAlign: 'left', textTransform: 'uppercase', whiteSpace: 'pre',
-  color: '#000',
-};
 
 function z2(n: number) { return String(Math.floor(n)).padStart(2, '0'); }
 function buildClock(d: Date) {
@@ -75,10 +74,6 @@ function hexLine(seed: number) {
     if (i % 6 === 5) out += '// ';
   }
   return out;
-}
-
-function RedLink({ href, children }: { href: string; children: string }) {
-  return <Link href={href} style={{ color: RED, textDecoration: 'none' }}>{children}</Link>;
 }
 
 /**
@@ -105,8 +100,27 @@ function useUniformScale() {
 
 export function HomeMobile() {
   const scale = useUniformScale();
+  const router = useRouter();
   const [clock, setClock] = useState(() => buildClock(new Date()));
   const [ticker, setTicker] = useState(() => hexLine(0));
+  const [cmd, setCmd] = useState('');
+  const cmdInputRef = useRef<HTMLInputElement>(null);
+
+  // Exact command match → navigate. No feedback on wrong input — the prompt
+  // just sits there, deliberately mute. iOS "Smart Punctuation" turns straight
+  // quotes into curly ones (' → ’), which would break '.. and ^^' forever, so
+  // normalise them back before matching.
+  const onCmdChange = (raw: string) => {
+    const value = raw.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\s+$/, '');
+    const target = COMMANDS[value];
+    if (target) {
+      setCmd('');
+      cmdInputRef.current?.blur();
+      router.push(target);
+    } else {
+      setCmd(raw);
+    }
+  };
 
   useEffect(() => {
     let f = 0;
@@ -224,57 +238,43 @@ export function HomeMobile() {
           }}>{l.t}</span>
         ))}
 
-        {/* Main structure paragraph */}
-        <div style={{ position: 'absolute', left: 212, top: 556 + CLUSTER_DY, zIndex: 3, ...PARA }}>
-          {`  <RECT:FILL_NULL>
-   987.4 `}<RedLink href="/news">13 4 22 18</RedLink>{`
-93.1■1024.351053.4
-4.35  77`}<RedLink href="/photography">{`15 7 14 19 14 6 17 0 15 7
-24`}</RedLink>{`509  1021.73■  1   7  1021.73
-77/759.846  //
-E
-  </PATH_NULL>`}
+        {/* Command prompt — the only usable thing under the vectorscope.
+            The visible row is a rendered mirror of a transparent <input>
+            (needed to summon the mobile keyboard); tapping anywhere on the
+            row focuses it. Exact command → navigate (see COMMANDS). */}
+        <div
+          onClick={() => cmdInputRef.current?.focus()}
+          style={{
+            position: 'absolute', left: 31, top: 660, width: 340, height: 40,
+            zIndex: 3, cursor: 'text',
+          }}
+        >
+          <div aria-hidden style={{
+            position: 'absolute', left: 0, top: 10,
+            fontFamily: MONO, fontSize: 13, lineHeight: '20px', color: '#000',
+            whiteSpace: 'pre', pointerEvents: 'none',
+          }}>
+            {'> '}{cmd}
+            <span style={{ animation: 'vr-blink 1s step-end infinite' }}>█</span>
+          </div>
+          <input
+            ref={cmdInputRef}
+            type="text"
+            value={cmd}
+            onChange={e => onCmdChange(e.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+            enterKeyHint="go"
+            aria-label="command"
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              opacity: 0, border: 'none', outline: 'none', background: 'transparent',
+              fontSize: 16, // ≥16 belt-and-braces against iOS focus zoom
+            }}
+          />
         </div>
-
-        {/* Censor bar — end of the 93.1 line */}
-        <div aria-hidden style={{
-          position: 'absolute', left: 321, top: 587 + CLUSTER_DY, width: 46, height: 9.5,
-          background: '#000', zIndex: 5,
-        }} />
-
-        {/* Censor bar — long bar under the paragraph */}
-        <div aria-hidden style={{
-          position: 'absolute', left: 195, top: 672 + CLUSTER_DY, width: 156, height: 9.5,
-          background: '#000', zIndex: 5,
-        }} />
-
-        {/* Mirrored fragment — overlays the E / PATH_NULL lines */}
-        <div style={{
-          position: 'absolute', left: 264, top: 641 + CLUSTER_DY, width: 97, zIndex: 3,
-          transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA,
-        }}>
-          {`.`}<RedLink href="/work">22.14.17.10</RedLink>{`.938.8
-34:756.675`}
-        </div>
-
-        {/* Mirrored dither + signal block — below the long censor bar */}
-        <div style={{
-          position: 'absolute', left: 265, top: 686 + CLUSTER_DY, width: 102, zIndex: 3,
-          transform: 'scaleX(-1)', transformOrigin: 'center', ...PARA,
-        }}>
-          {` ░▒▓▓▒░
-740.02.73MΔ1053.
-46Λ80`}<RedLink href="/listen">1181819413</RedLink>
-        </div>
-
-        {/* send transmission — fontSize and letterSpacing are LOCKED */}
-        <Link href="/transmit" style={{
-          position: 'absolute', left: 31, top: 673,
-          fontFamily: DISPLAY, fontSize: 32, lineHeight: '31px', letterSpacing: '-0.13em',
-          color: '#000', textDecoration: 'none', whiteSpace: 'nowrap', zIndex: 3,
-        }}>
-          {'__________send transmission'}
-        </Link>
 
         {/* CRT scanlines — scope box only */}
         <div aria-hidden style={{
