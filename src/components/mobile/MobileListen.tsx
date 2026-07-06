@@ -12,7 +12,9 @@ const SH = 874;
 const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
 const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
-const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
+// All listen-page text uses the info/README-page face (IBM Plex Mono),
+// matching the axis labels the scope canvases already draw in mono.
+const BODY = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const RED = '#ff0000';
 
 const WFALL_X = 17;
@@ -75,11 +77,20 @@ export function MobileListen() {
           }}
         >
           <MobileWaterfall />
+          {/* Glyph-free play/pause — text chars render as emoji on iOS */}
           <span style={{
-            position: 'absolute', left: 8, bottom: 6, fontSize: vw(13), lineHeight: 1,
-            color: '#000', pointerEvents: 'none',
+            position: 'absolute', left: 8, bottom: 6, lineHeight: 1, pointerEvents: 'none',
           }}>
-            {liveSelected && isPlaying ? '❚❚' : '▶'}
+            {liveSelected && isPlaying ? (
+              <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden>
+                <rect x="0" y="0" width="3" height="12" fill="#000" />
+                <rect x="6" y="0" width="3" height="12" fill="#000" />
+              </svg>
+            ) : (
+              <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden>
+                <polygon points="0,0 0,12 9,6" fill="#000" />
+              </svg>
+            )}
           </span>
         </div>
 
@@ -178,7 +189,9 @@ export function MobileListen() {
                   {track.title}
                 </span>
                 {isPlayingClip && (
-                  <span style={{ fontSize: vw(9), color: '#fff', letterSpacing: '0.1em' }}>▶</span>
+                  <svg width="7" height="9" viewBox="0 0 7 9" aria-hidden style={{ flexShrink: 0 }}>
+                    <polygon points="0,0 0,9 7,4.5" fill="#fff" />
+                  </svg>
                 )}
               </button>
             );

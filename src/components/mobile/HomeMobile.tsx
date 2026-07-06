@@ -14,12 +14,12 @@ import { MobileScope } from '@/components/mobile/MobileScope';
  * Never mix vw/dvh per-axis units here: dynamic viewport height shrinks under
  * browser chrome and squashes everything vertically.
  *
- * SH is the canvas height: Figma's 874 minus 91px of trimmed open space
- * (top −33, box→paragraph −28, paragraph→send-transmission −30) so the page
- * fits a phone viewport with little to no scrolling.
+ * SH is the canvas height: Figma's 874 minus 148px of trimmed open space
+ * (top −33, box→paragraph −52, paragraph→send-transmission −54, bottom −9)
+ * so the whole composition fits a phone viewport with no scrolling.
  */
 const SW = 402;
-const SH = 783;
+const SH = 726;
 
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
@@ -32,9 +32,9 @@ const SCANLINES =
 
 // Vertical shift for the whole mid-page cluster (paragraph, jumbled letters,
 // ovals, censor bars, mirrored blocks) relative to the Figma-frame coordinates.
-// −46 = the +15 "closer to send transmission" nudge minus the 61px of open
-// space trimmed above the cluster (33 top + 28 box→paragraph).
-const CLUSTER_DY = -46;
+// −70 = the +15 "closer to send transmission" nudge minus the 85px of open
+// space trimmed above the cluster (33 top + 52 box→paragraph).
+const CLUSTER_DY = -70;
 
 const LOGO_LETTERS: { t: string; x: number; y: number; rot: number; flipY: boolean }[] = [
   { t: 'E',    x: 143, y: 568, rot: 0,   flipY: false },
@@ -50,8 +50,12 @@ const LOGO_OVAL_TOPS = [613, 619, 624, 630, 635, 641, 651, 652, 653];
 const LOGO_OVAL_X = 145;
 const LOGO_OVAL = 15;
 
+// Paragraph text uses the info/README-page face (IBM Plex Mono). Mono glyphs
+// are wider than the old HN-medium, so fontSize drops 11→9 to keep the block
+// the same width; the fixed 13.4px lineHeight preserves the original row grid
+// that the censor bars and mirrored overlays are aligned to.
 const PARA: React.CSSProperties = {
-  fontFamily: BODY, fontSize: 11, lineHeight: 1.22,
+  fontFamily: MONO, fontSize: 9, lineHeight: '13.4px',
   textAlign: 'left', textTransform: 'uppercase', whiteSpace: 'pre',
   color: '#000',
 };
@@ -253,7 +257,7 @@ E
 
         {/* send transmission — fontSize and letterSpacing are LOCKED */}
         <Link href="/transmit" style={{
-          position: 'absolute', left: 31, top: 733,
+          position: 'absolute', left: 31, top: 685,
           fontFamily: DISPLAY, fontSize: 32, lineHeight: '31px', letterSpacing: '-0.13em',
           color: '#000', textDecoration: 'none', whiteSpace: 'nowrap', zIndex: 3,
         }}>
