@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { MobileScope } from '@/components/mobile/MobileScope';
+import { BroadcastLiveTag } from '@/components/BroadcastLiveTag';
 import { grantClearance } from '@/lib/clearance';
 
 /**
@@ -247,8 +248,7 @@ export function HomeMobile() {
           color: '#000', zIndex: 3, pointerEvents: 'none',
         }}>
           {'> BROADCAST '}
-          <span style={{ color: RED }}>[LIVE]</span>
-          <span style={{ color: RED, animation: 'vr-blink 1s step-end infinite' }}> █</span>
+          <BroadcastLiveTag />
         </div>
 
         {/* Timecode — top-right inside the scope box */}

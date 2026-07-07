@@ -8,6 +8,8 @@ interface AudioCtx {
   playlist: Mix[];
   currentTrack: Mix | null;
   isPlaying: boolean;
+  /** Dead air: the broadcast stream errored or stalled >2.5s while tuned in. */
+  carrierLost: boolean;
   mode: AudioMode;
   broadcastIndex: number;
   play: (track: Mix) => void;
@@ -91,6 +93,8 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
   const [currentTrack,  setCurrentTrack]  = useState<Mix | null>(null);
   const [isPlaying,     setIsPlaying]     = useState(false);
+  const [carrierLost,   setCarrierLost]   = useState(false);
+  const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mode,          setMode]          = useState<AudioMode>('idle');
   const [broadcastIndex,setBroadcastIndex]= useState(0);
   const [progress,      setProgress]      = useState(0);
@@ -166,6 +170,24 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
         if (Math.abs(a.playbackRate - intendedRateRef.current) > 1e-3) {
           a.playbackRate = intendedRateRef.current;
         }
+      });
+      // Dead-air watch: a buffering hiccup gets a 2.5s grace period before the
+      // scope declares NO CARRIER; an outright error declares it immediately.
+      // Any resumed playback clears the state.
+      const armStall = () => {
+        if (modeRef.current !== 'broadcast') return;
+        if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+        stallTimerRef.current = setTimeout(() => setCarrierLost(true), 2500);
+      };
+      const clearStall = () => {
+        if (stallTimerRef.current) { clearTimeout(stallTimerRef.current); stallTimerRef.current = null; }
+        setCarrierLost(false);
+      };
+      a.addEventListener('waiting', armStall);
+      a.addEventListener('stalled', armStall);
+      a.addEventListener('playing', clearStall);
+      a.addEventListener('error', () => {
+        if (modeRef.current === 'broadcast') setCarrierLost(true);
       });
       audioRef.current = a;
     }
@@ -402,6 +424,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     // instantly) — audio follows as soon as the stream buffers. onerror and
     // the play() rejection handler roll this back if tuning fails.
     setIsPlaying(true);
+    setCarrierLost(false); // fresh tune-in — give the carrier a clean slate
     initWebAudio(audio);
     tuneIntoBroadcast();
     startBroadcastTimers();
@@ -429,6 +452,9 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     audioRef.current?.pause();
     stopBroadcastTimers(); // resume re-tunes from scratch, so no need to keep checking while paused
     setIsPlaying(false);
+    // Chosen silence is not dead air
+    if (stallTimerRef.current) { clearTimeout(stallTimerRef.current); stallTimerRef.current = null; }
+    setCarrierLost(false);
   }
 
   function toggle() {
@@ -446,7 +472,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
   return (
     <PlayerContext.Provider value={{
       playlist,
-      currentTrack, isPlaying, mode, broadcastIndex,
+      currentTrack, isPlaying, carrierLost, mode, broadcastIndex,
       play, broadcastPlay, pause, toggle, progress,
       analyserL, analyserR, analyserFreq,
       volume, setVolume,

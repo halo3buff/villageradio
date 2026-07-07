@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { Storage } from '@google-cloud/storage';
+import { markTransmission } from '@/lib/presence-store';
 
 export const runtime = 'nodejs';
 
@@ -71,6 +72,9 @@ export async function POST(req: Request): Promise<Response> {
     console.error('[transmissions] upload failed', err);
     return NextResponse.json({ ok: false, error: 'upload_failed' }, { status: 500 });
   }
+
+  // Ping the broadcast-liveness layer — homepage scopes flicker TX RECEIVED.
+  markTransmission();
 
   return NextResponse.json({ ok: true });
 }

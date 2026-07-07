@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { GrantLink } from '@/components/GrantLink';
+import { BroadcastLiveTag } from '@/components/BroadcastLiveTag';
 import { FitStage } from '@/components/FitStage';
 import { HeaderCluster } from '@/components/HeaderCluster';
 import { MobileScope } from '@/components/mobile/MobileScope';
@@ -51,8 +52,7 @@ export function HomeDesktop() {
             color: '#000', zIndex: 3, pointerEvents: 'none',
           }}>
             {'> BROADCAST '}
-            <span style={{ color: RED }}>[LIVE]</span>
-            <span style={{ color: RED, animation: 'vr-blink 1s step-end infinite' }}> █</span>
+            <BroadcastLiveTag />
           </div>
 
           {/* send transmission — moved slightly down + left from original (33,872), underscore prefix */}

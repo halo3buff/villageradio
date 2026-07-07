@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { useAudio } from '@/lib/audio-context';
 
 const SAMPLES = 2000;
@@ -9,9 +9,58 @@ const GRID = 2;
 const DOT = 1;
 const TRACE = '0,0,0';
 const AXIS = 'rgba(0,0,0,0.16)';
+const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
+
+const HEARTBEAT_MS = 20_000;
+const TX_FLASH_MS = 700;
+
+/**
+ * Broadcast-liveness net: heartbeats /api/presence while a scope is on
+ * screen. Returns the cryptic RX count (receivers currently watching a
+ * scope, never explained) and a brief flash when someone, somewhere, sends
+ * a transmission.
+ */
+function useSignalNet() {
+  const [rx, setRx] = useState<number | null>(null);
+  const [txFlash, setTxFlash] = useState(false);
+  const lastTxRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const id = crypto.randomUUID();
+    let flashTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const beat = async () => {
+      try {
+        const res = await fetch(`/api/presence?id=${id}`);
+        const data = await res.json() as { ok: boolean; rx: number; tx: number };
+        if (cancelled || !data.ok) return;
+        setRx(data.rx);
+        // First reading only establishes the baseline — no flash on mount
+        if (lastTxRef.current !== null && data.tx > lastTxRef.current) {
+          setTxFlash(true);
+          if (flashTimer) clearTimeout(flashTimer);
+          flashTimer = setTimeout(() => setTxFlash(false), TX_FLASH_MS);
+        }
+        lastTxRef.current = data.tx;
+      } catch { /* net is best-effort — the scope works without it */ }
+    };
+
+    beat();
+    const timer = setInterval(beat, HEARTBEAT_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      if (flashTimer) clearTimeout(flashTimer);
+    };
+  }, []);
+
+  return { rx, txFlash };
+}
 
 export function MobileScope() {
-  const { isPlaying, mode, broadcastPlay, pause, analyserL, analyserR } = useAudio();
+  const { isPlaying, mode, carrierLost, broadcastPlay, pause, analyserL, analyserR } = useAudio();
+  const { rx, txFlash } = useSignalNet();
   const aLRef = useRef<AnalyserNode | null>(null);
   const aRRef = useRef<AnalyserNode | null>(null);
   useEffect(() => { aLRef.current = analyserL; }, [analyserL]);
@@ -20,6 +69,8 @@ export function MobileScope() {
   const isBroadcasting = mode === 'broadcast' && isPlaying;
   const liveRef = useRef(false);
   useEffect(() => { liveRef.current = isBroadcasting; }, [isBroadcasting]);
+  const deadAirRef = useRef(false);
+  useEffect(() => { deadAirRef.current = carrierLost; }, [carrierLost]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dimsRef = useRef({ width: 0, height: 0 });
@@ -85,7 +136,16 @@ export function MobileScope() {
 
     ctx.globalCompositeOperation = 'source-over';
     const aL = aLRef.current, aR = aRRef.current;
-    if (live && aL && aR) {
+    if (deadAirRef.current) {
+      // Dead air: the trace collapses to a flat dithered line — the classic
+      // no-signal display, not an error message.
+      const t = performance.now() * 0.001;
+      const x0 = cx - d, x1 = cx + d;
+      for (let x = x0; x <= x1; x += GRID) {
+        const jitter = 0.55 + 0.45 * Math.abs(Math.sin(x * 12.9898 + t * 2));
+        plot(x, cy, jitter);
+      }
+    } else if (live && aL && aR) {
       const bufL = bufLRef.current, bufR = bufRRef.current;
       aL.getFloatTimeDomainData(bufL);
       aR.getFloatTimeDomainData(bufR);
@@ -136,6 +196,28 @@ export function MobileScope() {
       border: '1px solid #000', boxSizing: 'border-box', cursor: 'pointer',
     }}>
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+
+      {/* RX — receivers currently on the net. Never explained. */}
+      {rx !== null && (
+        <span aria-hidden style={{
+          position: 'absolute', right: 8, bottom: 6, pointerEvents: 'none',
+          fontFamily: MONO, fontSize: 7, lineHeight: 1, color: '#555',
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          RX: {rx}
+        </span>
+      )}
+
+      {/* TX RECEIVED — a transmission just landed, somewhere */}
+      {txFlash && (
+        <span aria-hidden style={{
+          position: 'absolute', right: 8, top: 44, pointerEvents: 'none',
+          fontFamily: MONO, fontSize: 7, lineHeight: 1, color: '#ff0000',
+        }}>
+          TX RECEIVED
+        </span>
+      )}
+
       <span style={{ position: 'absolute', left: 8, bottom: 6, pointerEvents: 'none', lineHeight: 1 }}>
         {isBroadcasting ? (
           <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden>
