@@ -23,16 +23,23 @@ const SH = 714;
 
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
-const SEGOE = "'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif";
 const RED = '#ff0000';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
 const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.10) 3px)';
 
-// Vertical shift for the decorative word-mark cluster (jumbled letters +
-// ovals) relative to the Figma-frame coordinates.
+// Shift for the decorative word-mark cluster (jumbled letters + ovals)
+// relative to the Figma-frame coordinates: up with the page compression,
+// and over to the right side so it stays out of the middle.
 const CLUSTER_DY = -82;
+const CLUSTER_DX = 130;
+
+// Command prompt geometry (design px) — also used to slide the canvas up
+// when the mobile keyboard would cover the prompt.
+const PROMPT_LEFT = 31;
+const PROMPT_TOP = 660;
+const PROMPT_H = 40;
 
 // Command-prompt navigation: the ONLY usable thing under the vectorscope.
 // Typing an exact command navigates; the commands are cited (quietly) in the
@@ -104,22 +111,67 @@ export function HomeMobile() {
   const [clock, setClock] = useState(() => buildClock(new Date()));
   const [ticker, setTicker] = useState(() => hexLine(0));
   const [cmd, setCmd] = useState('');
+  const [cmdFocused, setCmdFocused] = useState(false);
+  const [kbShift, setKbShift] = useState(0);
+  // Echo-before-jump: the resolved path shown after a correct command while
+  // navigation is briefly held back (input frozen during the echo).
+  const [echo, setEcho] = useState<string | null>(null);
+  // Mute-but-not-dead error: decaying SIG_UNKNOWN line above the prompt.
+  const [err, setErr] = useState<{ text: string; key: number } | null>(null);
   const cmdInputRef = useRef<HTMLInputElement>(null);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => { timersRef.current.forEach(clearTimeout); }, []);
 
-  // Exact command match → navigate. No feedback on wrong input — the prompt
-  // just sits there, deliberately mute. iOS "Smart Punctuation" turns straight
-  // quotes into curly ones (' → ’), which would break '.. and ^^' forever, so
-  // normalise them back before matching.
+  // The page cannot scroll, and iOS only reveals a covered input after the
+  // first keystroke — so when the keyboard opens, slide the whole canvas up
+  // just enough that the prompt sits above it. The visualViewport listener is
+  // active ONLY while the prompt is focused, and only reacts to keyboard-sized
+  // occlusion (>120px), so pinch-zoom can't retrigger the old jump bug.
+  useEffect(() => {
+    if (!cmdFocused || scale === null) { setKbShift(0); return; }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const occluded = document.documentElement.clientHeight - vv.height;
+      if (occluded < 120) { setKbShift(0); return; }
+      const promptBottom = (PROMPT_TOP + PROMPT_H) * scale;
+      setKbShift(Math.max(0, promptBottom - vv.height + 16));
+    };
+    update();
+    vv.addEventListener('resize', update);
+    return () => vv.removeEventListener('resize', update);
+  }, [cmdFocused, scale]);
+
+  // Exact command match → echo the resolved path, hold ~450ms, then navigate
+  // (feels like the machine executed something, not a link firing). iOS
+  // "Smart Punctuation" turns straight quotes into curly ones (' → ’), which
+  // would break '.. and ^^' forever, so normalise them back before matching.
   const onCmdChange = (raw: string) => {
+    if (echo) return; // input frozen while a command executes
     const value = raw.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\s+$/, '');
     const target = COMMANDS[value];
     if (target) {
-      setCmd('');
+      setCmd(value);
+      setEcho(target);
       cmdInputRef.current?.blur();
-      router.push(target);
+      timersRef.current.push(setTimeout(() => router.push(target), 450));
     } else {
       setCmd(raw);
     }
+  };
+
+  // Enter on a wrong string: print a decaying SIG_UNKNOWN line above the
+  // prompt and swallow the attempt. Rewards experimentation, explains nothing.
+  const onCmdKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || echo) return;
+    const value = cmd.trim();
+    if (!value) return;
+    const code = Array.from(value)
+      .reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 7)
+      .toString(16).padStart(4, '0').toUpperCase();
+    setErr({ text: `SIG_UNKNOWN 0x${code}`, key: Date.now() });
+    setCmd('');
+    timersRef.current.push(setTimeout(() => setErr(null), 1300));
   };
 
   useEffect(() => {
@@ -162,6 +214,9 @@ export function HomeMobile() {
       position: 'relative', minHeight: '100dvh', overflow: 'hidden', background: '#fff',
       // Reserve the true scaled height so the page ends exactly at the canvas bottom
       height: scale === null ? SH : SH * scale,
+      // Slide up while the keyboard covers the command prompt
+      transform: `translateY(${-kbShift}px)`,
+      transition: 'transform 0.3s ease',
     }}>
       <div className="page-enter" style={{
         position: 'absolute', left: 0, top: 0,
@@ -170,10 +225,10 @@ export function HomeMobile() {
         visibility: scale === null ? 'hidden' : 'visible',
       }}>
 
-        {/* README — top-right, links to /information */}
+        {/* README — top-right, links to /information; same face as the info page */}
         <Link href="/information" style={{
           position: 'absolute', left: 315, top: 28,
-          fontFamily: SEGOE, fontSize: 11, lineHeight: '12px',
+          fontFamily: MONO, fontSize: 11, lineHeight: '12px',
           color: '#000', textDecoration: 'none',
         }}>README</Link>
 
@@ -222,7 +277,7 @@ export function HomeMobile() {
         {LOGO_OVAL_TOPS.map((t, i) => (
           <Image key={`ov-${i}`} src="/images/IMG_2411.png" alt="" aria-hidden width={LOGO_OVAL} height={LOGO_OVAL}
             style={{
-              position: 'absolute', left: LOGO_OVAL_X, top: t + CLUSTER_DY,
+              position: 'absolute', left: LOGO_OVAL_X + CLUSTER_DX, top: t + CLUSTER_DY,
               width: LOGO_OVAL, height: LOGO_OVAL,
               zIndex: 4, pointerEvents: 'none',
             }} />
@@ -231,7 +286,7 @@ export function HomeMobile() {
         {/* VILLAGE word-mark cluster — letters */}
         {LOGO_LETTERS.map((l, i) => (
           <span key={`lt-${i}`} aria-hidden style={{
-            position: 'absolute', left: l.x, top: l.y + CLUSTER_DY,
+            position: 'absolute', left: l.x + CLUSTER_DX, top: l.y + CLUSTER_DY,
             fontFamily: DISPLAY, fontSize: 34,
             lineHeight: 1, color: '#000', zIndex: 4, whiteSpace: 'nowrap',
             transform: `rotate(${l.rot}deg) scaleY(${l.flipY ? -1 : 1})`, transformOrigin: 'center',
@@ -245,23 +300,47 @@ export function HomeMobile() {
         <div
           onClick={() => cmdInputRef.current?.focus()}
           style={{
-            position: 'absolute', left: 31, top: 660, width: 340, height: 40,
+            position: 'absolute', left: PROMPT_LEFT, top: PROMPT_TOP, width: 340, height: PROMPT_H,
             zIndex: 3, cursor: 'text',
           }}
         >
+          {/* Decaying error line — dissolves above the prompt */}
+          {err && (
+            <div key={err.key} aria-hidden style={{
+              position: 'absolute', left: 0, top: -8,
+              fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: '#000',
+              whiteSpace: 'pre', pointerEvents: 'none',
+              animation: 'vr-decay 1.2s steps(6, end) forwards',
+            }}>{err.text}</div>
+          )}
           <div aria-hidden style={{
             position: 'absolute', left: 0, top: 10,
             fontFamily: MONO, fontSize: 13, lineHeight: '20px', color: '#000',
             whiteSpace: 'pre', pointerEvents: 'none',
           }}>
             {'> '}{cmd}
-            <span style={{ animation: 'vr-blink 1s step-end infinite' }}>█</span>
+            {echo ? (
+              // Executing: cursor stops, the resolved path is echoed (ASCII
+              // only — fancy arrows risk the same missing-glyph bar as █).
+              <span style={{ color: RED }}>{'  ->  '}{echo}</span>
+            ) : (
+              /* Cursor is a plain rectangle, NOT the █ glyph — U+2588 is missing
+                 from the loaded IBM Plex Mono subset, and the fallback glyph
+                 paints outside the line box (the stray bar above the prompt). */
+              <span style={{
+                display: 'inline-block', width: 8, height: 14, background: '#000',
+                verticalAlign: '-2px', animation: 'vr-blink 1s step-end infinite',
+              }} />
+            )}
           </div>
           <input
             ref={cmdInputRef}
             type="text"
             value={cmd}
             onChange={e => onCmdChange(e.target.value)}
+            onKeyDown={onCmdKeyDown}
+            onFocus={() => setCmdFocused(true)}
+            onBlur={() => setCmdFocused(false)}
             autoCapitalize="none"
             autoCorrect="off"
             autoComplete="off"
