@@ -8,6 +8,7 @@ import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { NewsStrip } from '@/components/NewsStrip';
 import { SiteFrame } from '@/components/SiteFrame';
+import { ClearanceWarden } from '@/components/ClearanceWarden';
 
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
@@ -86,6 +87,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="bg-[#080808] text-vr-white min-h-screen font-sans">
         <AudioProvider playlist={playlist}>
+          {/* Burns a gated page's clearance the moment the visitor leaves it */}
+          <ClearanceWarden />
           <SiteFrame nav={<Nav />} newsStrip={<NewsStrip />} audioPlayer={<AudioPlayer />}>
             {children}
           </SiteFrame>

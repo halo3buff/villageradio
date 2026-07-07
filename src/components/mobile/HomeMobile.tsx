@@ -173,7 +173,8 @@ export function HomeMobile() {
       .toString(16).padStart(4, '0').toUpperCase();
     setErr({ text: `SIG_UNKNOWN 0x${code}`, key: Date.now() });
     setCmd('');
-    timersRef.current.push(setTimeout(() => setErr(null), 1300));
+    // Hold the line solid for a beat, then cut it — no fade
+    timersRef.current.push(setTimeout(() => setErr(null), 1600));
   };
 
   useEffect(() => {
@@ -306,13 +307,12 @@ export function HomeMobile() {
             zIndex: 3, cursor: 'text',
           }}
         >
-          {/* Decaying error line — dissolves above the prompt */}
+          {/* Error line — holds solid above the prompt, then vanishes outright */}
           {err && (
             <div key={err.key} aria-hidden style={{
               position: 'absolute', left: 0, top: -8,
               fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: '#000',
               whiteSpace: 'pre', pointerEvents: 'none',
-              animation: 'vr-decay 1.2s steps(6, end) forwards',
             }}>{err.text}</div>
           )}
           <div aria-hidden style={{

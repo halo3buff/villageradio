@@ -4,11 +4,12 @@
  * Pages don't trust HOW you arrived (link, swipe-back, deep link, bfcache
  * resurrection); they check WHETHER you hold clearance at render time.
  * Clearance is granted only by the site's own controls — the mobile command
- * prompt and official nav links — and lives in sessionStorage, so it lasts
- * for the browser session and dies with the tab.
+ * prompt and official nav links — and lives in sessionStorage.
  *
- * This makes iOS swipe-back irrelevant as a bypass: a resurrected or
- * deep-linked page without clearance renders the lock screen instead.
+ * Policy: ARMED ON LEAVE (see ClearanceWarden). A pass stays valid while you
+ * stand on the page (refresh survives), but navigating away — iOS swipe-back
+ * included — burns it. Every return trip costs another pass. Deep links and
+ * shared URLs never had one.
  *
  * Future traps build on this: one-time passes (revoke on arrival), decoy
  * redirects, degradation counters — all just policies over grant/has/revoke.

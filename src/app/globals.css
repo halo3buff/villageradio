@@ -51,14 +51,6 @@
   50.01%, 100% { opacity: 0; }
 }
 
-/* Digital decay for the command prompt's SIG_UNKNOWN line — run with
-   steps() so it dissolves in discrete drops, not a smooth fade. */
-@keyframes vr-decay {
-  0%   { opacity: 1; }
-  60%  { opacity: 0.45; }
-  100% { opacity: 0; }
-}
-
 @keyframes ticker {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
