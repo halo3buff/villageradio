@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { MobileScope } from '@/components/mobile/MobileScope';
+import { grantClearance } from '@/lib/clearance';
 
 /**
  * Figma frame is 402pt wide (iPhone 17). The entire composition is laid out in
@@ -153,6 +154,7 @@ export function HomeMobile() {
     if (target) {
       setCmd(value);
       setEcho(target);
+      grantClearance(target); // a correct command IS the checkpoint pass
       cmdInputRef.current?.blur();
       timersRef.current.push(setTimeout(() => router.push(target), 450));
     } else {

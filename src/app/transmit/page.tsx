@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Viewport } from 'next';
 import { Oscilloscope } from '@/components/Oscilloscope';
+import { Gate } from '@/components/Gate';
 
 export const viewport: Viewport = {
   themeColor: '#ffffff',
@@ -14,6 +15,7 @@ export const metadata = {
 
 export default function TransmitPage() {
   return (
+    <Gate path="/transmit">
     <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: '#fff', color: '#000' }}>
       <div style={{ position: 'relative', minHeight: '100%' }}
            className="px-4 sm:px-6 pt-14 sm:pt-20 pb-8 page-enter">
@@ -24,5 +26,6 @@ export default function TransmitPage() {
         <Oscilloscope />
       </div>
     </div>
+    </Gate>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { GrantLink } from '@/components/GrantLink';
 
 const NAV_LINKS = ['listen', 'work', 'photography', 'news'] as const;
 
@@ -20,7 +21,7 @@ export function Nav() {
         />
       </Link>
       {NAV_LINKS.map(slug => (
-        <Link
+        <GrantLink
           key={slug}
           href={`/${slug}`}
           className={`font-mono text-[0.55rem] sm:text-[0.65rem] tracking-[0.12em] sm:tracking-[0.15em] transition-opacity duration-150 shrink-0 ${
@@ -30,7 +31,7 @@ export function Nav() {
           }`}
         >
           {slug}
-        </Link>
+        </GrantLink>
       ))}
     </nav>
   );

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { GrantLink } from '@/components/GrantLink';
 import { FitStage } from '@/components/FitStage';
 import { HeaderCluster } from '@/components/HeaderCluster';
 import { MobileScope } from '@/components/mobile/MobileScope';
@@ -11,9 +12,9 @@ const RED = '#ff0000';
 
 function RedLink({ href, children }: { href: string; children: string }) {
   return (
-    <Link href={href} style={{ color: RED, textDecoration: 'none' }}>
+    <GrantLink href={href} style={{ color: RED, textDecoration: 'none' }}>
       {children}
-    </Link>
+    </GrantLink>
   );
 }
 
@@ -55,7 +56,7 @@ export function HomeDesktop() {
           </div>
 
           {/* send transmission — moved slightly down + left from original (33,872), underscore prefix */}
-          <Link
+          <GrantLink
             href="/transmit"
             style={{
               position: 'absolute',
@@ -72,7 +73,7 @@ export function HomeDesktop() {
             }}
           >
             {'__________send transmission'}
-          </Link>
+          </GrantLink>
         </>
       }
       right={
