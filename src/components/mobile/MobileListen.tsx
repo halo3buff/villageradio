@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRef, useEffect } from 'react';
 import { useAudio } from '@/lib/audio-context';
 import { MobileWaterfall } from '@/components/mobile/MobileWaterfall';
 import { MobilePoleZero } from '@/components/mobile/MobilePoleZero';
@@ -23,13 +24,21 @@ const WFALL_Y = 82;
 const WFALL_H = 185;
 const LPC_Y = WFALL_Y + WFALL_H + 6;
 const LPC_H = 185;
-const ARCHIVE_Y = LPC_Y + LPC_H + 14;
+const SCRUB_Y = LPC_Y + LPC_H + 6;  // scrub bar top (design px)
+const SCRUB_H = 22;                   // room for line + time labels
+const ARCHIVE_Y = LPC_Y + LPC_H + 36;
 
 const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.10) 3px)';
 
+function z2(n: number) { return String(Math.floor(n)).padStart(2, '0'); }
+function mmss(sec: number) {
+  const s = Math.max(0, Math.floor(sec));
+  return `${z2(Math.floor(s / 60))}:${z2(s % 60)}`;
+}
+
 export function MobileListen() {
-  const { isPlaying, mode, currentTrack, playlist, broadcastPlay, play, toggle } = useAudio();
+  const { isPlaying, mode, currentTrack, playlist, broadcastPlay, play, toggle, progress } = useAudio();
 
   const onLive = () => {
     if (mode === 'broadcast' && isPlaying) toggle();
@@ -44,13 +53,66 @@ export function MobileListen() {
   const live = isPlaying && mode !== 'idle';
   const liveSelected = mode === 'broadcast';
 
+  // Derive the current TX label for the nameplate rail
+  const txIdx = currentTrack ? playlist.findIndex(t => t.id === currentTrack.id) : -1;
+  const txLabel = mode === 'broadcast'
+    ? 'TX-LIVE'
+    : txIdx >= 0
+      ? `TX-${String(txIdx + 1).padStart(3, '0')}`
+      : '—';
+
+  // Ticking UTC clock — updated imperatively so no re-renders
+  const clockRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const tick = () => {
+      if (!clockRef.current) return;
+      const d = new Date();
+      clockRef.current.textContent = `${z2(d.getUTCHours())}:${z2(d.getUTCMinutes())}:${z2(d.getUTCSeconds())} UTC`;
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // RX session timer — starts fresh each time the live broadcast is tuned in
+  const sessionStartRef = useRef(0);
+  const sessionSpanRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (mode !== 'broadcast' || !isPlaying) {
+      if (sessionSpanRef.current) sessionSpanRef.current.textContent = '';
+      return;
+    }
+    sessionStartRef.current = Date.now();
+    const tick = () => {
+      if (!sessionSpanRef.current) return;
+      const s = Math.floor((Date.now() - sessionStartRef.current) / 1000);
+      sessionSpanRef.current.textContent = `SESSION RX ${mmss(s)}`;
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [mode, isPlaying]);
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, overflow: 'hidden', background: '#fff' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
+        {/* Nameplate rail — matches desktop VLG-4CH strip */}
+        <div style={{
+          position: 'absolute', left: 0, top: 0, right: 0, height: dvh(20),
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: `0 ${vw(WFALL_X)}`,
+          borderBottom: '1px solid rgba(0,0,0,0.18)',
+          fontFamily: BODY, fontSize: vw(8), letterSpacing: '0.12em', textTransform: 'uppercase',
+        }}>
+          <span style={{ color: '#000' }}>VLG-RX</span>
+          <span style={{ color: 'rgba(0,0,0,0.4)' }}>{txLabel}</span>
+          <span ref={clockRef} style={{ color: '#000' }} />
+        </div>
+
         {/* Back arrow */}
         <Link href="/" style={{
-          position: 'absolute', left: vw(WFALL_X), top: dvh(16), display: 'block',
+          position: 'absolute', left: vw(WFALL_X), top: dvh(24), display: 'block',
           width: vw(50), height: vw(50),
         }}>
           <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
@@ -112,24 +174,67 @@ export function MobileListen() {
           <MobilePoleZero />
         </div>
 
-        {/* ARCHIVE label */}
+        {/* Scrub bar — visible when an archive clip is loaded */}
+        {mode === 'individual' && currentTrack && (() => {
+          const dur = currentTrack.durationSec ?? 0;
+          const elapsed = dur > 0 ? progress * dur : 0;
+          const remaining = dur > 0 ? dur - elapsed : 0;
+          return (
+            <div style={{
+              position: 'absolute', left: vw(WFALL_X), top: dvh(SCRUB_Y),
+              width: vw(WFALL_W), height: dvh(SCRUB_H),
+            }}>
+              {/* dithered track line */}
+              <div style={{
+                position: 'absolute', left: 0, right: 0, top: dvh(4), height: 1,
+                background: 'repeating-linear-gradient(90deg, rgba(0,0,0,0.2) 0px, rgba(0,0,0,0.2) 1px, transparent 1px, transparent 3px)',
+              }} />
+              {/* solid played portion */}
+              <div style={{
+                position: 'absolute', left: 0, top: dvh(4), height: 1,
+                width: `${progress * 100}%`,
+                background: '#000',
+              }} />
+              {/* playhead cursor */}
+              <div style={{
+                position: 'absolute', top: dvh(1), bottom: dvh(5),
+                left: `${progress * 100}%`,
+                width: 1,
+                background: '#000',
+                transform: 'translateX(-50%)',
+              }} />
+              {/* time labels */}
+              <div style={{
+                position: 'absolute', left: 0, right: 0, top: dvh(10),
+                display: 'flex', justifyContent: 'space-between',
+                fontFamily: BODY, fontSize: vw(7.5), color: 'rgba(0,0,0,0.4)',
+                letterSpacing: '0.05em',
+              }}>
+                <span>{mmss(elapsed)}</span>
+                <span>{dur > 0 ? `-${mmss(remaining)}` : '—'}</span>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* TX LOG label */}
         <div style={{
           position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y),
           fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: '#000',
         }}>
-          ARCHIVE
+          TX LOG
         </div>
 
-        {/* LIVE broadcast row */}
+        {/* TX-LIVE broadcast row */}
         <button
           onClick={onLive}
           style={{
             position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 18),
-            width: vw(WFALL_W), height: dvh(32),
+            width: vw(WFALL_W), height: dvh(36),
             background: liveSelected ? '#000' : 'transparent',
             border: '1px solid #000', boxSizing: 'border-box',
             display: 'flex', alignItems: 'center', gap: vw(8), paddingLeft: vw(10),
-            cursor: 'pointer',
+            cursor: 'pointer', textAlign: 'left',
           }}
         >
           <span style={{
@@ -137,56 +242,87 @@ export function MobileListen() {
             background: live ? RED : 'transparent',
             border: `1px solid ${live ? RED : '#000'}`,
             flexShrink: 0,
+            animation: live && liveSelected ? 'vrPulse 1.4s ease-in-out infinite' : undefined,
           }} />
-          <span style={{
-            fontFamily: BODY, fontSize: vw(11), textTransform: 'uppercase', lineHeight: 1,
-            color: liveSelected ? '#fff' : '#000',
-          }}>
-            {live && liveSelected ? 'LIVE — on air' : 'LIVE BROADCAST'}
+          <span style={{ display: 'flex', flexDirection: 'column', gap: vw(3) }}>
+            <span style={{
+              fontFamily: BODY, fontSize: vw(11), textTransform: 'uppercase', lineHeight: 1,
+              color: liveSelected ? '#fff' : '#000',
+            }}>
+              TX-LIVE
+            </span>
+            <span style={{
+              fontFamily: BODY, fontSize: vw(8), textTransform: 'uppercase', lineHeight: 1,
+              color: liveSelected
+                ? (live ? RED : 'rgba(255,255,255,0.45)')
+                : (live ? RED : 'rgba(0,0,0,0.35)'),
+            }}>
+              {live && liveSelected ? 'ON AIR NOW' : '24/7 BROADCAST'}
+            </span>
+            {/* Session RX counter — always in DOM so sessionSpanRef stays attached */}
+            <span ref={sessionSpanRef} style={{
+              fontFamily: BODY, fontSize: vw(7), textTransform: 'uppercase', lineHeight: 1,
+              color: 'rgba(255,255,255,0.35)',
+              display: live && liveSelected ? 'block' : 'none',
+            }} />
           </span>
         </button>
 
         {/* Separator */}
         <div style={{
-          position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 50),
+          position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 54),
           width: vw(WFALL_W), height: 1, background: '#000', opacity: 0.15,
         }} />
 
         {/* Archive track list — stretches to bottom */}
         <div style={{
           position: 'absolute',
-          left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 51),
+          left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 55),
           width: vw(WFALL_W), bottom: dvh(10),
           overflowY: 'auto',
         }}>
           {playlist.map((track, i) => {
             const isActive = currentTrack?.id === track.id;
             const isPlayingClip = isActive && isPlaying && mode === 'individual';
+            const kindTag = track.kind === 'inter' ? '[INT]' : '[MIX]';
             return (
               <button
                 key={track.id}
                 onClick={() => onSelectClip(track)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: vw(10),
-                  width: '100%', height: dvh(26), paddingLeft: vw(10), paddingRight: vw(10),
+                  display: 'flex', alignItems: 'center', gap: vw(8),
+                  width: '100%', height: dvh(36), paddingLeft: vw(10), paddingRight: vw(10),
                   background: isActive ? '#000' : 'transparent',
                   border: 'none', borderBottom: '1px solid rgba(0,0,0,0.08)',
                   cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
                 }}
               >
                 <span style={{
-                  fontFamily: BODY, fontSize: vw(9), letterSpacing: '0.1em',
-                  color: isActive ? '#fff' : 'rgba(0,0,0,0.35)',
-                  minWidth: vw(16), textAlign: 'right',
+                  fontFamily: BODY, fontSize: vw(8), letterSpacing: '0.04em',
+                  color: isActive ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.3)',
+                  minWidth: vw(38), flexShrink: 0,
                 }}>
-                  {String(i + 1).padStart(2, '0')}
+                  TX-{String(i + 1).padStart(3, '0')}
                 </span>
                 <span style={{
-                  fontFamily: BODY, fontSize: vw(11), textTransform: 'uppercase', lineHeight: 1,
-                  color: isActive ? '#fff' : '#000',
-                  flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  flex: 1, minWidth: 0,
+                  display: 'flex', flexDirection: 'column', gap: vw(2),
                 }}>
-                  {track.title}
+                  <span style={{
+                    fontFamily: BODY, fontSize: vw(11), textTransform: 'uppercase', lineHeight: 1,
+                    color: isActive ? '#fff' : '#000',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {track.title}
+                  </span>
+                  <span style={{
+                    fontFamily: BODY, fontSize: vw(8), textTransform: 'uppercase', lineHeight: 1,
+                    color: isActive ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
+                    display: 'flex', gap: vw(6),
+                  }}>
+                    {track.date && <span>{track.date}</span>}
+                    <span style={{ color: isActive ? RED : RED, opacity: 0.7 }}>{kindTag}</span>
+                  </span>
                 </span>
                 {isPlayingClip && (
                   <svg width="7" height="9" viewBox="0 0 7 9" aria-hidden style={{ flexShrink: 0 }}>
