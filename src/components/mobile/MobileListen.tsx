@@ -13,17 +13,15 @@ const SH = 874;
 const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
 const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
-// All listen-page text uses the info/README-page face (IBM Plex Mono),
-// matching the axis labels the scope canvases already draw in mono.
-const BODY = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
+const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const RED = '#ff0000';
 
 const WFALL_X = 17;
 const WFALL_W = 368;
 const WFALL_Y = 82;
-const WFALL_H = 185;
+const WFALL_H = 205;
 const LPC_Y = WFALL_Y + WFALL_H + 6;
-const LPC_H = 185;
+const LPC_H = 205;
 const SCRUB_Y = LPC_Y + LPC_H + 6;  // scrub bar top (design px)
 const SCRUB_H = 22;                   // room for line + time labels
 const ARCHIVE_Y = LPC_Y + LPC_H + 36;
@@ -126,7 +124,13 @@ export function MobileListen() {
         }}>
           {'WFALL '}
           <span style={{ color: RED }}>[{live ? 'LIVE' : 'IDLE'}]</span>
-          {live && <span style={{ color: RED, animation: 'vr-blink 1s step-end infinite' }}> █</span>}
+          {live && (
+            <span style={{
+              display: 'inline-block', width: '0.6em', height: '0.75em',
+              background: RED, verticalAlign: '-0.1em', marginLeft: '0.2em',
+              animation: 'vr-blink 1s step-end infinite',
+            }} />
+          )}
         </div>
 
         {/* Waterfall scope */}

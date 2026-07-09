@@ -107,9 +107,7 @@ export function MobileWaterfall() {
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.font = `7px ${MONO}`;
 
-    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    ctx.fillText('453.7', ML, 3);
-    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top'; ctx.textAlign = 'right';
     ctx.fillText('TIME 0-2048ms', w - MR, 3);
 
     ctx.textBaseline = 'bottom';
@@ -130,7 +128,7 @@ export function MobileWaterfall() {
 
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.textBaseline = 'bottom'; ctx.textAlign = 'right';
-    ctx.fillText('TIME ↗', w - MR - dxBack * 0.7, h - MB - 2);
+    ctx.fillText('TIME ->', w - MR - dxBack * 0.7, h - MB - 2);
   }, []);
 
   const animate = useCallback(() => {

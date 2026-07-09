@@ -164,10 +164,8 @@ export function MobilePoleZero() {
     }
 
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.font = `7px ${MONO}`;
-    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    ctx.fillText(`LPC ORDER ${ORDER}`, 6, 4);
-    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.font = `7px ${MONO}`;
+    ctx.textBaseline = 'top'; ctx.textAlign = 'right';
     ctx.fillText('× POLES', w - 6, 4);
   }, []);
 
