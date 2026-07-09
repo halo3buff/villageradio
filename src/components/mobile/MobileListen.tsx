@@ -14,6 +14,7 @@ const vw = (n: number) => `${(n / SW * 100).toFixed(2)}vw`;
 const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
+const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const RED = '#ff0000';
 
 const WFALL_X = 17;
@@ -261,7 +262,7 @@ export function MobileListen() {
                 ? (live ? RED : 'rgba(255,255,255,0.45)')
                 : (live ? RED : 'rgba(0,0,0,0.35)'),
             }}>
-              {live && liveSelected ? 'ON AIR NOW' : '24/7 BROADCAST'}
+              {live && liveSelected ? 'RECEIVING' : 'STANDBY'}
             </span>
             {/* Session RX counter — always in DOM so sessionSpanRef stays attached */}
             <span ref={sessionSpanRef} style={{
@@ -288,51 +289,69 @@ export function MobileListen() {
           {playlist.map((track, i) => {
             const isActive = currentTrack?.id === track.id;
             const isPlayingClip = isActive && isPlaying && mode === 'individual';
-            const kindTag = track.kind === 'inter' ? '[INT]' : '[MIX]';
+            const DIM = 'rgba(0,0,0,0.32)';
+            const FULL = '#000';
+            const c = (active: boolean) => active ? FULL : DIM;
+            const status = isPlayingClip ? 'TX' : isActive ? 'LOADED' : 'STANDBY';
             return (
               <button
                 key={track.id}
                 onClick={() => onSelectClip(track)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: vw(8),
-                  width: '100%', height: dvh(36), paddingLeft: vw(10), paddingRight: vw(10),
-                  background: isActive ? '#000' : 'transparent',
-                  border: 'none', borderBottom: '1px solid rgba(0,0,0,0.08)',
+                  display: 'flex', alignItems: 'center', gap: vw(3),
+                  width: '100%', height: dvh(26),
+                  paddingLeft: vw(10), paddingRight: vw(10),
+                  background: 'transparent',
+                  border: 'none', borderBottom: '1px solid rgba(0,0,0,0.06)',
                   cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
+                  fontFamily: MONO, fontSize: vw(9.5), lineHeight: 1,
                 }}
               >
+                {/* Caret — visible only when selected */}
                 <span style={{
-                  fontFamily: BODY, fontSize: vw(8), letterSpacing: '0.04em',
-                  color: isActive ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.3)',
-                  minWidth: vw(38), flexShrink: 0,
-                }}>
+                  flexShrink: 0, width: vw(8), color: RED,
+                  visibility: isActive ? 'visible' : 'hidden',
+                }}>{'>'}</span>
+
+                {/* TX ID */}
+                <span style={{ flexShrink: 0, minWidth: vw(36), color: c(isActive) }}>
                   TX-{String(i + 1).padStart(3, '0')}
                 </span>
+
+                {/* Title */}
                 <span style={{
-                  flex: 1, minWidth: 0,
-                  display: 'flex', flexDirection: 'column', gap: vw(2),
+                  overflow: 'hidden', whiteSpace: 'nowrap',
+                  flexShrink: 1, minWidth: 0,
+                  color: c(isActive),
                 }}>
-                  <span style={{
-                    fontFamily: BODY, fontSize: vw(11), textTransform: 'uppercase', lineHeight: 1,
-                    color: isActive ? '#fff' : '#000',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {track.title}
-                  </span>
-                  <span style={{
-                    fontFamily: BODY, fontSize: vw(8), textTransform: 'uppercase', lineHeight: 1,
-                    color: isActive ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
-                    display: 'flex', gap: vw(6),
-                  }}>
-                    {track.date && <span>{track.date}</span>}
-                    <span style={{ color: isActive ? RED : RED, opacity: 0.7 }}>{kindTag}</span>
-                  </span>
+                  {track.title.toUpperCase()}
                 </span>
-                {isPlayingClip && (
-                  <svg width="7" height="9" viewBox="0 0 7 9" aria-hidden style={{ flexShrink: 0 }}>
-                    <polygon points="0,0 0,9 7,4.5" fill="#fff" />
-                  </svg>
+
+                {/* Dot leaders */}
+                <span style={{
+                  flex: 1, minWidth: vw(8),
+                  borderBottom: '1px dotted rgba(0,0,0,0.22)',
+                  alignSelf: 'flex-end', marginBottom: '3px',
+                }} />
+
+                {/* Duration */}
+                {track.duration && (
+                  <span style={{
+                    flexShrink: 0, fontSize: vw(8.5),
+                    color: isActive ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.28)',
+                  }}>
+                    {track.duration}
+                  </span>
                 )}
+
+                {/* Status word */}
+                <span style={{
+                  flexShrink: 0, fontSize: vw(8), textTransform: 'uppercase',
+                  color: isPlayingClip ? RED : c(isActive),
+                  minWidth: vw(44), textAlign: 'right',
+                }}>
+                  {status}
+                </span>
               </button>
             );
           })}
