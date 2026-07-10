@@ -10,7 +10,7 @@ import { Panel } from '@/components/instruments/Panel';
 import { MONO, CYAN, SCANLINES } from '@/components/instruments/retro';
 import { MobileWaterfall } from '@/components/mobile/MobileWaterfall';
 import { MobilePoleZero } from '@/components/mobile/MobilePoleZero';
-import { MobileScope } from '@/components/mobile/MobileScope';
+import { ListenOscilloscope } from '@/components/instruments/ListenOscilloscope';
 
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const RED  = '#ff0000';
@@ -50,12 +50,7 @@ const VIDEO   = { x: 0,         y: RAIL_H,         w: COL_W, h: ROW_H };
 const WFALL   = { x: COL_W,     y: RAIL_H,         w: COL_W, h: ROW_H };
 const CONTOUR = { x: 0,         y: RAIL_H + ROW_H, w: COL_W, h: GRID_H - ROW_H };
 const PZ      = { x: COL_W,     y: RAIL_H + ROW_H, w: COL_W, h: GRID_H - ROW_H };
-const RACK    = { x: COL_W * 2, y: RAIL_H,         w: EQ.w - COL_W * 2, h: GRID_H };
-
-// dancing-figure sprites: a continuous parade across the full width, bottom-aligned.
-const FIGS = [-20, 160, 340, 520, 700, 880, 1060, 1240, 1420, 1600];
-const FIG_W = 204;
-const FIG_TOP = STAGE_H - FIG_W;
+const RACK    = { x: COL_W * 2, y: 0,              w: EQ.w - COL_W * 2, h: EQ.h   };
 
 function timecode(ms: number): string {
   const f = Math.floor((ms / 1000) * 30) % 30;
@@ -156,17 +151,12 @@ export function ListenConsole() {
           <Image src="/icons/left-arrow.png" alt="Back" width={52} height={52} priority />
         </Link>
 
-        {FIGS.map((x) => (
-          <Image key={x} src="/images/dancing-figures.png" alt="" aria-hidden width={FIG_W} height={FIG_W + 1}
-            style={{ position: 'absolute', left: x, top: FIG_TOP, width: FIG_W, height: FIG_W + 1, pointerEvents: 'none' }} />
-        ))}
-
-        <div style={{ position: 'absolute', left: EQ.x, top: EQ.y, width: EQ.w, height: EQ.h, background: '#fff', border: '1px solid rgba(0,0,0,0.14)', boxSizing: 'border-box', userSelect: 'none' }}>
-          {/* unified nameplate rail */}
+        <div style={{ position: 'absolute', left: EQ.x, top: EQ.y, width: EQ.w, height: EQ.h, background: '#fff', border: '1px solid rgba(0,0,0,0.3)', boxSizing: 'border-box', userSelect: 'none' }}>
+          {/* unified nameplate rail — only spans instrument columns, not RACK */}
           <div style={{
-            position: 'absolute', left: 0, top: 0, width: EQ.w, height: RAIL_H,
+            position: 'absolute', left: 0, top: 0, width: COL_W * 2, height: RAIL_H,
             display: 'flex', alignItems: 'center', gap: 14, padding: '0 10px',
-            borderBottom: '1px solid rgba(0,0,0,0.12)', boxSizing: 'border-box',
+            borderBottom: '1px solid rgba(0,0,0,0.28)', boxSizing: 'border-box',
             fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', color: 'rgba(0,0,0,0.5)',
             background: '#fff',
           }}>
@@ -201,7 +191,7 @@ export function ListenConsole() {
 
           {/* Q2 — frequency waterfall (mobile aesthetic: white/black) */}
           <Pane rect={WFALL}>
-            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.12)', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.28)', boxSizing: 'border-box' }}>
               <div style={{
                 position: 'absolute', left: 8, top: 5, zIndex: 2, pointerEvents: 'none',
                 fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#000',
@@ -216,7 +206,7 @@ export function ListenConsole() {
 
           {/* Q3 — LPC pole-zero Z-plane (mobile aesthetic) */}
           <Pane rect={CONTOUR}>
-            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.12)', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.28)', boxSizing: 'border-box' }}>
               <div style={{
                 position: 'absolute', left: 8, top: 5, zIndex: 2, pointerEvents: 'none',
                 fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#000',
@@ -229,17 +219,17 @@ export function ListenConsole() {
             </div>
           </Pane>
 
-          {/* Q4 — vectorscope / Lissajous (mobile aesthetic) */}
+          {/* Q4 — waveform oscilloscope (time-domain, triggered sweep) */}
           <Pane rect={PZ}>
-            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.12)', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.28)', boxSizing: 'border-box' }}>
               <div style={{
                 position: 'absolute', left: 8, top: 5, zIndex: 2, pointerEvents: 'none',
                 fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#000',
               }}>
-                {'SCOPE '}
+                {'OSC '}
                 <span style={{ color: RED }}>[{live ? 'LIVE' : 'IDLE'}]</span>
               </div>
-              <MobileScope />
+              <ListenOscilloscope />
               <Scanlines />
             </div>
           </Pane>
@@ -248,13 +238,13 @@ export function ListenConsole() {
           <Pane rect={RACK}>
             <div style={{
               position: 'absolute', inset: 0, boxSizing: 'border-box',
-              borderLeft: '1px solid rgba(0,0,0,0.12)', background: '#fff',
+              borderLeft: '1px solid rgba(0,0,0,0.28)', background: '#fff',
               display: 'flex', flexDirection: 'column',
             }}>
               {/* TX LOG header */}
               <div style={{
                 flex: '0 0 auto', padding: '5px 8px',
-                borderBottom: '1px solid rgba(0,0,0,0.1)',
+                borderBottom: '1px solid rgba(0,0,0,0.2)',
                 fontFamily: BODY, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
                 color: '#000',
               }}>
@@ -294,14 +284,14 @@ export function ListenConsole() {
               </button>
 
               {/* Separator */}
-              <div style={{ flex: '0 0 auto', height: 1, background: 'rgba(0,0,0,0.08)' }} />
+              <div style={{ flex: '0 0 auto', height: 1, background: 'rgba(0,0,0,0.2)' }} />
 
               {/* Archive track list */}
               <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                 {playlist.map((m, i) => {
                   const isActive = mode === 'individual' && currentTrack?.id === m.id;
                   const isPlayingClip = isActive && isPlaying;
-                  const DIM  = 'rgba(0,0,0,0.32)';
+                  const DIM  = 'rgba(0,0,0,0.55)';
                   const FULL = '#000';
                   const c = (a: boolean) => a ? FULL : DIM;
                   const status = isPlayingClip ? 'TX' : isActive ? 'LOADED' : 'STANDBY';
@@ -336,6 +326,8 @@ export function ListenConsole() {
                   );
                 })}
               </div>
+              {/* Scanlines overlay — same treatment as instrument quadrants */}
+              <Scanlines />
             </div>
           </Pane>
         </div>

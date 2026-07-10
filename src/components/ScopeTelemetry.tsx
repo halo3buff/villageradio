@@ -5,11 +5,11 @@ import { useEffect, useState } from 'react';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const RED = '#ff0000';
 
-// Scope position in the 1440×1024 stage — must match HomeDesktop
-const SL = 274;
-const ST = 200;
-const SW = 600;
-const SH = 660;
+// Default scope position in the 1440×1024 stage — matches HomeDesktop defaults
+const DEFAULT_SL = 274;
+const DEFAULT_ST = 200;
+const DEFAULT_SW = 600;
+const DEFAULT_SH = 660;
 
 function z2(n: number) { return String(Math.floor(n)).padStart(2, '0'); }
 
@@ -29,7 +29,9 @@ function hexLine(seed: number) {
   return out;
 }
 
-export function ScopeTelemetry() {
+export function ScopeTelemetry({
+  sl = DEFAULT_SL, st = DEFAULT_ST, sw = DEFAULT_SW, sh = DEFAULT_SH,
+}: { sl?: number; st?: number; sw?: number; sh?: number } = {}) {
   const [clock, setClock] = useState(() => buildClock(new Date()));
   const [ticker, setTicker] = useState(() => hexLine(0));
 
@@ -48,8 +50,8 @@ export function ScopeTelemetry() {
       {/* ── TIMECODE — top-right inside the scope box ── */}
       <div style={{
         position: 'absolute',
-        left: SL + SW - 104,
-        top: ST + 8,
+        left: sl + sw - 104,
+        top: st + 8,
         width: 96,
         textAlign: 'right',
         pointerEvents: 'none',
@@ -64,7 +66,7 @@ export function ScopeTelemetry() {
 
       {/* ── FREQ TICKER — scrolling strip below the scope box ── */}
       <div style={{
-        position: 'absolute', left: SL, top: ST + SH + 6, width: SW, height: 14,
+        position: 'absolute', left: sl, top: st + sh + 6, width: sw, height: 14,
         overflow: 'hidden', pointerEvents: 'none',
       }}>
         <div className="ticker" style={{

@@ -10,10 +10,17 @@ import { MobileScope } from '@/components/mobile/MobileScope';
 import { ScopeTelemetry } from '@/components/ScopeTelemetry';
 import { grantClearance } from '@/lib/clearance';
 
-const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
-const BODY    = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
-const SEGOE   = "'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif";
-const RED     = '#ff0000';
+const MONO   = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
+const BODY   = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
+const SEGOE  = "'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif";
+const RED    = '#ff0000';
+
+// Scope position in the right 1440×1024 frame — mirrored from original left-side coords.
+// Original was left:274 → right-mirrored: left = 1440-274-600 = 566
+const SCOPE_L = 566;
+const SCOPE_T = 200;
+const SCOPE_W = 600;
+const SCOPE_H = 660;
 
 // Identical to the mobile COMMANDS map — same firewall, different surface.
 const COMMANDS: Record<string, string> = {
@@ -32,7 +39,7 @@ function hashInput(s: string): string {
   return (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
 }
 
-/** Desktop homepage — command prompt navigation, same commands as mobile. */
+/** Desktop homepage — HeaderCluster top-left, scope + README right side, MONO command prompt. */
 export function HomeDesktop() {
   const router   = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,43 +73,17 @@ export function HomeDesktop() {
     <FitStage
       left={
         <>
-          {/* README — top-left, links to /information */}
-          <Link
-            href="/information"
-            style={{
-              position: 'absolute', left: 35, top: 35,
-              fontFamily: SEGOE, fontSize: 11, lineHeight: '11px',
-              color: '#000', textDecoration: 'none', pointerEvents: 'auto',
-            }}
-          >
-            README
-          </Link>
+          {/* HeaderCluster — shifted left via xOffset so it anchors top-left.
+              Cluster coords span x:1052–1440; offset -1017 moves leftmost element to x:35. */}
+          <HeaderCluster xOffset={-1017} />
 
-          {/* Chromeless vectorscope */}
-          <div style={{ position: 'absolute', left: 274, top: 200, width: 600, height: 660, pointerEvents: 'auto' }}>
-            <MobileScope />
-          </div>
-
-          {/* Telemetry overlays */}
-          <ScopeTelemetry />
-
-          {/* Broadcast status */}
-          <div style={{
-            position: 'absolute', left: 282, top: 208,
-            fontFamily: BODY, fontSize: 11, lineHeight: '11px', textTransform: 'uppercase',
-            color: '#000', zIndex: 3, pointerEvents: 'none',
-          }}>
-            {'> BROADCAST '}
-            <BroadcastLiveTag />
-          </div>
-
-          {/* Command prompt — same firewall as mobile, keyboard-driven on desktop */}
+          {/* Command prompt — MONO style, understated */}
           <div
             style={{
               position: 'absolute', left: 20, top: 890,
               pointerEvents: 'auto', cursor: 'text',
-              fontFamily: DISPLAY, fontSize: 36, lineHeight: 1,
-              letterSpacing: '-0.13em', color: '#000',
+              fontFamily: MONO, fontSize: 16, lineHeight: 1,
+              letterSpacing: '0.04em', color: '#000',
               whiteSpace: 'nowrap', userSelect: 'none',
             }}
             onClick={() => inputRef.current?.focus()}
@@ -112,7 +93,7 @@ export function HomeDesktop() {
                 {'> '}{echo.cmd}{'  ->  '}{echo.path}
               </span>
             ) : err ? (
-              <span style={{ fontFamily: BODY, fontSize: 13, letterSpacing: '0.05em' }}>
+              <span style={{ fontFamily: BODY, fontSize: 11, letterSpacing: '0.05em' }}>
                 {err}
               </span>
             ) : (
@@ -121,8 +102,8 @@ export function HomeDesktop() {
                 <span>{cmd}</span>
                 <span style={{
                   display: 'inline-block',
-                  width: '0.35em', height: '0.8em',
-                  background: '#000', verticalAlign: '-0.08em',
+                  width: '0.55em', height: '0.9em',
+                  background: '#000', verticalAlign: '-0.1em',
                   animation: 'vr-blink 1s step-end infinite',
                 }} />
               </>
@@ -145,8 +126,35 @@ export function HomeDesktop() {
       }
       right={
         <>
-          {/* VILLAGE RADIO logo cluster — top right */}
-          <HeaderCluster />
+          {/* README — top-right corner, 35px from right edge */}
+          <Link
+            href="/information"
+            style={{
+              position: 'absolute', right: 35, top: 35,
+              fontFamily: SEGOE, fontSize: 11, lineHeight: '11px',
+              color: '#000', textDecoration: 'none', pointerEvents: 'auto',
+            }}
+          >
+            README
+          </Link>
+
+          {/* Chromeless vectorscope — right side */}
+          <div style={{ position: 'absolute', left: SCOPE_L, top: SCOPE_T, width: SCOPE_W, height: SCOPE_H, pointerEvents: 'auto' }}>
+            <MobileScope />
+          </div>
+
+          {/* Telemetry overlays */}
+          <ScopeTelemetry sl={SCOPE_L} st={SCOPE_T} sw={SCOPE_W} sh={SCOPE_H} />
+
+          {/* Broadcast status */}
+          <div style={{
+            position: 'absolute', left: SCOPE_L + 8, top: SCOPE_T + 8,
+            fontFamily: BODY, fontSize: 11, lineHeight: '11px', textTransform: 'uppercase',
+            color: '#000', zIndex: 3, pointerEvents: 'none',
+          }}>
+            {'> BROADCAST '}
+            <BroadcastLiveTag />
+          </div>
         </>
       }
     />

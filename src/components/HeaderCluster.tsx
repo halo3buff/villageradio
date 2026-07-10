@@ -45,7 +45,7 @@ const OVALS: [number, number, number, number][] = [
   [1192, 84, 67, 67],
 ];
 
-export function HeaderCluster() {
+export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
   return (
     <div aria-hidden="true">
       {/* Oval marks sit behind the word-marks */}
@@ -58,7 +58,7 @@ export function HeaderCluster() {
           height={h}
           style={{
             position: 'absolute',
-            left: x,
+            left: x + xOffset,
             top: y,
             width: w,
             height: h,
@@ -76,7 +76,7 @@ export function HeaderCluster() {
         height={Math.round(ANTI_VETICA.h)}
         style={{
           position: 'absolute',
-          left: ANTI_VETICA.x,
+          left: ANTI_VETICA.x + xOffset,
           top: ANTI_VETICA.y,
           width: ANTI_VETICA.w,
           height: ANTI_VETICA.h,
@@ -90,7 +90,7 @@ export function HeaderCluster() {
           key={`word-${i}`}
           style={{
             position: 'absolute',
-            left: wd.x,
+            left: wd.x + xOffset,
             top: wd.y,
             fontFamily: DISPLAY,
             fontSize: 36,
