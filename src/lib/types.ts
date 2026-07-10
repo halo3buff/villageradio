@@ -79,6 +79,17 @@ export interface NewsManifest {
   posts: NewsPost[];
 }
 
+export interface NavCommand {
+  cmd: string;    // text the user types at the prompt
+  route: string;  // Next.js route it navigates to
+  label: string;  // friendly name shown in the README block
+}
+
+export interface CommandsManifest {
+  version: 1;
+  commands: NavCommand[];
+}
+
 // --- Transmissions moderation (private GCS; state encoded by object prefix, no manifest) ----
 
 export type TransmissionState = 'new' | 'kept' | 'trash';

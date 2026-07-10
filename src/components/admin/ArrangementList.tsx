@@ -120,14 +120,14 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
     <div>
       {/* Header */}
       <div className="flex items-baseline gap-4 mb-1">
-        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80">
+        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/80">
           broadcast — arrangement
         </h1>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/25">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/25">
           {entries.length} entries · {formatDuration(totalSec)}
         </span>
       </div>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-6">
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
         play order is top → bottom · drag or use ↑↓ · changes are staged until you publish
       </p>
 
@@ -150,7 +150,7 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
       {status === 'published' && <Banner tone="ok">published — changes are live.</Banner>}
 
       {/* List */}
-      <ul className="border-t border-white/10">
+      <ul className="border-t border-black/10">
         {entries.map((entry, i) => (
           <li
             key={entry.id}
@@ -158,13 +158,13 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
             onDragStart={() => (dragIndex.current = i)}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => onDrop(i)}
-            className="border-b border-white/10"
+            className="border-b border-black/10"
           >
             <div className="flex items-center gap-3 py-2.5">
-              <span className="font-mono text-[9px] text-white/20 w-6 shrink-0 text-right">
+              <span className="font-mono text-[9px] text-black/20 w-6 shrink-0 text-right">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <span className="font-mono text-[10px] text-white/15 shrink-0 cursor-grab select-none">
+              <span className="font-mono text-[10px] text-black/15 shrink-0 cursor-grab select-none">
                 ⠿
               </span>
               <span className="shrink-0 w-3">
@@ -176,14 +176,14 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
                   />
                 )}
               </span>
-              <span className="font-mono text-[10px] text-white/80 flex-1 min-w-0 truncate">
-                {entry.title || <span className="text-white/30">untitled</span>}
-                <span className="text-white/25"> · {entry.kind}</span>
+              <span className="font-mono text-[10px] text-black/80 flex-1 min-w-0 truncate">
+                {entry.title || <span className="text-black/30">untitled</span>}
+                <span className="text-black/25"> · {entry.kind}</span>
               </span>
-              <span className="font-mono text-[9px] text-white/30 w-20 shrink-0 truncate">
+              <span className="font-mono text-[9px] text-black/30 w-20 shrink-0 truncate">
                 {entry.date}
               </span>
-              <span className="font-mono text-[9px] text-white/30 w-12 shrink-0 text-right">
+              <span className="font-mono text-[9px] text-black/30 w-12 shrink-0 text-right">
                 {formatDuration(entry.durationSec)}
               </span>
               <span className="flex items-center gap-2 shrink-0 ml-1">
@@ -223,7 +223,7 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="font-mono text-[10px] tracking-[0.16em] uppercase text-white/45 hover:text-white border border-white/15 hover:border-white/40 px-3 py-2 transition-colors"
+            className="font-mono text-[10px] tracking-[0.16em] uppercase text-black/45 hover:text-black border border-black/15 hover:border-black/40 px-3 py-2 transition-colors"
           >
             + add entry
           </button>
@@ -231,15 +231,15 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
       </div>
 
       {/* Publish bar */}
-      <div className="mt-8 flex items-center gap-4 border-t border-white/10 pt-5">
+      <div className="mt-8 flex items-center gap-4 border-t border-black/10 pt-5">
         <button
           onClick={publish}
           disabled={!dirty || status === 'publishing'}
-          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-white border border-white/20 hover:border-white/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
+          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-black border border-black/20 hover:border-black/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-black/20"
         >
           {status === 'publishing' ? 'publishing..' : 'publish'}
         </button>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/30">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/30">
           {dirty ? 'staged changes' : 'no changes'}
         </span>
       </div>
@@ -315,7 +315,7 @@ function EntryEditor({
       </label>
       <div>
         <span className={FIELD_LABEL}>file · duration</span>
-        <span className="font-mono text-[10px] text-white/40">
+        <span className="font-mono text-[10px] text-black/40">
           {entry.file} · {formatDuration(entry.durationSec)}
         </span>
       </div>
@@ -421,7 +421,7 @@ function AddPanel({
   }
 
   return (
-    <div className="border border-white/15 p-4">
+    <div className="border border-black/15 p-4">
       <div className="flex gap-4 mb-4">
         {(['upload', 'existing'] as AddMode[]).map((m) => (
           <button
@@ -429,7 +429,7 @@ function AddPanel({
             onClick={() => setMode(m)}
             disabled={m === 'existing' && knownFiles.length === 0}
             className={`font-mono text-[8.5px] tracking-[0.18em] uppercase transition-colors disabled:opacity-20 ${
-              mode === m ? 'text-white' : 'text-white/30 hover:text-white'
+              mode === m ? 'text-white' : 'text-black/30 hover:text-black'
             }`}
           >
             {m === 'upload' ? 'upload new audio' : 'existing file'}
@@ -457,9 +457,9 @@ function AddPanel({
               accept="audio/mpeg"
               disabled={uploading}
               onChange={(e) => e.target.files?.[0] && uploadAudio(e.target.files[0])}
-              className="block w-full font-mono text-[10px] text-white/50 file:mr-3 file:border file:border-white/20 file:bg-transparent file:px-2 file:py-1 file:font-mono file:text-[9px] file:uppercase file:tracking-[0.16em] file:text-white/70 hover:file:border-white/50"
+              className="block w-full font-mono text-[10px] text-black/50 file:mr-3 file:border file:border-black/20 file:bg-transparent file:px-2 file:py-1 file:font-mono file:text-[9px] file:uppercase file:tracking-[0.16em] file:text-black/70 hover:file:border-black/50"
             />
-            <span className="block mt-1 font-mono text-[8px] tracking-[0.14em] uppercase text-white/30">
+            <span className="block mt-1 font-mono text-[8px] tracking-[0.14em] uppercase text-black/30">
               {uploading
                 ? 'uploading + probing..'
                 : uploadError
@@ -514,17 +514,17 @@ function AddPanel({
         <button
           onClick={submit}
           disabled={!selected || uploading}
-          className="font-mono text-[9.5px] tracking-[0.16em] uppercase text-white border border-white/20 hover:border-white/60 px-3 py-2 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
+          className="font-mono text-[9.5px] tracking-[0.16em] uppercase text-black border border-black/20 hover:border-black/60 px-3 py-2 transition-colors disabled:opacity-30 disabled:hover:border-black/20"
         >
           add ▸
         </button>
         <button
           onClick={onCancel}
-          className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/30 hover:text-white transition-colors"
+          className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/30 hover:text-black transition-colors"
         >
           cancel
         </button>
-        <span className="font-mono text-[8px] tracking-[0.16em] uppercase text-white/25 ml-auto">
+        <span className="font-mono text-[8px] tracking-[0.16em] uppercase text-black/25 ml-auto">
           {selected ? formatDuration(selected.durationSec) : 'no file'}
         </span>
       </div>

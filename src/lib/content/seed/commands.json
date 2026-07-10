@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "commands": [
+    { "cmd": "'...", "route": "/listen",      "label": "listen" },
+    { "cmd": "2&#",  "route": "/news",        "label": "news" },
+    { "cmd": "ppp",  "route": "/photography", "label": "photography" },
+    { "cmd": "[[;]]","route": "/work",        "label": "work" },
+    { "cmd": "^^'",  "route": "/transmit",    "label": "transmit" }
+  ]
+}

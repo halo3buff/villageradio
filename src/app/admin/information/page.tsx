@@ -1,18 +1,16 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import type { CommandsManifest } from '@/lib/types';
 import { requireAdmin } from '@/lib/auth/guard';
-import { readText } from '@/lib/content/store';
-import { InformationEditor } from '@/components/admin/InformationEditor';
+import { readManifest } from '@/lib/content/store';
+import { SEED_COMMANDS } from '@/lib/content/seed';
+import { CommandsEditor } from '@/components/admin/CommandsEditor';
 
-// Read the LIVE document (real generation), never the 300s-cached public loader.
 export const dynamic = 'force-dynamic';
 
 export default async function AdminInformation() {
   await requireAdmin();
-  // Falls back to the bundled doc (generation '0' = "create if absent") until first publish.
-  const res = await readText('information.md');
-  const text = res?.text ?? readFileSync(join(process.cwd(), 'public', 'information', 'info_page.md'), 'utf-8');
+  const res = await readManifest<CommandsManifest>('commands.json');
+  const commands = res?.data.commands ?? SEED_COMMANDS.commands;
   const generation = res?.generation ?? '0';
 
-  return <InformationEditor initialText={text} generation={generation} />;
+  return <CommandsEditor initialCommands={commands} generation={generation} />;
 }

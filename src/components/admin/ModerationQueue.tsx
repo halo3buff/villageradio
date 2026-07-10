@@ -62,21 +62,21 @@ export function ModerationQueue({ initialItems, loadError }: Props) {
     <div>
       {/* Header */}
       <div className="flex items-baseline gap-4 mb-1">
-        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80">
+        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/80">
           transmissions — moderation queue
         </h1>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/25">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/25">
           {items.length} in queue
         </span>
       </div>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-6">
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
         play to review · keep approves (→ kept) · delete moves to trash (recoverable) · actions apply immediately
       </p>
 
       {notice && <Banner tone={notice.tone}>{notice.text}</Banner>}
 
       {items.length === 0 ? (
-        <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/20 py-8">
+        <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/20 py-8">
           no transmissions in the queue
         </p>
       ) : (
@@ -85,20 +85,20 @@ export function ModerationQueue({ initialItems, loadError }: Props) {
             const isBusy = busy?.name === t.name;
             const confirming = pendingDelete === t.name;
             return (
-              <li key={t.name} className="border-b border-white/10 py-3">
+              <li key={t.name} className="border-b border-black/10 py-3">
                 <div className="flex items-center gap-4">
-                  <span className="font-mono text-[11px] text-white/80 flex-1 min-w-0 truncate">
+                  <span className="font-mono text-[11px] text-black/80 flex-1 min-w-0 truncate">
                     {t.handle}
                   </span>
-                  <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/30 shrink-0">
+                  <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/30 shrink-0">
                     {formatWhen(t.uploadedAt)}
                   </span>
-                  <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 shrink-0 w-16 text-right">
+                  <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 shrink-0 w-16 text-right">
                     {formatSize(t.sizeBytes)}
                   </span>
                   <span className="flex items-center gap-3 shrink-0 w-44 justify-end">
                     {isBusy ? (
-                      <span className="font-mono text-[9px] tracking-[0.12em] uppercase text-white/40">
+                      <span className="font-mono text-[9px] tracking-[0.12em] uppercase text-black/40">
                         {busy?.action === 'keep' ? 'keeping..' : 'deleting..'}
                       </span>
                     ) : (

@@ -120,14 +120,14 @@ export function PhotoManager({ initialPhotos, generation: initialGen }: Props) {
     <div>
       {/* Header */}
       <div className="flex items-baseline gap-4 mb-1">
-        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80">
+        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/80">
           photography — negative series
         </h1>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/25">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/25">
           {photos.length} photos
         </span>
       </div>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-6">
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
         drag to reorder · hover a photo to edit or remove · changes are staged until you publish
       </p>
 
@@ -156,16 +156,16 @@ export function PhotoManager({ initialPhotos, generation: initialGen }: Props) {
           accept="image/jpeg,image/png,image/webp"
           disabled={uploading}
           onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])}
-          className="block w-full font-mono text-[10px] text-white/50 file:mr-3 file:border file:border-white/20 file:bg-transparent file:px-2 file:py-1 file:font-mono file:text-[9px] file:uppercase file:tracking-[0.16em] file:text-white/70 hover:file:border-white/50"
+          className="block w-full font-mono text-[10px] text-black/50 file:mr-3 file:border file:border-black/20 file:bg-transparent file:px-2 file:py-1 file:font-mono file:text-[9px] file:uppercase file:tracking-[0.16em] file:text-black/70 hover:file:border-black/50"
         />
-        <span className="block mt-1 font-mono text-[8px] tracking-[0.14em] uppercase text-white/30">
+        <span className="block mt-1 font-mono text-[8px] tracking-[0.14em] uppercase text-black/30">
           {uploading ? 'uploading..' : uploadError ? uploadError : 'uploads to R2 · appended to the end'}
         </span>
       </label>
 
       {/* Grid */}
       {photos.length === 0 ? (
-        <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/20 py-8">no photos yet</p>
+        <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/20 py-8">no photos yet</p>
       ) : (
         <div className="grid grid-cols-4 md:grid-cols-6 gap-1.5">
           {photos.map((p, i) => (
@@ -176,7 +176,7 @@ export function PhotoManager({ initialPhotos, generation: initialGen }: Props) {
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(i)}
               className={`relative aspect-square overflow-hidden border cursor-grab group ${
-                editingId === p.id ? 'border-white/60' : 'border-white/10'
+                editingId === p.id ? 'border-black/60' : 'border-black/10'
               }`}
             >
               <Image
@@ -215,9 +215,9 @@ export function PhotoManager({ initialPhotos, generation: initialGen }: Props) {
 
       {/* Editor */}
       {editing && (
-        <div className="mt-5 border border-white/15 p-4">
+        <div className="mt-5 border border-black/15 p-4">
           <div className="flex items-baseline justify-between mb-3">
-            <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/50">
+            <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/50">
               editing · {editing.key}
             </span>
             <RowBtn onClick={() => setEditingId(null)} label="done" />
@@ -255,15 +255,15 @@ export function PhotoManager({ initialPhotos, generation: initialGen }: Props) {
       )}
 
       {/* Publish bar */}
-      <div className="mt-8 flex items-center gap-4 border-t border-white/10 pt-5">
+      <div className="mt-8 flex items-center gap-4 border-t border-black/10 pt-5">
         <button
           onClick={publish}
           disabled={!dirty || status === 'publishing'}
-          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-white border border-white/20 hover:border-white/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
+          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-black border border-black/20 hover:border-black/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-black/20"
         >
           {status === 'publishing' ? 'publishing..' : 'publish'}
         </button>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/30">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/30">
           {dirty ? 'staged changes' : 'no changes'}
         </span>
       </div>

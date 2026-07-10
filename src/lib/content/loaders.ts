@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
   BroadcastManifest,
+  CommandsManifest,
   Mix,
+  NavCommand,
   NewsManifest,
   NewsPost,
   Photo,
@@ -13,11 +15,11 @@ import type {
 } from '@/lib/types';
 import { readManifest, readText } from './store';
 import { broadcastFilesFrom, manifestToMixes } from './broadcast';
-import { SEED_BROADCAST, SEED_NEWS, SEED_PHOTOS, SEED_WORK } from './seed';
+import { SEED_BROADCAST, SEED_COMMANDS, SEED_NEWS, SEED_PHOTOS, SEED_WORK } from './seed';
 
 const REVALIDATE_S = 300;
 
-type ManifestName = 'broadcast' | 'photos' | 'news' | 'work' | 'information';
+type ManifestName = 'broadcast' | 'commands' | 'photos' | 'news' | 'work' | 'information';
 const tag = (name: ManifestName) => `content:${name}`;
 
 function configured(): boolean {
@@ -49,6 +51,15 @@ export async function getBroadcast(): Promise<Mix[]> {
 export async function getBroadcastFiles(): Promise<string[]> {
   return broadcastFilesFrom(await getBroadcastManifest());
 }
+
+export const getCommands = unstable_cache(
+  async (): Promise<NavCommand[]> => {
+    const m = await loadManifest<CommandsManifest>('commands.json', SEED_COMMANDS);
+    return m.commands;
+  },
+  ['content:commands'],
+  { tags: [tag('commands')], revalidate: REVALIDATE_S },
+);
 
 export const getPhotos = unstable_cache(
   async (): Promise<Photo[]> => {

@@ -6,6 +6,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { MobileScope } from '@/components/mobile/MobileScope';
 import { BroadcastLiveTag } from '@/components/BroadcastLiveTag';
+import type { NavCommand } from '@/lib/types';
 import { grantClearance } from '@/lib/clearance';
 
 /**
@@ -43,16 +44,6 @@ const PROMPT_LEFT = 31;
 const PROMPT_TOP = 660;
 const PROMPT_H = 40;
 
-// Command-prompt navigation: the ONLY usable thing under the vectorscope.
-// Typing an exact command navigates; the commands are cited (quietly) in the
-// information page's bottom README block.
-const COMMANDS: Record<string, string> = {
-  "'..": '/listen',
-  '2&#': '/news',
-  'ppp': '/photography',
-  '[[;]]': '/work',
-  "^^'": '/transmit',
-};
 
 const LOGO_LETTERS: { t: string; x: number; y: number; rot: number; flipY: boolean }[] = [
   { t: 'E',    x: 143, y: 568, rot: 0,   flipY: false },
@@ -107,7 +98,8 @@ function useUniformScale() {
   return scale;
 }
 
-export function HomeMobile() {
+export function HomeMobile({ commands }: { commands: NavCommand[] }) {
+  const cmdMap = Object.fromEntries(commands.map(c => [c.cmd, c.route]));
   const scale = useUniformScale();
   const router = useRouter();
   const [clock, setClock] = useState(() => buildClock(new Date()));
@@ -151,7 +143,7 @@ export function HomeMobile() {
   const onCmdChange = (raw: string) => {
     if (echo) return; // input frozen while a command executes
     const value = raw.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\s+$/, '');
-    const target = COMMANDS[value];
+    const target = cmdMap[value];
     if (target) {
       setCmd(value);
       setEcho(target);

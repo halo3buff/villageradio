@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import type { NavCommand } from '@/lib/types';
 
 const SW = 402;
 const SH = 874;
@@ -12,25 +13,25 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 
 const STRIPES = 'repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px)';
 
-// Reads like an ordinary system README dumped at the end of the page — the
-// "commands" table is the homepage prompt's navigation cheat-sheet, cited
-// here and nowhere else. Deliberately not called out as anything special.
-const BOTTOM_TEXT =
+const BOTTOM_PREFIX =
   '///////////// end_signal_not_end /////////////////\n' +
   '111000111000111000111000111000111000111000111000111000110\n' +
   '0011100011100\n' +
   'contact: cloudmain2stock@gmail.com\n' +
-  'commands:\n' +
-  "  '..          listen\n" +
-  '  2&#          news\n' +
-  '  ppp          photography\n' +
-  '  [[;]]        work\n' +
-  "  ^^'          transmit\n" +
+  'commands:\n';
+
+const BOTTOM_SUFFIX =
   '99.00.88.77.66.55.44.33.22.11.00.err.null.void.0x0000000000000000\n' +
   '0000000000000000000000000000000000000000000000000000000000';
 
+function buildBottomText(commands: NavCommand[]): string {
+  const rows = commands.map(c => `  ${c.cmd.padEnd(12)} ${c.label}`).join('\n');
+  return BOTTOM_PREFIX + rows + '\n' + BOTTOM_SUFFIX;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function MobileInfo({ content }: { content: string }) {
+export function MobileInfo({ content, commands }: { content: string; commands: NavCommand[] }) {
+  const bottomText = buildBottomText(commands);
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#fff', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
@@ -76,7 +77,7 @@ export function MobileInfo({ content }: { content: string }) {
             fontFamily: MONO, fontSize: vw(8), lineHeight: dvh(10),
             color: '#000', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>
-            {BOTTOM_TEXT}
+            {bottomText}
           </div>
         </div>
 

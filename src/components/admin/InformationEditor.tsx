@@ -65,9 +65,9 @@ export function InformationEditor({ initialText, generation: initialGen }: Props
     <div>
       {/* Header */}
       <div className="flex items-baseline gap-4 mb-1">
-        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80">information — document</h1>
+        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/80">information — document</h1>
       </div>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-6">
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
         markdown · blank line between blocks · # heading · --- divider · staged until you publish
       </p>
 
@@ -101,22 +101,22 @@ export function InformationEditor({ initialText, generation: initialGen }: Props
         </div>
         <div>
           <span className={FIELD_LABEL}>preview</span>
-          <div className="border border-white/10 p-4 min-h-[24rem]">
+          <div className="border border-black/10 p-4 min-h-[24rem]">
             <EditorialBody markdown={text} />
           </div>
         </div>
       </div>
 
       {/* Publish bar */}
-      <div className="mt-8 flex items-center gap-4 border-t border-white/10 pt-5">
+      <div className="mt-8 flex items-center gap-4 border-t border-black/10 pt-5">
         <button
           onClick={publish}
           disabled={!dirty || status === 'publishing'}
-          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-white border border-white/20 hover:border-white/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
+          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-black border border-black/20 hover:border-black/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-black/20"
         >
           {status === 'publishing' ? 'publishing..' : 'publish'}
         </button>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/30">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/30">
           {dirty ? 'staged changes' : 'no changes'}
         </span>
       </div>

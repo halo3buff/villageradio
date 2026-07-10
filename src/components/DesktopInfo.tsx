@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import type { NavCommand } from '@/lib/types';
 
 const SW = 1440;
 const SH = 1024;
@@ -112,22 +113,23 @@ function build(): string {
 
 const CODE_TEXT = build();
 
-const COMMANDS_BLOCK =
+const COMMANDS_PREFIX =
   `///////////// end_signal_not_end /////////////////\n` +
   `111000111000111000111000111000111000111000111000111000110\n` +
   `0011100011100\n` +
   `contact: cloudmain2stock@gmail.com\n` +
-  `commands:\n` +
-  `  '..          listen\n` +
-  `  2&#          news\n` +
-  `  ppp          photography\n` +
-  `  [[;]]        work\n` +
-  `  ^^'          transmit\n` +
+  `commands:\n`;
+
+const COMMANDS_SUFFIX =
   `99.00.88.77.66.55.44.33.22.11.00.err.null.void.0x0000000000000000\n` +
   `0000000000000000000000000000000000000000000000000000000000`;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function DesktopInfo({ content }: { content: string }) {
+export function DesktopInfo({ content, commands }: { content: string; commands: NavCommand[] }) {
+  const commandsBlock = useMemo(
+    () => COMMANDS_PREFIX + commands.map(c => `  ${c.cmd.padEnd(12)} ${c.label}`).join('\n') + '\n' + COMMANDS_SUFFIX,
+    [commands],
+  );
   const [scale, setScale] = useState(1);
   useEffect(() => {
     const update = () => {
@@ -174,7 +176,7 @@ export function DesktopInfo({ content }: { content: string }) {
               fontFamily: MONO, fontSize: 11, lineHeight: '14px',
               color: '#000', whiteSpace: 'pre',
             }}>
-              {COMMANDS_BLOCK}
+              {commandsBlock}
             </div>
           </div>
         </div>

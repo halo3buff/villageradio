@@ -1,5 +1,6 @@
 'use client';
 
+import type { NavCommand } from '@/lib/types';
 import { useIsMobile } from '@/lib/use-is-mobile';
 import { HomeDesktop } from '@/components/HomeDesktop';
 import { HomeMobile } from '@/components/mobile/HomeMobile';
@@ -10,7 +11,7 @@ import { HomeMobile } from '@/components/mobile/HomeMobile';
  * to the desktop layout — exactly what the server rendered. On a phone it swaps to the
  * mobile composition after mount.
  */
-export function HomeShell() {
+export function HomeShell({ commands }: { commands: NavCommand[] }) {
   const isMobile = useIsMobile();
-  return isMobile ? <HomeMobile /> : <HomeDesktop />;
+  return isMobile ? <HomeMobile commands={commands} /> : <HomeDesktop />;
 }

@@ -6,7 +6,6 @@ import { AudioProvider } from '@/lib/audio-context';
 import { getBroadcast } from '@/lib/content/loaders';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
-import { NewsStrip } from '@/components/NewsStrip';
 import { SiteFrame } from '@/components/SiteFrame';
 import { ClearanceWarden } from '@/components/ClearanceWarden';
 
@@ -89,7 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AudioProvider playlist={playlist}>
           {/* Burns a gated page's clearance the moment the visitor leaves it */}
           <ClearanceWarden />
-          <SiteFrame nav={<Nav />} newsStrip={<NewsStrip />} audioPlayer={<AudioPlayer />}>
+          <SiteFrame nav={<Nav />} audioPlayer={<AudioPlayer />}>
             {children}
           </SiteFrame>
         </AudioProvider>

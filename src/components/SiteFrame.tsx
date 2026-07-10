@@ -13,12 +13,10 @@ import { usePathname } from 'next/navigation';
 const CHROMELESS = new Set(['/', '/listen', '/transmit']);
 export function SiteFrame({
   nav,
-  newsStrip,
   audioPlayer,
   children,
 }: {
   nav: React.ReactNode;
-  newsStrip: React.ReactNode;
   audioPlayer: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -33,7 +31,6 @@ export function SiteFrame({
       <>
         {nav}
         <div className="pb-[76px]">{children}</div>
-        {newsStrip}
         {audioPlayer}
       </>
     );

@@ -26,10 +26,10 @@ export function SidebarNav() {
   }
 
   return (
-    <nav className="w-44 shrink-0 border-r border-white/10 px-5 py-7 flex flex-col gap-5">
-      <div className="font-mono text-[9px] tracking-[0.28em] uppercase text-white/30">
+    <nav className="w-44 shrink-0 border-r border-black/10 px-5 py-7 flex flex-col gap-5">
+      <div className="font-mono text-[9px] tracking-[0.28em] uppercase text-black/30">
         vlg.fm
-        <span className="block mt-1 text-white/15">console</span>
+        <span className="block mt-1 text-black/15">console</span>
       </div>
 
       <div className="flex flex-col gap-2.5">
@@ -40,8 +40,8 @@ export function SidebarNav() {
               href={`/admin/${s.slug}`}
               className={`font-mono text-[10px] tracking-[0.16em] uppercase transition-colors ${
                 pathname?.startsWith(`/admin/${s.slug}`)
-                  ? 'text-white'
-                  : 'text-white/45 hover:text-white'
+                  ? 'text-black'
+                  : 'text-black/45 hover:text-black'
               }`}
             >
               {s.slug}
@@ -49,11 +49,11 @@ export function SidebarNav() {
           ) : (
             <span
               key={s.slug}
-              className="font-mono text-[10px] tracking-[0.16em] uppercase text-white/15 cursor-default"
+              className="font-mono text-[10px] tracking-[0.16em] uppercase text-black/15 cursor-default"
               title="coming in a later phase"
             >
               {s.slug}
-              <span className="ml-1.5 text-[7px] tracking-[0.2em] text-white/15">soon</span>
+              <span className="ml-1.5 text-[7px] tracking-[0.2em] text-black/15">soon</span>
             </span>
           ),
         )}
@@ -61,7 +61,7 @@ export function SidebarNav() {
 
       <button
         onClick={logout}
-        className="mt-auto self-start font-mono text-[9px] tracking-[0.2em] uppercase text-white/25 hover:text-white transition-colors"
+        className="mt-auto self-start font-mono text-[9px] tracking-[0.2em] uppercase text-black/25 hover:text-black transition-colors"
       >
         logout →
       </button>

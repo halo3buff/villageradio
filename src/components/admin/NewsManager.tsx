@@ -101,10 +101,10 @@ export function NewsManager({ initialPosts, generation: initialGen }: Props) {
     <div>
       {/* Header */}
       <div className="flex items-baseline gap-4 mb-1">
-        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80">news — editorial</h1>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/25">{posts.length} posts</span>
+        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/80">news — editorial</h1>
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/25">{posts.length} posts</span>
       </div>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-6">
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
         list order is top → bottom (newest first) · drag or use ↑↓ · drafts stay hidden on the site · staged until you publish
       </p>
 
@@ -127,9 +127,9 @@ export function NewsManager({ initialPosts, generation: initialGen }: Props) {
 
       {/* List */}
       {posts.length === 0 ? (
-        <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/20 py-4">no posts yet</p>
+        <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/20 py-4">no posts yet</p>
       ) : (
-        <ul className="border-t border-white/10">
+        <ul className="border-t border-black/10">
           {posts.map((post, i) => (
             <li
               key={post.id}
@@ -137,20 +137,20 @@ export function NewsManager({ initialPosts, generation: initialGen }: Props) {
               onDragStart={() => (dragIndex.current = i)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(i)}
-              className="border-b border-white/10"
+              className="border-b border-black/10"
             >
               <div className="flex items-center gap-3 py-2.5">
-                <span className="font-mono text-[9px] text-white/20 w-6 shrink-0 text-right">
+                <span className="font-mono text-[9px] text-black/20 w-6 shrink-0 text-right">
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                <span className="font-mono text-[10px] text-white/15 shrink-0 cursor-grab select-none">⠿</span>
-                <span className="font-mono text-[10px] text-white/80 flex-1 min-w-0 truncate">
-                  {post.title || <span className="text-white/30">untitled</span>}
-                  <span className="text-white/25"> · {post.date || 'no date'}</span>
+                <span className="font-mono text-[10px] text-black/15 shrink-0 cursor-grab select-none">⠿</span>
+                <span className="font-mono text-[10px] text-black/80 flex-1 min-w-0 truncate">
+                  {post.title || <span className="text-black/30">untitled</span>}
+                  <span className="text-black/25"> · {post.date || 'no date'}</span>
                 </span>
                 <span
                   className={`font-mono text-[9px] tracking-[0.14em] uppercase w-16 shrink-0 text-right ${
-                    post.status === 'published' ? 'text-white/30' : 'text-white/55'
+                    post.status === 'published' ? 'text-black/30' : 'text-black/55'
                   }`}
                 >
                   {post.status === 'published' ? 'live' : 'draft'}
@@ -176,22 +176,22 @@ export function NewsManager({ initialPosts, generation: initialGen }: Props) {
       <div className="mt-5">
         <button
           onClick={addPost}
-          className="font-mono text-[10px] tracking-[0.16em] uppercase text-white/45 hover:text-white border border-white/15 hover:border-white/40 px-3 py-2 transition-colors"
+          className="font-mono text-[10px] tracking-[0.16em] uppercase text-black/45 hover:text-black border border-black/15 hover:border-black/40 px-3 py-2 transition-colors"
         >
           + add post
         </button>
       </div>
 
       {/* Publish bar */}
-      <div className="mt-8 flex items-center gap-4 border-t border-white/10 pt-5">
+      <div className="mt-8 flex items-center gap-4 border-t border-black/10 pt-5">
         <button
           onClick={publish}
           disabled={!dirty || status === 'publishing'}
-          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-white border border-white/20 hover:border-white/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
+          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-black border border-black/20 hover:border-black/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-black/20"
         >
           {status === 'publishing' ? 'publishing..' : 'publish'}
         </button>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/30">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/30">
           {dirty ? 'staged changes' : 'no changes'}
         </span>
       </div>
