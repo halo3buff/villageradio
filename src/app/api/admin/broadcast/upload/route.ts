@@ -65,8 +65,9 @@ export async function POST(req: Request): Promise<Response> {
   try {
     file = await putAudio(filename, buffer, 'audio/mpeg');
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error('[admin/broadcast/upload] R2 put failed', err);
-    return NextResponse.json({ ok: false, error: 'upload_failed' }, { status: 500 });
+    return NextResponse.json({ ok: false, error: `upload_failed: ${msg}` }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, file, durationSec });
