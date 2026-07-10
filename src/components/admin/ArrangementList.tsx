@@ -357,17 +357,45 @@ function AddPanel({
     setUploadError('');
     setUpload(null);
     try {
-      const body = new FormData();
-      body.append('audio', picked);
-      body.append('filename', picked.name);
-      const res = await fetch('/api/admin/broadcast/upload', { method: 'POST', body });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok) {
-        setUploadError(json.error ?? 'upload failed');
-      } else {
-        setUpload({ file: json.file, durationSec: json.durationSec });
-        if (!title) setTitle(picked.name.replace(/\.[^.]+$/, ''));
+      // Step 1: get a presigned R2 URL (avoids Cloud Run's 32 MB body limit).
+      const presignRes = await fetch('/api/admin/broadcast/presign', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ filename: picked.name }),
+      });
+      const presignJson = await presignRes.json().catch(() => ({}));
+      if (!presignRes.ok || !presignJson.ok) {
+        setUploadError(presignJson.error ?? 'presign failed');
+        return;
       }
+
+      // Step 2: PUT the file directly to R2.
+      const putRes = await fetch(presignJson.url, {
+        method: 'PUT',
+        headers: { 'content-type': 'audio/mpeg' },
+        body: picked,
+      });
+      if (!putRes.ok) {
+        setUploadError('r2 upload failed');
+        return;
+      }
+
+      // Step 3: probe duration from the local file via the browser audio element.
+      const durationSec = await new Promise<number>((resolve, reject) => {
+        const url = URL.createObjectURL(picked);
+        const audio = new Audio(url);
+        audio.addEventListener('loadedmetadata', () => {
+          URL.revokeObjectURL(url);
+          resolve(Math.round(audio.duration));
+        });
+        audio.addEventListener('error', () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('audio decode failed'));
+        });
+      });
+
+      setUpload({ file: presignJson.key, durationSec });
+      if (!title) setTitle(picked.name.replace(/\.[^.]+$/, ''));
     } catch {
       setUploadError('network error');
     } finally {

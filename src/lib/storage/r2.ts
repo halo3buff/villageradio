@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Cloudflare R2 over its S3-compatible API. Broadcast audio lives here (free egress); the
 // public `pub-…r2.dev` URL the stream proxy reads must point at this same bucket. Reads use
@@ -58,6 +59,21 @@ async function uniqueKey(filename: string): Promise<string> {
     if (!(await exists(candidate))) return candidate;
   }
   return `${base}-${randomUUID().slice(0, 8)}${ext}`;
+}
+
+/**
+ * Generate a presigned PUT URL for a direct browser→R2 audio upload (bypasses Cloud Run's 32 MB
+ * body limit). The key is collision-checked first; the signed URL expires in 15 minutes.
+ * Returns `{ url, key }` — the client PUTs to `url`, then stages the manifest with `key`.
+ */
+export async function presignAudio(filename: string): Promise<{ url: string; key: string }> {
+  const key = await uniqueKey(filename);
+  const url = await getSignedUrl(
+    r2(),
+    new PutObjectCommand({ Bucket: bucket(), Key: key, ContentType: 'audio/mpeg' }),
+    { expiresIn: 900 },
+  );
+  return { url, key };
 }
 
 /**
