@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Photo } from '@/lib/types';
+import { photoUrl } from '@/lib/content/media';
 
 const SW = 402;
 const SH = 874;
@@ -13,7 +15,7 @@ const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.08) 3px)';
 
-const IMG = '/images/photography/IMG_3961.jpg';
+const FALLBACK_IMG = '/images/photography/negative/IMG_3961.jpg';
 const CARDS = [
   { left: 80,  top: 316 },
   { left: 130, top: 369 },
@@ -26,7 +28,10 @@ const CARDS = [
 const CARD_W = 163;
 const CARD_H = 123;
 
-export function MobilePhotography() {
+export function MobilePhotography({ photos }: { photos: Photo[] }) {
+  const imgFor = (i: number) =>
+    photos.length > 0 ? photoUrl(photos[i % photos.length]!.key) : FALLBACK_IMG;
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#fff', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
@@ -79,7 +84,7 @@ export function MobilePhotography() {
               transform: 'translate(-50%, -50%) rotate(90deg)',
             }}>
               <Image
-                src={IMG}
+                src={imgFor(i)}
                 alt=""
                 fill
                 style={{ objectFit: 'cover' }}

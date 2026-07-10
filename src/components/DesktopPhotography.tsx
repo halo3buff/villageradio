@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import type { Photo } from '@/lib/types';
+import { photoUrl } from '@/lib/content/media';
 
 const SW = 1440;
 const SH = 1024;
@@ -15,12 +17,15 @@ const SCANLINES =
 // 5 image cards in a horizontal strip at the bottom.
 // Strip: x=78, y=593, total width=1362, height=330.
 // Each card: 272×330 (landscape outer). Same rotation trick as mobile.
-const IMG = '/images/photography/IMG_3961.jpg';
+const FALLBACK_IMG = '/images/photography/negative/IMG_3961.jpg';
 const CARD_W = 272;
 const CARD_H = 330;
 const CARDS = [78, 350, 622, 894, 1166].map(left => ({ left, top: 593 }));
 
-export function DesktopPhotography() {
+export function DesktopPhotography({ photos }: { photos: Photo[] }) {
+  const imgFor = (i: number) =>
+    photos.length > 0 ? photoUrl(photos[i % photos.length]!.key) : FALLBACK_IMG;
+
   const [scale, setScale] = useState(1);
   useEffect(() => {
     const update = () => {
@@ -95,7 +100,7 @@ export function DesktopPhotography() {
               transform: 'translate(-50%, -50%) rotate(90deg)',
             }}>
               <Image
-                src={IMG}
+                src={imgFor(i)}
                 alt=""
                 fill
                 style={{ objectFit: 'cover' }}
