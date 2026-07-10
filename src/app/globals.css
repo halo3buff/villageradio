@@ -18,6 +18,7 @@
   html {
     background-color: #080808;
     overflow-x: hidden;
+    overflow-y: auto;
     overscroll-behavior: none;
     touch-action: pan-y;
   }
@@ -28,6 +29,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    overflow-y: auto;
     overscroll-behavior: none;
     touch-action: pan-y;
   }

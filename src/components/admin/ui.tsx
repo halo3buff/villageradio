@@ -27,7 +27,7 @@ export function RowBtn({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="font-mono text-[9px] tracking-[0.12em] uppercase text-black/30 hover:text-black transition-colors disabled:opacity-20 disabled:hover:text-black/30"
+      className="font-mono text-[9px] tracking-[0.12em] uppercase text-black/50 hover:text-black transition-colors disabled:opacity-20 disabled:hover:text-black/50"
     >
       {label}
     </button>
@@ -36,9 +36,9 @@ export function RowBtn({
 
 /** Shared input/select className + its tiny uppercase label. */
 export const FIELD =
-  'w-full bg-transparent border-b border-black/15 pb-1 font-mono text-[11px] text-black outline-none focus:border-black/40';
-export const FIELD_LABEL = 'block font-mono text-[8px] tracking-[0.2em] uppercase text-black/30 mb-1';
+  'w-full bg-transparent border-b border-black/25 pb-1 font-mono text-[11px] text-black outline-none focus:border-black/60';
+export const FIELD_LABEL = 'block font-mono text-[8px] tracking-[0.2em] uppercase text-black/50 mb-1';
 
 /** Multiline variant for editorial bodies / the information doc — bordered box, no rounded corners. */
 export const FIELD_AREA =
-  'w-full bg-transparent border border-black/15 p-2 font-mono text-[11px] leading-relaxed text-black outline-none focus:border-black/40 resize-y min-h-[8rem]';
+  'w-full bg-transparent border border-black/25 p-2 font-mono text-[11px] leading-relaxed text-black outline-none focus:border-black/60 resize-y min-h-[8rem]';
