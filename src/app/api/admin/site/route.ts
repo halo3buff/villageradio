@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/guard';
 import { sameOrigin } from '@/lib/http/same-origin';
 import { readManifest, writeManifest, ConflictError } from '@/lib/content/store';
@@ -56,6 +57,9 @@ export async function PUT(req: Request): Promise<Response> {
   }
 
   await publishManifest('site');
+  // The theme is read in the ROOT layout, which every route's cached HTML embeds — a tag bust
+  // alone doesn't reliably force every already-cached page to re-render. Purge the whole tree.
+  revalidatePath('/', 'layout');
 
   const after = await readManifest<SiteManifest>(FILE);
   return NextResponse.json({ ok: true, generation: after?.generation ?? body.generation });

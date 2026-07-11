@@ -44,7 +44,7 @@ export function SiteSettingsEditor({ initialTheme, generation: initialGen }: Pro
     <div>
       <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/80 mb-1">settings — site theme</h1>
       <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
-        applies site-wide (nav, player, ticker, news log) · staged until you publish
+        applies site-wide, every page · staged until you publish
       </p>
 
       {status === 'conflict' && (
