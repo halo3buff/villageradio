@@ -308,9 +308,8 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
             }}>{err.text}</div>
           )}
           <div aria-hidden style={{
-            position: 'absolute', left: 0, top: 6,
-            fontFamily: DISPLAY, fontSize: 30, lineHeight: 1, color: '#000',
-            letterSpacing: '-0.13em',
+            position: 'absolute', left: 0, top: 10,
+            fontFamily: MONO, fontSize: 13, lineHeight: '20px', color: '#000',
             whiteSpace: 'pre', pointerEvents: 'none',
           }}>
             {'> '}{cmd}
@@ -318,10 +317,10 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
               // Executing: cursor stops, the resolved path is echoed.
               <span style={{ color: RED }}>{'  ->  '}{echo}</span>
             ) : (
-              /* Plain rectangle cursor — U+2588 is missing from the IBM Plex Mono subset. */
+              /* Cursor is a plain rectangle — U+2588 is missing from the IBM Plex Mono subset. */
               <span style={{
-                display: 'inline-block', width: '0.35em', height: '0.8em', background: '#000',
-                verticalAlign: '-0.1em', animation: 'vr-blink 1s step-end infinite',
+                display: 'inline-block', width: 8, height: 14, background: '#000',
+                verticalAlign: '-2px', animation: 'vr-blink 1s step-end infinite',
               }} />
             )}
           </div>
