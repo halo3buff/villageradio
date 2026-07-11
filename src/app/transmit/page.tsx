@@ -16,7 +16,7 @@ export const metadata = {
 export default function TransmitPage() {
   return (
     <Gate path="/transmit">
-    <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: '#fff', color: '#000' }}>
+    <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: 'var(--vlg-bg, #fff)', color: 'var(--vlg-fg, #000)' }}>
       <div style={{ position: 'relative', minHeight: '100%' }}
            className="px-4 sm:px-6 pt-14 sm:pt-20 pb-8 page-enter">
         <Link href="/" style={{ position: 'absolute', top: 16, left: 16, display: 'block' }}>

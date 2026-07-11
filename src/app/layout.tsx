@@ -4,7 +4,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
 import { getBroadcast, getTheme } from '@/lib/content/loaders';
-import { isThemeName, siteCssVars } from '@/lib/theme';
+import { DEFAULT_THEME, isThemeName, siteCssVars } from '@/lib/theme';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { SiteFrame } from '@/components/SiteFrame';
@@ -77,20 +77,20 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [playlist, theme] = await Promise.all([getBroadcast(), getTheme()]);
-  const hasOverride = isThemeName(theme);
+  const [playlist, rawTheme] = await Promise.all([getBroadcast(), getTheme()]);
+  const theme = isThemeName(rawTheme) ? rawTheme : DEFAULT_THEME;
   return (
     <html
       lang="en"
-      data-theme={hasOverride ? theme : undefined}
+      data-theme={theme}
       className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${helveticaBlack.variable} ${helveticaMedium.variable}`}
     >
       <head>
         <meta name="theme-color" content="#080808" />
-        {hasOverride && <style dangerouslySetInnerHTML={{ __html: siteCssVars(theme) }} />}
+        <style dangerouslySetInnerHTML={{ __html: siteCssVars(theme) }} />
       </head>
-      <body className="bg-[var(--vlg-bg,#080808)] text-[var(--vlg-fg,#e8e4d9)] min-h-screen font-sans">
-        <ThemeProvider name={hasOverride ? theme : ''}>
+      <body className="bg-[var(--vlg-bg)] text-[var(--vlg-fg)] min-h-screen font-sans">
+        <ThemeProvider name={theme}>
           <AudioProvider playlist={playlist}>
             {/* Burns a gated page's clearance the moment the visitor leaves it */}
             <ClearanceWarden />

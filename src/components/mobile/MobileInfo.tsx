@@ -33,7 +33,7 @@ function buildBottomText(commands: NavCommand[]): string {
 export function MobileInfo({ content, commands }: { content: string; commands: NavCommand[] }) {
   const bottomText = buildBottomText(commands);
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#fff', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
@@ -71,11 +71,11 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
         {/* Bottom text block */}
         <div style={{
           position: 'absolute', left: vw(22), top: dvh(733), width: vw(354),
-          background: '#fff', paddingBottom: 4,
+          background: 'var(--vlg-bg, #fff)', paddingBottom: 4,
         }}>
           <div style={{
             fontFamily: MONO, fontSize: vw(8), lineHeight: dvh(10),
-            color: '#000', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            color: 'var(--vlg-fg, #000)', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>
             {bottomText}
           </div>

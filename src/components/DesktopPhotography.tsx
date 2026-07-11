@@ -43,7 +43,7 @@ export function DesktopPhotography({ photos }: { photos: Photo[] }) {
   }, []);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
       <div
         className="page-enter"
         style={{
@@ -64,7 +64,7 @@ export function DesktopPhotography({ photos }: { photos: Photo[] }) {
         <div style={{
           position: 'absolute', left: 449, top: 300, width: 195,
           fontFamily: BODY, fontSize: 11, lineHeight: '15px',
-          color: '#000', textTransform: 'uppercase', textAlign: 'center',
+          color: 'var(--vlg-fg, #000)', textTransform: 'uppercase', textAlign: 'center',
           whiteSpace: 'pre',
         }}>
           {[

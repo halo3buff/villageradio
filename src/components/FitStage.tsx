@@ -44,7 +44,7 @@ export function FitStage({ left, right }: { left: React.ReactNode; right: React.
         width: '100%',
         height: '100vh',
         overflow: 'hidden',
-        background: '#ffffff',
+        background: 'var(--vlg-bg, #ffffff)',
       }}
     >
       <div style={{ ...frame, left: 0, transform: `scale(${scale})`, transformOrigin: 'top left' }}>

@@ -88,17 +88,24 @@ export const THEMES: Record<string, Theme> = {
   },
 };
 
-export const THEME_NAMES = ['default', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light'];
+// Full palette set (used internally, e.g. by the news log). Admin only exposes a subset — see
+// THEME_NAMES below — the rest stay defined so re-enabling one later is a one-line change.
+export const ALL_THEME_NAMES = ['default', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light'];
+
+// Admin-selectable site-wide themes. Trimmed to 2 for now at the user's request.
+export const THEME_NAMES = ['default', 'solarized-dark'];
+
+export const DEFAULT_THEME = 'default';
 
 export const LIGHT_THEMES = new Set(['default', 'eldar', 'monocai', 'solarized-light']);
 
 export function isThemeName(name: string): boolean {
-  return Object.prototype.hasOwnProperty.call(THEMES, name);
+  return THEME_NAMES.includes(name);
 }
 
 /** CSS custom properties for the shared site chrome — a subset of Theme's tokens. */
 export function siteCssVars(name: string): string {
-  const t = THEMES[name];
-  if (!t) return '';
-  return `:root{--vlg-bg:${t.bg};--vlg-fg:${t.exp_text};--vlg-fg-dim:${t.bar_dim};--vlg-border:${t.bar_border};--vlg-accent:${t.uid_real};}`;
+  const t = THEMES[name] ?? THEMES[DEFAULT_THEME];
+  const invert = LIGHT_THEMES.has(name) ? 0 : 1;
+  return `:root{--vlg-bg:${t.bg};--vlg-fg:${t.exp_text};--vlg-fg-dim:${t.bar_dim};--vlg-border:${t.bar_border};--vlg-accent:${t.uid_real};--vlg-panel:${t.bar_bg};--vlg-invert:${invert};}`;
 }

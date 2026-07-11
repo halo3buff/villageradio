@@ -17,7 +17,7 @@ export async function GET(): Promise<Response> {
   await requireAdmin();
   const res = await readManifest<SiteManifest>(FILE);
   if (res) return NextResponse.json({ theme: res.data.theme, generation: res.generation });
-  return NextResponse.json({ theme: '', generation: '0' });
+  return NextResponse.json({ theme: 'default', generation: '0' });
 }
 
 /** Staged publish: optimistic write, then bust the public cache tag. */

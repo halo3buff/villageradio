@@ -193,7 +193,7 @@ export function MobileScope() {
   return (
     <div onClick={onTap} style={{
       position: 'absolute', inset: 0, background: 'transparent',
-      border: '1px solid #000', boxSizing: 'border-box', cursor: 'pointer',
+      border: '1px solid var(--vlg-fg, #000)', boxSizing: 'border-box', cursor: 'pointer',
     }}>
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
 
@@ -201,7 +201,7 @@ export function MobileScope() {
       {rx !== null && (
         <span aria-hidden style={{
           position: 'absolute', right: 8, bottom: 6, pointerEvents: 'none',
-          fontFamily: MONO, fontSize: 7, lineHeight: 1, color: '#555',
+          fontFamily: MONO, fontSize: 7, lineHeight: 1, color: 'var(--vlg-fg-dim, #555)',
           fontVariantNumeric: 'tabular-nums',
         }}>
           RX: {rx}
@@ -221,12 +221,12 @@ export function MobileScope() {
       <span style={{ position: 'absolute', left: 8, bottom: 6, pointerEvents: 'none', lineHeight: 1 }}>
         {isBroadcasting ? (
           <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden>
-            <rect x="0" y="0" width="3" height="12" fill="#000" />
-            <rect x="6" y="0" width="3" height="12" fill="#000" />
+            <rect x="0" y="0" width="3" height="12" fill="var(--vlg-fg, #000)" />
+            <rect x="6" y="0" width="3" height="12" fill="var(--vlg-fg, #000)" />
           </svg>
         ) : (
           <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden>
-            <polygon points="0,0 0,12 9,6" fill="#000" />
+            <polygon points="0,0 0,12 9,6" fill="var(--vlg-fg, #000)" />
           </svg>
         )}
       </span>

@@ -18,5 +18,5 @@ export const SEED_COMMANDS = commands as unknown as CommandsManifest;
 export const SEED_NEWS = news as unknown as NewsManifest;
 export const SEED_PHOTOS = photos as unknown as PhotosManifest;
 export const SEED_WORK = work as unknown as WorkManifest;
-// No JSON file — trivial default, no override until an admin saves one in Settings.
-export const SEED_SITE: SiteManifest = { theme: '' };
+// No JSON file — trivial default.
+export const SEED_SITE: SiteManifest = { theme: 'default' };

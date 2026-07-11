@@ -17,19 +17,19 @@ export function MixList({ mixes }: { mixes: Mix[] }) {
           >
             <span
               className="font-mono text-[10px] shrink-0 w-24 tracking-wider"
-              style={{ color: 'rgba(200,196,187,0.35)' }}
+              style={{ color: 'var(--vlg-fg-dim, rgba(200,196,187,0.35))' }}
             >
               {mix.date}
             </span>
             <span
-              className="text-xs flex-1 transition-colors duration-150 group-hover:text-[#e8e4d9]"
-              style={{ color: isActive && isPlaying ? 'var(--color-vr-signal)' : 'rgba(200,196,187,0.8)' }}
+              className="text-xs flex-1 transition-colors duration-150 group-hover:text-[var(--vlg-fg,#e8e4d9)]"
+              style={{ color: isActive && isPlaying ? 'var(--color-vr-signal)' : 'var(--vlg-fg-dim, rgba(200,196,187,0.8))' }}
             >
               {mix.title}
             </span>
             <span
               className="font-mono text-[10px] shrink-0 tracking-wider"
-              style={{ color: 'rgba(200,196,187,0.35)' }}
+              style={{ color: 'var(--vlg-fg-dim, rgba(200,196,187,0.35))' }}
             >
               {mix.duration}
             </span>

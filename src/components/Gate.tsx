@@ -42,14 +42,14 @@ export function Gate({ path, children }: { path: string; children: React.ReactNo
     <div
       onClick={() => router.push('/')}
       style={{
-        position: 'fixed', inset: 0, zIndex: 2000, background: '#fff',
-        cursor: 'pointer', fontFamily: MONO, color: '#000',
+        position: 'fixed', inset: 0, zIndex: 2000, background: 'var(--vlg-bg, #fff)',
+        cursor: 'pointer', fontFamily: MONO, color: 'var(--vlg-fg, #000)',
       }}
     >
       <div style={{ position: 'absolute', left: 24, top: '38%', fontSize: 12, lineHeight: '20px', whiteSpace: 'pre' }}>
         {`SIG_LOCKED 0x${lockCode(path)}\nCLEARANCE REQUIRED\n\n> `}
         <span style={{
-          display: 'inline-block', width: 8, height: 13, background: '#000',
+          display: 'inline-block', width: 8, height: 13, background: 'var(--vlg-fg, #000)',
           verticalAlign: '-2px', animation: 'vr-blink 1s step-end infinite',
         }} />
       </div>

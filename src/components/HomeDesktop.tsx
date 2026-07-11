@@ -83,7 +83,7 @@ export function HomeDesktop() {
               position: 'absolute', left: 20, top: 890,
               pointerEvents: 'auto', cursor: 'text',
               fontFamily: MONO, fontSize: 16, lineHeight: 1,
-              letterSpacing: '0.04em', color: '#000',
+              letterSpacing: '0.04em', color: 'var(--vlg-fg, #000)',
               whiteSpace: 'nowrap', userSelect: 'none',
             }}
             onClick={() => inputRef.current?.focus()}
@@ -103,7 +103,7 @@ export function HomeDesktop() {
                 <span style={{
                   display: 'inline-block',
                   width: '0.55em', height: '0.9em',
-                  background: '#000', verticalAlign: '-0.1em',
+                  background: 'var(--vlg-fg, #000)', verticalAlign: '-0.1em',
                   animation: 'vr-blink 1s step-end infinite',
                 }} />
               </>
@@ -132,7 +132,7 @@ export function HomeDesktop() {
             style={{
               position: 'absolute', right: 35, top: 35,
               fontFamily: SEGOE, fontSize: 11, lineHeight: '11px',
-              color: '#000', textDecoration: 'none', pointerEvents: 'auto',
+              color: 'var(--vlg-fg, #000)', textDecoration: 'none', pointerEvents: 'auto',
             }}
           >
             README
@@ -150,7 +150,7 @@ export function HomeDesktop() {
           <div style={{
             position: 'absolute', left: SCOPE_L + 8, top: SCOPE_T + 8,
             fontFamily: BODY, fontSize: 11, lineHeight: '11px', textTransform: 'uppercase',
-            color: '#000', zIndex: 3, pointerEvents: 'none',
+            color: 'var(--vlg-fg, #000)', zIndex: 3, pointerEvents: 'none',
           }}>
             {'> BROADCAST '}
             <BroadcastLiveTag />

@@ -33,7 +33,7 @@ export function MobilePhotography({ photos }: { photos: Photo[] }) {
     photos.length > 0 ? photoUrl(photos[i % photos.length]!.key) : FALLBACK_IMG;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#fff', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
@@ -49,7 +49,7 @@ export function MobilePhotography({ photos }: { photos: Photo[] }) {
         <div style={{
           position: 'absolute', left: vw(70), top: dvh(130), width: vw(262),
           fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(15),
-          color: '#000', textTransform: 'uppercase', textAlign: 'center',
+          color: 'var(--vlg-fg, #000)', textTransform: 'uppercase', textAlign: 'center',
           whiteSpace: 'pre',
         }}>
           {[

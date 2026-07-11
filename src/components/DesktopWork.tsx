@@ -85,10 +85,10 @@ export function DesktopWork() {
     state === 'error'   ? 'ERROR — try again' :
     state === 'granted' ? 'ACCESS GRANTED' : '';
 
-  const statusColor = (state === 'wrong' || state === 'blocked' || state === 'error') ? '#f00' : '#000';
+  const statusColor = (state === 'wrong' || state === 'blocked' || state === 'error') ? '#f00' : 'var(--vlg-fg, #000)';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
       <div
         className="page-enter"
         style={{
@@ -122,7 +122,7 @@ export function DesktopWork() {
         {/* "enter password" label — Figma: x=599, y=440 */}
         <div style={{
           position: 'absolute', left: 599, top: 440,
-          fontFamily: BODY, fontSize: 15, color: '#000',
+          fontFamily: BODY, fontSize: 15, color: 'var(--vlg-fg, #000)',
         }}>
           enter password
         </div>
@@ -149,16 +149,16 @@ export function DesktopWork() {
           onClick={() => inputRef.current?.focus()}
           style={{
             position: 'absolute', left: 599, top: 457, width: 243, height: 28,
-            background: '#fff', border: '1px solid #000', boxSizing: 'border-box',
+            background: 'var(--vlg-bg, #fff)', border: '1px solid #000', boxSizing: 'border-box',
             display: 'flex', alignItems: 'center', paddingLeft: 8, cursor: 'text',
-            fontFamily: BODY, fontSize: 14, color: '#000',
+            fontFamily: BODY, fontSize: 14, color: 'var(--vlg-fg, #000)',
             opacity: disabled ? 0.4 : 1,
           }}
         >
           {'•'.repeat(inputValue.length)}
           {focused && !disabled && (
             <span style={{
-              display: 'inline-block', width: 1, height: 14, background: '#000',
+              display: 'inline-block', width: 1, height: 14, background: 'var(--vlg-fg, #000)',
               marginLeft: inputValue.length ? 1 : 0,
               animation: 'vr-blink 1s step-end infinite',
             }} />

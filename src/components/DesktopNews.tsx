@@ -58,7 +58,7 @@ export function DesktopNews({ posts }: { posts: NewsPost[] }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
       <div className="page-enter">
 
         {/* Left panel — log entries */}
@@ -67,9 +67,9 @@ export function DesktopNews({ posts }: { posts: NewsPost[] }) {
 
             {/* Header */}
             <div style={{
-              fontFamily: MONO, fontSize: 11, color: '#999',
+              fontFamily: MONO, fontSize: 11, color: 'var(--vlg-fg-dim, #999)',
               letterSpacing: '0.08em', marginBottom: 18,
-              borderBottom: '1px solid #e8e8e8', paddingBottom: 12,
+              borderBottom: '1px solid var(--vlg-border, #e8e8e8)', paddingBottom: 12,
             }}>
               {'// TRANSMISSION_LOG — VLG.FM'}
             </div>
@@ -80,7 +80,7 @@ export function DesktopNews({ posts }: { posts: NewsPost[] }) {
               pointerEvents: 'auto',
             }}>
               {posts.length === 0 ? (
-                <div style={{ fontFamily: MONO, fontSize: 11, color: '#bbb', letterSpacing: '0.06em' }}>
+                <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--vlg-fg-dim, #bbb)', letterSpacing: '0.06em' }}>
                   NO_RECORDS_FOUND · 0x0000
                 </div>
               ) : posts.map((post, idx) => (
@@ -88,7 +88,7 @@ export function DesktopNews({ posts }: { posts: NewsPost[] }) {
 
                   {/* Record stamp */}
                   <div style={{
-                    fontFamily: MONO, fontSize: 10, color: '#bbb',
+                    fontFamily: MONO, fontSize: 10, color: 'var(--vlg-fg-dim, #bbb)',
                     letterSpacing: '0.05em', marginBottom: 5,
                   }}>
                     {post.date ? `${post.date}T00:00:00Z` : 'YYYY-MM-DDT00:00:00Z'}
@@ -98,18 +98,18 @@ export function DesktopNews({ posts }: { posts: NewsPost[] }) {
 
                   {/* Title */}
                   <div style={{
-                    fontFamily: MONO, fontSize: 13, color: '#000',
+                    fontFamily: MONO, fontSize: 13, color: 'var(--vlg-fg, #000)',
                     letterSpacing: '0.04em', marginBottom: 8,
                   }}>
                     {'* '}{post.title.toUpperCase()}
                   </div>
 
                   {/* Rule */}
-                  <div style={{ borderTop: '1px solid #e0e0e0', marginBottom: 10 }} />
+                  <div style={{ borderTop: '1px solid var(--vlg-border, #e0e0e0)', marginBottom: 10 }} />
 
                   {/* Body */}
                   <div style={{
-                    fontFamily: MONO, fontSize: 11, color: '#444',
+                    fontFamily: MONO, fontSize: 11, color: 'var(--vlg-fg-dim, #444)',
                     lineHeight: '18px', letterSpacing: '0.02em',
                   }}>
                     {bodyParagraphs(post.body).map((para, i) => (
@@ -122,8 +122,8 @@ export function DesktopNews({ posts }: { posts: NewsPost[] }) {
 
               {/* Footer strip */}
               <div style={{
-                marginTop: 8, borderTop: '1px solid #e8e8e8', paddingTop: 12,
-                fontFamily: MONO, fontSize: 9, color: '#ccc',
+                marginTop: 8, borderTop: '1px solid var(--vlg-border, #e8e8e8)', paddingTop: 12,
+                fontFamily: MONO, fontSize: 9, color: 'var(--vlg-fg-dim, #ccc)',
                 letterSpacing: '0.06em', lineHeight: '16px', whiteSpace: 'pre',
               }}>
                 {'VLG/FM — VILLAGE RADIO\nSIGNAL ARCHIVE — ACTIVE\ncloudmain2stock@gmail.com'}

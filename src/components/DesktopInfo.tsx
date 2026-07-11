@@ -223,7 +223,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
   };
 
   return (
-    <div className="page-enter" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
+    <div className="page-enter" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
 
       {/* Left panel — code block, pinned to left viewport edge */}
       <div style={{ ...frame, left: 0, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
@@ -233,7 +233,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
         }}>
           <div style={{
             fontFamily: MONO, fontSize: 11, lineHeight: '14px',
-            color: '#000', whiteSpace: 'pre',
+            color: 'var(--vlg-fg, #000)', whiteSpace: 'pre',
           }}>
             {`MAIN:/vlg/stn/broadcast > signal_check --verbose --all 2>&1\n`}
             {`SESSION: ${x4(1, 0)}   RX_UTC: ${utc}   PATH: ALT-01   PKT_LOSS: 0.00%   BIT_ERR: 0\n`}
@@ -249,11 +249,11 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
           {/* Command instructions — white-backed, pinned to bottom */}
           <div style={{
             position: 'absolute', left: 0, bottom: 0, width: SW,
-            background: '#fff', paddingTop: 80, paddingBottom: 8,
+            background: 'var(--vlg-bg, #fff)', paddingTop: 80, paddingBottom: 8,
           }}>
             <div style={{
               fontFamily: MONO, fontSize: 11, lineHeight: '14px',
-              color: '#000', whiteSpace: 'pre',
+              color: 'var(--vlg-fg, #000)', whiteSpace: 'pre',
             }}>
               {COMMANDS_PREFIX}
               {commands.map((c, i) => (
@@ -265,7 +265,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
               {'\n\n' + ZEROS_LINE + '\n'}
               {`MAIN:/vlg/stn/broadcast > ${ghost}`}
               <span style={{
-                display: 'inline-block', width: 7, height: 12, background: '#000', verticalAlign: -2,
+                display: 'inline-block', width: 7, height: 12, background: 'var(--vlg-fg, #000)', verticalAlign: -2,
                 animation: typing ? 'none' : 'vr-blink 1s steps(1) infinite',
               }} />
             </div>
@@ -287,7 +287,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
         }}>
           <span className="vr-ticker" style={{
             display: 'inline-block', whiteSpace: 'pre', paddingLeft: '100%',
-            fontFamily: MONO, fontSize: 11, lineHeight: '14px', color: '#000',
+            fontFamily: MONO, fontSize: 11, lineHeight: '14px', color: 'var(--vlg-fg, #000)',
           }}>
             {TICKER_LINE}
           </span>
@@ -309,7 +309,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
         {/* Email — centered under tree */}
         <div style={{
           position: 'absolute', right: 0, top: 252, width: 240,
-          textAlign: 'center', fontFamily: MONO, fontSize: 11, color: '#000',
+          textAlign: 'center', fontFamily: MONO, fontSize: 11, color: 'var(--vlg-fg, #000)',
         }}>
           cloudmain2stock@gmail.com
         </div>

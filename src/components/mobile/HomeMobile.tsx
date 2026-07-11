@@ -191,8 +191,8 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
     const html = document.documentElement, body = document.body;
     const prevHtml = html.style.backgroundColor, prevBody = body.style.backgroundColor;
     const prevMinH = body.style.minHeight;
-    html.style.backgroundColor = '#fff';
-    body.style.backgroundColor = '#fff';
+    html.style.backgroundColor = 'var(--vlg-bg, #fff)';
+    body.style.backgroundColor = 'var(--vlg-bg, #fff)';
     body.style.minHeight = '0';
     return () => {
       html.style.backgroundColor = prevHtml;
@@ -207,7 +207,7 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
       // (e.g. canvas 698.4px in a 698px round) — without it, browsers can show
       // a scrollbar for <1px of internal overflow. If the main element itself
       // is taller than a small viewport, the DOCUMENT still scrolls normally.
-      position: 'relative', minHeight: '100dvh', overflow: 'hidden', background: '#fff',
+      position: 'relative', minHeight: '100dvh', overflow: 'hidden', background: 'var(--vlg-bg, #fff)',
       // Reserve the true scaled height so the page ends exactly at the canvas bottom
       height: scale === null ? SH : SH * scale,
       // Slide up while the keyboard covers the command prompt
@@ -225,7 +225,7 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
         <Link href="/information" style={{
           position: 'absolute', left: 315, top: 28,
           fontFamily: MONO, fontSize: 11, lineHeight: '12px',
-          color: '#000', textDecoration: 'none',
+          color: 'var(--vlg-fg, #000)', textDecoration: 'none',
         }}>README</Link>
 
         {/* Chromeless vectorscope — perfect square, every side equal */}
@@ -237,7 +237,7 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
         <div style={{
           position: 'absolute', left: 24, top: 79, width: 320,
           fontFamily: BODY, fontSize: 11, lineHeight: '13px', textTransform: 'uppercase',
-          color: '#000', zIndex: 3, pointerEvents: 'none',
+          color: 'var(--vlg-fg, #000)', zIndex: 3, pointerEvents: 'none',
         }}>
           {'> BROADCAST '}
           <BroadcastLiveTag />
@@ -249,8 +249,8 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
           textAlign: 'right', zIndex: 3, pointerEvents: 'none',
         }}>
           <div style={{ fontFamily: MONO, fontSize: 7, lineHeight: '12px', fontVariantNumeric: 'tabular-nums' }}>
-            <div style={{ color: '#000' }}>{clock.utc}</div>
-            <div style={{ color: '#555' }}>{clock.mil}</div>
+            <div style={{ color: 'var(--vlg-fg, #000)' }}>{clock.utc}</div>
+            <div style={{ color: 'var(--vlg-fg-dim, #555)' }}>{clock.mil}</div>
             <div style={{ color: RED, fontSize: 6 }}>{clock.bc}</div>
           </div>
         </div>
@@ -262,7 +262,7 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
         }}>
           <div className="ticker" style={{
             fontFamily: MONO, fontSize: 6, lineHeight: '10px', letterSpacing: '0.04em',
-            color: '#555', whiteSpace: 'nowrap',
+            color: 'var(--vlg-fg-dim, #555)', whiteSpace: 'nowrap',
           }}>
             {ticker}&nbsp;&nbsp;&nbsp;&nbsp;{ticker}
           </div>
@@ -283,7 +283,7 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
           <span key={`lt-${i}`} aria-hidden style={{
             position: 'absolute', left: l.x + CLUSTER_DX, top: l.y + CLUSTER_DY,
             fontFamily: DISPLAY, fontSize: 34,
-            lineHeight: 1, color: '#000', zIndex: 4, whiteSpace: 'nowrap',
+            lineHeight: 1, color: 'var(--vlg-fg, #000)', zIndex: 4, whiteSpace: 'nowrap',
             transform: `rotate(${l.rot}deg) scaleY(${l.flipY ? -1 : 1})`, transformOrigin: 'center',
           }}>{l.t}</span>
         ))}
@@ -303,13 +303,13 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
           {err && (
             <div key={err.key} aria-hidden style={{
               position: 'absolute', left: 0, top: -8,
-              fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: '#000',
+              fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: 'var(--vlg-fg, #000)',
               whiteSpace: 'pre', pointerEvents: 'none',
             }}>{err.text}</div>
           )}
           <div aria-hidden style={{
             position: 'absolute', left: 0, top: 10,
-            fontFamily: MONO, fontSize: 13, lineHeight: '20px', color: '#000',
+            fontFamily: MONO, fontSize: 13, lineHeight: '20px', color: 'var(--vlg-fg, #000)',
             whiteSpace: 'pre', pointerEvents: 'none',
           }}>
             {'> '}{cmd}
@@ -319,7 +319,7 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
             ) : (
               /* Cursor is a plain rectangle — U+2588 is missing from the IBM Plex Mono subset. */
               <span style={{
-                display: 'inline-block', width: 8, height: 14, background: '#000',
+                display: 'inline-block', width: 8, height: 14, background: 'var(--vlg-fg, #000)',
                 verticalAlign: '-2px', animation: 'vr-blink 1s step-end infinite',
               }} />
             )}

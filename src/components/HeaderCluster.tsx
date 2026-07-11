@@ -98,7 +98,7 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
             letterSpacing: '-0.04em',
             width: wd.w,
             whiteSpace: wd.w ? 'normal' : 'nowrap',
-            color: '#000000',
+            color: 'var(--vlg-fg, #000000)',
             zIndex: 2,
             transform: `${wd.rotate ? `rotate(${wd.rotate}deg) ` : ''}scale(${wd.flipX ? -1 : 1}, ${wd.flipY ? -1 : 1})`,
             transformOrigin: wd.origin ?? 'center center',
