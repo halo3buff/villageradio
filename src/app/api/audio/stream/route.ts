@@ -22,7 +22,13 @@ export async function GET(request: NextRequest) {
   const range = request.headers.get('Range');
   if (range) fetchHeaders['Range'] = range;
 
-  const upstream = await fetch(`${R2_PUBLIC_BASE}/${file}`, { headers: fetchHeaders });
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${R2_PUBLIC_BASE}/${file}`, { headers: fetchHeaders });
+  } catch (err) {
+    console.error(`[audio-stream] upstream fetch failed for ${file}`, err);
+    return new Response('Upstream error', { status: 502 });
+  }
   if (!upstream.ok) return new Response('Upstream error', { status: upstream.status });
 
   const resHeaders = new Headers();

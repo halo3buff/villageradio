@@ -254,7 +254,9 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
       broadcastIdxRef.current = nextIdx;
       setBroadcastIndex(nextIdx);
       setCurrentTrack(next);
-      audio.src = next.src;
+      // #t=0 forces a ranged first request (matches tuneIntoBroadcast) — a plain
+      // src assignment sends a full-file GET, which the stream proxy can choke on.
+      audio.src = `${next.src}#t=0`;
       audio.play().catch(() => setIsPlaying(false));
     };
   }
