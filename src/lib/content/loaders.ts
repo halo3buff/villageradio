@@ -10,16 +10,17 @@ import type {
   NewsPost,
   Photo,
   PhotosManifest,
+  SiteManifest,
   WorkManifest,
   WorkProject,
 } from '@/lib/types';
 import { readManifest, readText } from './store';
 import { broadcastFilesFrom, manifestToMixes } from './broadcast';
-import { SEED_BROADCAST, SEED_COMMANDS, SEED_NEWS, SEED_PHOTOS, SEED_WORK } from './seed';
+import { SEED_BROADCAST, SEED_COMMANDS, SEED_NEWS, SEED_PHOTOS, SEED_SITE, SEED_WORK } from './seed';
 
 const REVALIDATE_S = 300;
 
-type ManifestName = 'broadcast' | 'commands' | 'photos' | 'news' | 'work' | 'information';
+type ManifestName = 'broadcast' | 'commands' | 'photos' | 'news' | 'work' | 'information' | 'site';
 const tag = (name: ManifestName) => `content:${name}`;
 
 function configured(): boolean {
@@ -100,6 +101,17 @@ export const getInformation = unstable_cache(
   ['content:information'],
   { tags: [tag('information')], revalidate: REVALIDATE_S },
 );
+
+export const getSiteManifest = unstable_cache(
+  () => loadManifest<SiteManifest>('site.json', SEED_SITE),
+  ['content:site'],
+  { tags: [tag('site')], revalidate: REVALIDATE_S },
+);
+
+/** Site-wide theme name, or '' if no admin override is set. */
+export async function getTheme(): Promise<string> {
+  return (await getSiteManifest()).theme;
+}
 
 /** Phase 2+ admin will call this after a write to push changes live immediately. */
 export async function publishManifest(name: ManifestName): Promise<void> {

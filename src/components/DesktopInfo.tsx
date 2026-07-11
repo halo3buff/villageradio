@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import type { NavCommand } from '@/lib/types';
 
 const SW = 1440;
@@ -13,9 +13,10 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 // ---------------------------------------------------------------------------
 // Content generator — deterministic, varied line lengths, section rhythm
 // ---------------------------------------------------------------------------
+const h = (a: number, b: number) => Math.abs(Math.sin(a * 997.31 + b * 43.71)) * 0xffff;
+const x4 = (a: number, b: number) => `0x${Math.floor(h(a, b)).toString(16).padStart(4, '0').toUpperCase()}`;
+
 function build(): string {
-  const h = (a: number, b: number) => Math.abs(Math.sin(a * 997.31 + b * 43.71)) * 0xffff;
-  const x4 = (a: number, b: number) => `0x${Math.floor(h(a, b)).toString(16).padStart(4, '0').toUpperCase()}`;
   const x2 = (a: number, b: number) => `0x${Math.floor(h(a, b) % 256).toString(16).padStart(2, '0').toUpperCase()}`;
   const b8 = (a: number, b: number) => Array.from({ length: 8 }, (_, j) => Math.floor(h(a * 7 + b, j)) % 2).join('');
   const flt = (a: number, b: number, lo: number, range: number) => (h(a, b) % range + lo).toFixed(1);
@@ -26,17 +27,7 @@ function build(): string {
   const L: string[] = [];
   const push = (...args: string[]) => args.forEach(a => L.push(a));
 
-  // — opening header —
-  push(
-    `MAIN:/vlg/stn/broadcast > signal_check --verbose --all 2>&1`,
-    `SESSION: ${x4(1,0)}   RX_UTC: 00:00:00Z   PATH: ALT-01   PKT_LOSS: 0.00%   BIT_ERR: 0`,
-    `TX: ON   FREQ: 99.00MHz   SNR: 40.2dB   LEVEL: -14.1dBfs   STATUS: OK`,
-    `AUDIO: MPEG4-AAC / 44100Hz / 128kbps   VIDEO: H.264 / 1080p50   SRC: AL-HADATH-LIVE`,
-    `BROADCAST_INIT... OK   FRAME_COUNT: 000001   BUFFER: 2048ms   CRC: ${x4(2,0)} ${x4(2,1)}`,
-    ``,
-  );
-
-  // — body sections —
+  // — body sections — (header is rendered live in JSX, see DesktopInfo)
   let s = 10;
   for (let section = 0; section < 22; section++) {
     s++;
@@ -117,20 +108,100 @@ const COMMANDS_PREFIX =
   `///////////// end_signal_not_end /////////////////\n` +
   `111000111000111000111000111000111000111000111000111000110\n` +
   `0011100011100\n` +
+  `\n` +
   `contact: cloudmain2stock@gmail.com\n` +
-  `commands:\n`;
+  `\n` +
+  `commands:`;
 
-const COMMANDS_SUFFIX =
-  `99.00.88.77.66.55.44.33.22.11.00.err.null.void.0x0000000000000000\n` +
-  `0000000000000000000000000000000000000000000000000000000000`;
+const TICKER_LINE = `99.00.88.77.66.55.44.33.22.11.00.err.null.void.0x0000000000000000`;
+const ZEROS_LINE = `0000000000000000000000000000000000000000000000000000000000`;
+
+const GHOST_FRAGMENTS = ['¿¿¿', '0.0', '//void', ':::', '><>', '~/root', '...?'];
+
+const reducedMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function DesktopInfo({ content, commands }: { content: string; commands: NavCommand[] }) {
-  const commandsBlock = useMemo(
-    () => COMMANDS_PREFIX + commands.map(c => `  ${c.cmd.padEnd(12)} ${c.label}`).join('\n') + '\n' + COMMANDS_SUFFIX,
-    [commands],
-  );
   const [scale, setScale] = useState(1);
+
+  // — live UTC clock —
+  const [utc, setUtc] = useState('00:00:00Z');
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      const p = (n: number) => String(n).padStart(2, '0');
+      setUtc(`${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}Z`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // — rare connection-state whisper: STATUS briefly dims to a transit state —
+  const [status, setStatus] = useState({ text: 'OK', dim: false });
+  useEffect(() => {
+    if (reducedMotion()) return;
+    const ids: ReturnType<typeof setTimeout>[] = [];
+    const cycle = () => {
+      setStatus({ text: Math.random() < 0.5 ? 'NEGOTIATING' : 'RE-SYNC', dim: true });
+      ids.push(setTimeout(() => setStatus({ text: 'OK', dim: false }), 900 + Math.random() * 500));
+      ids.push(setTimeout(cycle, 28000 + Math.random() * 20000));
+    };
+    ids.push(setTimeout(cycle, 18000 + Math.random() * 12000));
+    return () => ids.forEach(clearTimeout);
+  }, []);
+
+  // — autonomous ghost-typing at the prompt —
+  const [ghost, setGhost] = useState('');
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    if (reducedMotion()) return;
+    let id: ReturnType<typeof setTimeout>;
+    const schedule = () => { id = setTimeout(start, 14000 + Math.random() * 16000); };
+    const start = () => {
+      const frag = GHOST_FRAGMENTS[Math.floor(Math.random() * GHOST_FRAGMENTS.length)];
+      setTyping(true);
+      let i = 0;
+      const type = () => {
+        if (i <= frag.length) {
+          setGhost(frag.slice(0, i));
+          i++;
+          id = setTimeout(type, 85 + Math.random() * 60);
+        } else {
+          i = frag.length;
+          id = setTimeout(erase, 900 + Math.random() * 600);
+        }
+      };
+      const erase = () => {
+        i--;
+        if (i >= 0) {
+          setGhost(frag.slice(0, i));
+          id = setTimeout(erase, 40 + Math.random() * 30);
+        } else {
+          setTyping(false);
+          schedule();
+        }
+      };
+      type();
+    };
+    schedule();
+    return () => clearTimeout(id);
+  }, []);
+
+  // — a command occasionally loses availability —
+  const [fading, setFading] = useState(-1);
+  useEffect(() => {
+    const ids: ReturnType<typeof setTimeout>[] = [];
+    const cycle = () => {
+      setFading(Math.floor(Math.random() * commands.length));
+      ids.push(setTimeout(() => setFading(-1), 1400 + Math.random() * 800));
+      ids.push(setTimeout(cycle, reducedMotion() ? 40000 : 22000 + Math.random() * 18000));
+    };
+    ids.push(setTimeout(cycle, 20000 + Math.random() * 10000));
+    return () => ids.forEach(clearTimeout);
+  }, [commands.length]);
+
   useEffect(() => {
     const update = () => {
       const vh = window.visualViewport?.height ?? window.innerHeight;
@@ -164,21 +235,62 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
             fontFamily: MONO, fontSize: 11, lineHeight: '14px',
             color: '#000', whiteSpace: 'pre',
           }}>
+            {`MAIN:/vlg/stn/broadcast > signal_check --verbose --all 2>&1\n`}
+            {`SESSION: ${x4(1, 0)}   RX_UTC: ${utc}   PATH: ALT-01   PKT_LOSS: 0.00%   BIT_ERR: 0\n`}
+            {`TX: ON   FREQ: 99.00MHz   SNR: 40.2dB   LEVEL: -14.1dBfs   STATUS: `}
+            <span style={{ opacity: status.dim ? 0.45 : 1, transition: 'opacity .5s ease' }}>{status.text}</span>
+            {`\n`}
+            {`AUDIO: MPEG4-AAC / 44100Hz / 128kbps   VIDEO: H.264 / 1080p50   SRC: AL-HADATH-LIVE\n`}
+            {`BROADCAST_INIT... OK   FRAME_COUNT: 000001   BUFFER: 2048ms   CRC: ${x4(2, 0)} ${x4(2, 1)}\n`}
+            {`\n`}
             {CODE_TEXT}
           </div>
 
           {/* Command instructions — white-backed, pinned to bottom */}
           <div style={{
             position: 'absolute', left: 0, bottom: 0, width: SW,
-            background: '#fff', paddingTop: 10, paddingBottom: 8,
+            background: '#fff', paddingTop: 80, paddingBottom: 8,
           }}>
             <div style={{
               fontFamily: MONO, fontSize: 11, lineHeight: '14px',
               color: '#000', whiteSpace: 'pre',
             }}>
-              {commandsBlock}
+              {COMMANDS_PREFIX}
+              {commands.map((c, i) => (
+                <div key={c.cmd} style={{ opacity: fading === i ? 0.15 : 1, transition: 'opacity 1.1s ease' }}>
+                  {`  ${c.cmd.padEnd(12)} ${c.label}`}
+                </div>
+              ))}
+              {/* two blank lines: spacing + placeholder row for the full-width ticker strip below */}
+              {'\n\n' + ZEROS_LINE + '\n'}
+              {`MAIN:/vlg/stn/broadcast > ${ghost}`}
+              <span style={{
+                display: 'inline-block', width: 7, height: 12, background: '#000', verticalAlign: -2,
+                animation: typing ? 'none' : 'vr-blink 1s steps(1) infinite',
+              }} />
             </div>
           </div>
+          <style>{`
+            @keyframes vr-blink{50%{opacity:0}}
+            @keyframes vr-tick{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+            .vr-ticker{animation:vr-tick 26s linear infinite}
+            @media (prefers-reduced-motion: reduce){
+              .vr-ticker{animation:none;padding-left:0 !important}
+            }
+          `}</style>
+        </div>
+
+        {/* Ticker — outside the clipped canvas so it spans the full screen width */}
+        <div style={{
+          position: 'absolute', left: 0, bottom: 36, height: 14,
+          width: `calc(100vw / ${scale})`, overflow: 'hidden',
+        }}>
+          <span className="vr-ticker" style={{
+            display: 'inline-block', whiteSpace: 'pre', paddingLeft: '100%',
+            fontFamily: MONO, fontSize: 11, lineHeight: '14px', color: '#000',
+          }}>
+            {TICKER_LINE}
+          </span>
         </div>
       </div>
 

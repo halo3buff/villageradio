@@ -10,14 +10,14 @@ export function NewsStrip() {
   return (
     <div
       className="fixed inset-x-0 z-40 overflow-hidden"
-      style={{ bottom: '41px', background: '#080808', borderTop: '1px solid rgba(255,255,255,0.08)' }}
+      style={{ bottom: '41px', background: 'var(--vlg-bg, #080808)', borderTop: '1px solid var(--vlg-border, rgba(255,255,255,0.08))' }}
     >
       <div className="ticker flex py-[9px]">
         {doubled.map((item, i) => (
           <span
             key={i}
             className="font-mono text-[0.6rem] tracking-[0.15em] uppercase shrink-0"
-            style={{ color: 'rgba(200,196,187,0.5)', paddingRight: '4rem' }}
+            style={{ color: 'var(--vlg-fg-dim, rgba(200,196,187,0.5))', paddingRight: '4rem' }}
           >
             {item}
           </span>

@@ -16,7 +16,7 @@
   }
 
   html {
-    background-color: #080808;
+    background-color: var(--vlg-bg, #080808);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: none;
@@ -24,8 +24,8 @@
   }
 
   body {
-    background-color: #080808;
-    color: #e8e4d9;
+    background-color: var(--vlg-bg, #080808);
+    color: var(--vlg-fg, #e8e4d9);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;

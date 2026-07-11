@@ -95,6 +95,11 @@ export interface CommandsManifest {
   commands: NavCommand[];
 }
 
+// Empty theme = no override; the site keeps its built-in look until an admin picks one.
+export interface SiteManifest {
+  theme: string;
+}
+
 // --- Transmissions moderation (private GCS; state encoded by object prefix, no manifest) ----
 
 export type TransmissionState = 'new' | 'kept' | 'trash';
