@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { NavCommand } from '@/lib/types';
+import { useTheme } from '@/components/ThemeProvider';
+import { paletteColor } from '@/lib/theme';
 
 const SW = 402;
 const SH = 874;
@@ -26,6 +28,7 @@ const BOTTOM_SUFFIX =
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function MobileInfo({ content, commands }: { content: string; commands: NavCommand[] }) {
+  const { T } = useTheme();
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
@@ -73,10 +76,10 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
           }}>
             {BOTTOM_HEADER}
             {'contact: '}
-            <span style={{ color: 'var(--vlg-accent, #000)' }}>{EMAIL}</span>
+            <span style={{ color: T.uid_real }}>{EMAIL}</span>
             {'\ncommands:\n'}
             {commands.map(c => (
-              <div key={c.cmd} style={{ color: 'var(--vlg-accent, #000)' }}>
+              <div key={c.cmd} style={{ color: paletteColor(T, c.cmd) }}>
                 {`  ${c.cmd.padEnd(12)} ${c.label}`}
               </div>
             ))}

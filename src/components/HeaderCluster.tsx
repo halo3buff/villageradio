@@ -1,10 +1,21 @@
 'use client';
 
-import Image from 'next/image';
-import { useTheme } from '@/components/ThemeProvider';
-import { LIGHT_THEMES } from '@/lib/theme';
-
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
+
+/** Recolors black line-art (via alpha mask) to the current theme's ink color, instead of a flat invert. */
+function maskedArt(src: string): React.CSSProperties {
+  return {
+    backgroundColor: 'var(--vlg-fg, #000000)',
+    WebkitMaskImage: `url(${src})`,
+    maskImage: `url(${src})`,
+    WebkitMaskSize: 'contain',
+    maskSize: 'contain',
+    WebkitMaskRepeat: 'no-repeat',
+    maskRepeat: 'no-repeat',
+    WebkitMaskPosition: 'center',
+    maskPosition: 'center',
+  };
+}
 
 // Flipped word-marks — exact Figma coords. transform flips match Figma's
 // "flipped horizontally / vertically" flags.
@@ -50,20 +61,12 @@ const OVALS: [number, number, number, number][] = [
 ];
 
 export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
-  const { name: theme } = useTheme();
-  // Assets are black line-art; invert to white on dark themes, same trick as the nav logo.
-  const invert = LIGHT_THEMES.has(theme) ? 'none' : 'invert(1)';
-
   return (
     <div aria-hidden="true">
-      {/* Oval marks sit behind the word-marks */}
+      {/* Oval marks sit behind the word-marks — recolored to match the letters, not inverted */}
       {OVALS.map(([x, y, w, h], i) => (
-        <Image
+        <div
           key={`oval-${i}`}
-          src="/images/IMG_2411.png"
-          alt=""
-          width={w}
-          height={h}
           style={{
             position: 'absolute',
             left: x + xOffset,
@@ -72,17 +75,13 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
             height: h,
             zIndex: 1,
             pointerEvents: 'none',
-            filter: invert,
+            ...maskedArt('/images/IMG_2411.png'),
           }}
         />
       ))}
 
-      {/* Pre-rendered VILL + VGE block */}
-      <Image
-        src="/images/anti-vetica.png"
-        alt=""
-        width={Math.round(ANTI_VETICA.w)}
-        height={Math.round(ANTI_VETICA.h)}
+      {/* Pre-rendered VILL + VGE block — flipped horizontally, recolored to match the letters */}
+      <div
         style={{
           position: 'absolute',
           left: ANTI_VETICA.x + xOffset,
@@ -91,7 +90,8 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
           height: ANTI_VETICA.h,
           zIndex: 2,
           pointerEvents: 'none',
-          filter: invert,
+          transform: 'scaleX(-1)',
+          ...maskedArt('/images/anti-vetica.png'),
         }}
       />
 
@@ -108,7 +108,7 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
             letterSpacing: '-0.04em',
             width: wd.w,
             whiteSpace: wd.w ? 'normal' : 'nowrap',
-            color: 'var(--vlg-strong, #000000)',
+            color: 'var(--vlg-fg, #000000)',
             zIndex: 2,
             transform: `${wd.rotate ? `rotate(${wd.rotate}deg) ` : ''}scale(${wd.flipX ? -1 : 1}, ${wd.flipY ? -1 : 1})`,
             transformOrigin: wd.origin ?? 'center center',

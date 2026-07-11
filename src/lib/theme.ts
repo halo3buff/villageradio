@@ -103,11 +103,39 @@ export function isThemeName(name: string): boolean {
   return THEME_NAMES.includes(name);
 }
 
-/** CSS custom properties for the shared site chrome — a subset of Theme's tokens. */
-export function siteCssVars(name: string): string {
+/** Site-chrome CSS custom properties (name → value), a subset of Theme's tokens. Shared by the
+ *  server-rendered <style> block (layout.tsx) and the client self-correction pass (ThemeProvider). */
+export function siteVarMap(name: string): Record<string, string> {
   const t = THEMES[name] ?? THEMES[DEFAULT_THEME];
   const light = LIGHT_THEMES.has(name);
-  const invert = light ? 0 : 1;
-  const strong = light ? '#000000' : '#ffffff';
-  return `:root{--vlg-bg:${t.bg};--vlg-fg:${t.exp_text};--vlg-fg-dim:${t.bar_dim};--vlg-border:${t.bar_border};--vlg-accent:${t.uid_real};--vlg-panel:${t.bar_bg};--vlg-invert:${invert};--vlg-strong:${strong};--vlg-cmd-cursor:${t.cmd_cursor};}`;
+  return {
+    '--vlg-bg': t.bg,
+    '--vlg-fg': t.exp_text,
+    '--vlg-fg-dim': t.bar_dim,
+    '--vlg-border': t.bar_border,
+    '--vlg-accent': t.uid_real,
+    '--vlg-panel': t.bar_bg,
+    '--vlg-invert': light ? '0' : '1',
+    '--vlg-strong': light ? '#000000' : '#ffffff',
+    '--vlg-cmd-cursor': t.cmd_cursor,
+  };
+}
+
+/** CSS custom properties for the shared site chrome, serialized for a server-rendered <style> tag. */
+export function siteCssVars(name: string): string {
+  const vars = siteVarMap(name);
+  const body = Object.entries(vars).map(([k, v]) => `${k}:${v};`).join('');
+  return `:root{${body}}`;
+}
+
+function hashKey(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+  return h >>> 0;
+}
+
+/** Deterministic per-row color from the theme's cycling palette — same idea as the news log's
+ *  column-2 coloring (each row's key hashes to a stable palette slot). */
+export function paletteColor(t: Theme, key: string): string {
+  return t.uid_palette[hashKey(key) % t.uid_palette.length];
 }
