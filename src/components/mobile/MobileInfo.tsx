@@ -13,25 +13,19 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 
 const STRIPES = 'repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px)';
 
-const BOTTOM_PREFIX =
+const BOTTOM_HEADER =
   '///////////// end_signal_not_end /////////////////\n' +
   '111000111000111000111000111000111000111000111000111000110\n' +
-  '0011100011100\n' +
-  'contact: cloudmain2stock@gmail.com\n' +
-  'commands:\n';
+  '0011100011100\n';
+
+const EMAIL = 'cloudmain2stock@gmail.com';
 
 const BOTTOM_SUFFIX =
   '99.00.88.77.66.55.44.33.22.11.00.err.null.void.0x0000000000000000\n' +
   '0000000000000000000000000000000000000000000000000000000000';
 
-function buildBottomText(commands: NavCommand[]): string {
-  const rows = commands.map(c => `  ${c.cmd.padEnd(12)} ${c.label}`).join('\n');
-  return BOTTOM_PREFIX + rows + '\n' + BOTTOM_SUFFIX;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function MobileInfo({ content, commands }: { content: string; commands: NavCommand[] }) {
-  const bottomText = buildBottomText(commands);
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
@@ -77,7 +71,16 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
             fontFamily: MONO, fontSize: vw(8), lineHeight: dvh(10),
             color: 'var(--vlg-fg, #000)', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>
-            {bottomText}
+            {BOTTOM_HEADER}
+            {'contact: '}
+            <span style={{ color: 'var(--vlg-accent, #000)' }}>{EMAIL}</span>
+            {'\ncommands:\n'}
+            {commands.map(c => (
+              <div key={c.cmd} style={{ color: 'var(--vlg-accent, #000)' }}>
+                {`  ${c.cmd.padEnd(12)} ${c.label}`}
+              </div>
+            ))}
+            {'\n' + BOTTOM_SUFFIX}
           </div>
         </div>
 

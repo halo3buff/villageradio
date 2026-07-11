@@ -1,4 +1,8 @@
+'use client';
+
 import Image from 'next/image';
+import { useTheme } from '@/components/ThemeProvider';
+import { LIGHT_THEMES } from '@/lib/theme';
 
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 
@@ -46,6 +50,10 @@ const OVALS: [number, number, number, number][] = [
 ];
 
 export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
+  const { name: theme } = useTheme();
+  // Assets are black line-art; invert to white on dark themes, same trick as the nav logo.
+  const invert = LIGHT_THEMES.has(theme) ? 'none' : 'invert(1)';
+
   return (
     <div aria-hidden="true">
       {/* Oval marks sit behind the word-marks */}
@@ -64,6 +72,7 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
             height: h,
             zIndex: 1,
             pointerEvents: 'none',
+            filter: invert,
           }}
         />
       ))}
@@ -82,6 +91,7 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
           height: ANTI_VETICA.h,
           zIndex: 2,
           pointerEvents: 'none',
+          filter: invert,
         }}
       />
 
@@ -98,7 +108,7 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
             letterSpacing: '-0.04em',
             width: wd.w,
             whiteSpace: wd.w ? 'normal' : 'nowrap',
-            color: 'var(--vlg-fg, #000000)',
+            color: 'var(--vlg-strong, #000000)',
             zIndex: 2,
             transform: `${wd.rotate ? `rotate(${wd.rotate}deg) ` : ''}scale(${wd.flipX ? -1 : 1}, ${wd.flipY ? -1 : 1})`,
             transformOrigin: wd.origin ?? 'center center',

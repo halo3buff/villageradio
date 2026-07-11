@@ -238,7 +238,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
             {`MAIN:/vlg/stn/broadcast > signal_check --verbose --all 2>&1\n`}
             {`SESSION: ${x4(1, 0)}   RX_UTC: ${utc}   PATH: ALT-01   PKT_LOSS: 0.00%   BIT_ERR: 0\n`}
             {`TX: ON   FREQ: 99.00MHz   SNR: 40.2dB   LEVEL: -14.1dBfs   STATUS: `}
-            <span style={{ opacity: status.dim ? 0.45 : 1, transition: 'opacity .5s ease' }}>{status.text}</span>
+            <span style={{ color: 'var(--vlg-accent, #000)', opacity: status.dim ? 0.45 : 1, transition: 'opacity .5s ease' }}>{status.text}</span>
             {`\n`}
             {`AUDIO: MPEG4-AAC / 44100Hz / 128kbps   VIDEO: H.264 / 1080p50   SRC: AL-HADATH-LIVE\n`}
             {`BROADCAST_INIT... OK   FRAME_COUNT: 000001   BUFFER: 2048ms   CRC: ${x4(2, 0)} ${x4(2, 1)}\n`}
@@ -257,15 +257,20 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
             }}>
               {COMMANDS_PREFIX}
               {commands.map((c, i) => (
-                <div key={c.cmd} style={{ opacity: fading === i ? 0.15 : 1, transition: 'opacity 1.1s ease' }}>
+                <div
+                  key={c.cmd}
+                  style={{ color: 'var(--vlg-accent, #000)', opacity: fading === i ? 0.15 : 1, transition: 'opacity 1.1s ease' }}
+                >
                   {`  ${c.cmd.padEnd(12)} ${c.label}`}
                 </div>
               ))}
               {/* two blank lines: spacing + placeholder row for the full-width ticker strip below */}
               {'\n\n' + ZEROS_LINE + '\n'}
-              {`MAIN:/vlg/stn/broadcast > ${ghost}`}
+              <span style={{ color: 'var(--vlg-accent, #000)' }}>
+                {`MAIN:/vlg/stn/broadcast > ${ghost}`}
+              </span>
               <span style={{
-                display: 'inline-block', width: 7, height: 12, background: 'var(--vlg-fg, #000)', verticalAlign: -2,
+                display: 'inline-block', width: 7, height: 12, background: 'var(--vlg-accent, #000)', verticalAlign: -2,
                 animation: typing ? 'none' : 'vr-blink 1s steps(1) infinite',
               }} />
             </div>
@@ -309,7 +314,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
         {/* Email — centered under tree */}
         <div style={{
           position: 'absolute', right: 0, top: 252, width: 240,
-          textAlign: 'center', fontFamily: MONO, fontSize: 11, color: 'var(--vlg-fg, #000)',
+          textAlign: 'center', fontFamily: MONO, fontSize: 11, color: 'var(--vlg-accent, #000)',
         }}>
           cloudmain2stock@gmail.com
         </div>

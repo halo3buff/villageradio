@@ -319,7 +319,7 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
             ) : (
               /* Cursor is a plain rectangle — U+2588 is missing from the IBM Plex Mono subset. */
               <span style={{
-                display: 'inline-block', width: 8, height: 14, background: 'var(--vlg-fg, #000)',
+                display: 'inline-block', width: 8, height: 14, background: 'var(--vlg-cmd-cursor, #000)',
                 verticalAlign: '-2px', animation: 'vr-blink 1s step-end infinite',
               }} />
             )}

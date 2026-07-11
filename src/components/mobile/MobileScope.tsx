@@ -2,13 +2,13 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useAudio } from '@/lib/audio-context';
+import { useTheme } from '@/components/ThemeProvider';
+import { LIGHT_THEMES } from '@/lib/theme';
 
 const SAMPLES = 2000;
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 const GRID = 2;
 const DOT = 1;
-const TRACE = '0,0,0';
-const AXIS = 'rgba(0,0,0,0.16)';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
 const HEARTBEAT_MS = 20_000;
@@ -61,6 +61,15 @@ function useSignalNet() {
 export function MobileScope() {
   const { isPlaying, mode, carrierLost, broadcastPlay, pause, analyserL, analyserR } = useAudio();
   const { rx, txFlash } = useSignalNet();
+  const { name: theme } = useTheme();
+  const colorRef = useRef({ trace: '0,0,0', axis: 'rgba(0,0,0,0.16)' });
+  useEffect(() => {
+    const light = LIGHT_THEMES.has(theme);
+    colorRef.current = {
+      trace: light ? '0,0,0' : '255,255,255',
+      axis: light ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.16)',
+    };
+  }, [theme]);
   const aLRef = useRef<AnalyserNode | null>(null);
   const aRRef = useRef<AnalyserNode | null>(null);
   useEffect(() => { aLRef.current = analyserL; }, [analyserL]);
@@ -119,7 +128,7 @@ export function MobileScope() {
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, w, h);
 
-    ctx.strokeStyle = AXIS; ctx.lineWidth = 1;
+    ctx.strokeStyle = colorRef.current.axis; ctx.lineWidth = 1;
     const d = R * 0.96;
     ctx.beginPath();
     ctx.moveTo(cx - d, cy - d); ctx.lineTo(cx + d, cy + d);
@@ -130,7 +139,7 @@ export function MobileScope() {
       const gx = Math.round(x / GRID), gy = Math.round(y / GRID);
       const thresh = BAYER[(gy & 3) * 4 + (gx & 3)] / 16;
       if (amp < thresh * 0.4) return;
-      ctx.fillStyle = `rgba(${TRACE},1)`;
+      ctx.fillStyle = `rgba(${colorRef.current.trace},1)`;
       ctx.fillRect(gx * GRID, gy * GRID, DOT, DOT);
     };
 

@@ -106,6 +106,8 @@ export function isThemeName(name: string): boolean {
 /** CSS custom properties for the shared site chrome — a subset of Theme's tokens. */
 export function siteCssVars(name: string): string {
   const t = THEMES[name] ?? THEMES[DEFAULT_THEME];
-  const invert = LIGHT_THEMES.has(name) ? 0 : 1;
-  return `:root{--vlg-bg:${t.bg};--vlg-fg:${t.exp_text};--vlg-fg-dim:${t.bar_dim};--vlg-border:${t.bar_border};--vlg-accent:${t.uid_real};--vlg-panel:${t.bar_bg};--vlg-invert:${invert};}`;
+  const light = LIGHT_THEMES.has(name);
+  const invert = light ? 0 : 1;
+  const strong = light ? '#000000' : '#ffffff';
+  return `:root{--vlg-bg:${t.bg};--vlg-fg:${t.exp_text};--vlg-fg-dim:${t.bar_dim};--vlg-border:${t.bar_border};--vlg-accent:${t.uid_real};--vlg-panel:${t.bar_bg};--vlg-invert:${invert};--vlg-strong:${strong};--vlg-cmd-cursor:${t.cmd_cursor};}`;
 }

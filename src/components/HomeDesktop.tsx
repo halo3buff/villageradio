@@ -103,7 +103,7 @@ export function HomeDesktop() {
                 <span style={{
                   display: 'inline-block',
                   width: '0.55em', height: '0.9em',
-                  background: 'var(--vlg-fg, #000)', verticalAlign: '-0.1em',
+                  background: 'var(--vlg-cmd-cursor, #000)', verticalAlign: '-0.1em',
                   animation: 'vr-blink 1s step-end infinite',
                 }} />
               </>
