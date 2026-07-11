@@ -61,7 +61,12 @@ export function NewsManager({ initialPosts, generation: initialGen }: Props) {
   }
 
   async function publish() {
-    const next = reindexOrder(posts);
+    const now = new Date().toISOString();
+    // Auto-stamp exact publish time for any newly-published post that doesn't have one yet.
+    const stamped = posts.map(p =>
+      p.status === 'published' && !p.publishedAt ? { ...p, publishedAt: now } : p,
+    );
+    const next = reindexOrder(stamped);
     const check = validateNewsManifest({ version: 1, posts: next });
     if (!check.ok) {
       setErrors(check.errors);

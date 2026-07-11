@@ -3,17 +3,44 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import type { NewsPost } from '@/lib/types';
 
 const SW = 1440;
 const SH = 1024;
 
-export function DesktopNews() {
+const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
+
+/** Deterministic 4-char hex fingerprint from a string (FNV-1a). */
+function hexId(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).slice(0, 4).toUpperCase().padStart(4, '0');
+}
+
+/** Split markdown body into renderable paragraphs, stripping basic markers. */
+function bodyParagraphs(md: string): string[] {
+  return md
+    .split(/\n{2,}/)
+    .map(p =>
+      p
+        .replace(/^#{1,6}\s+/, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/^[-*]\s+/, '· ')
+        .trim(),
+    )
+    .filter(p => p && p !== '---');
+}
+
+export function DesktopNews({ posts }: { posts: NewsPost[] }) {
   const [scale, setScale] = useState(1);
   useEffect(() => {
     const update = () => {
-      const vw = window.visualViewport?.width ?? window.innerWidth;
       const vh = window.visualViewport?.height ?? window.innerHeight;
-      setScale(Math.min(1, vw / SW, vh / SH));
+      setScale(Math.min(1, vh / SH));
     };
     update();
     window.addEventListener('resize', update);
@@ -24,37 +51,100 @@ export function DesktopNews() {
     };
   }, []);
 
+  const frame: React.CSSProperties = {
+    position: 'absolute', top: 0,
+    width: SW, height: SH,
+    pointerEvents: 'none',
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', overflow: 'hidden' }}>
-      <div
-        className="page-enter"
-        style={{
-          position: 'absolute', left: '50%', top: '50%', width: SW, height: SH,
-          transform: `translate(-50%, -50%) scale(${scale})`, transformOrigin: 'center center',
-        }}
-      >
-        {/* Newspaper photo — left-aligned, vertically centered */}
-        <div style={{
-          position: 'absolute', left: 284, top: 43, width: 845, height: 938,
-          overflow: 'hidden',
-        }}>
-          <Image
-            src="/images/IMG_1101.jpg"
-            alt=""
-            fill
-            style={{ objectFit: 'cover', objectPosition: 'top center' }}
-            sizes="845px"
-          />
+      <div className="page-enter">
+
+        {/* Left panel — log entries */}
+        <div style={{ ...frame, left: 0, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+          <div style={{ position: 'absolute', left: 40, top: 35, width: 1050, height: SH - 70 }}>
+
+            {/* Header */}
+            <div style={{
+              fontFamily: MONO, fontSize: 11, color: '#999',
+              letterSpacing: '0.08em', marginBottom: 18,
+              borderBottom: '1px solid #e8e8e8', paddingBottom: 12,
+            }}>
+              {'// TRANSMISSION_LOG — VLG.FM'}
+            </div>
+
+            {/* Scrollable post list — pointerEvents re-enabled for scroll/select */}
+            <div style={{
+              height: 'calc(100% - 44px)', overflowY: 'auto',
+              pointerEvents: 'auto',
+            }}>
+              {posts.length === 0 ? (
+                <div style={{ fontFamily: MONO, fontSize: 11, color: '#bbb', letterSpacing: '0.06em' }}>
+                  NO_RECORDS_FOUND · 0x0000
+                </div>
+              ) : posts.map((post, idx) => (
+                <div key={post.id} style={{ marginBottom: 36 }}>
+
+                  {/* Record stamp */}
+                  <div style={{
+                    fontFamily: MONO, fontSize: 10, color: '#bbb',
+                    letterSpacing: '0.05em', marginBottom: 5,
+                  }}>
+                    {post.date ? `${post.date}T00:00:00Z` : 'YYYY-MM-DDT00:00:00Z'}
+                    {'  '}REC_0x{hexId(post.id)}
+                    {'  '}{String(idx + 1).padStart(3, '0')}
+                  </div>
+
+                  {/* Title */}
+                  <div style={{
+                    fontFamily: MONO, fontSize: 13, color: '#000',
+                    letterSpacing: '0.04em', marginBottom: 8,
+                  }}>
+                    {'* '}{post.title.toUpperCase()}
+                  </div>
+
+                  {/* Rule */}
+                  <div style={{ borderTop: '1px solid #e0e0e0', marginBottom: 10 }} />
+
+                  {/* Body */}
+                  <div style={{
+                    fontFamily: MONO, fontSize: 11, color: '#444',
+                    lineHeight: '18px', letterSpacing: '0.02em',
+                  }}>
+                    {bodyParagraphs(post.body).map((para, i) => (
+                      <p key={i} style={{ margin: '0 0 10px 0' }}>{para}</p>
+                    ))}
+                  </div>
+
+                </div>
+              ))}
+
+              {/* Footer strip */}
+              <div style={{
+                marginTop: 8, borderTop: '1px solid #e8e8e8', paddingTop: 12,
+                fontFamily: MONO, fontSize: 9, color: '#ccc',
+                letterSpacing: '0.06em', lineHeight: '16px', whiteSpace: 'pre',
+              }}>
+                {'VLG/FM — VILLAGE RADIO\nSIGNAL ARCHIVE — ACTIVE\ncloudmain2stock@gmail.com'}
+              </div>
+            </div>
+
+          </div>
         </div>
 
-        {/* Back arrow — bottom-right */}
-        <Link href="/" style={{
-          position: 'absolute', left: 1355, top: 958, display: 'block',
-          width: 50, height: 50,
-        }}>
-          <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
-            style={{ width: 50, height: 50, objectFit: 'contain' }} />
-        </Link>
+        {/* Right panel — back arrow */}
+        <div style={{ ...frame, right: 0, transform: `scale(${scale})`, transformOrigin: 'top right' }}>
+          <Link href="/" style={{
+            position: 'absolute', right: 95, top: 942,
+            display: 'block', width: 50, height: 50,
+            pointerEvents: 'auto',
+          }}>
+            <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
+              style={{ width: 50, height: 50, objectFit: 'contain' }} />
+          </Link>
+        </div>
+
       </div>
     </div>
   );

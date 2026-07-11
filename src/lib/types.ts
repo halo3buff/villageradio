@@ -72,6 +72,7 @@ export interface NewsPost {
   body: string;            // markdown
   status: 'draft' | 'published';
   order: number;
+  publishedAt?: string;    // ISO datetime, auto-captured on publish
 }
 
 export interface NewsManifest {

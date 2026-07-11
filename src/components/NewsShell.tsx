@@ -1,11 +1,6 @@
-'use client';
+import type { NewsPost } from '@/lib/types';
+import { NewsLogViewer } from '@/components/NewsLogViewer';
 
-import { useIsMobile } from '@/lib/use-is-mobile';
-import { MobileNews } from '@/components/mobile/MobileNews';
-import { DesktopNews } from '@/components/DesktopNews';
-
-export function NewsShell() {
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileNews />;
-  return <DesktopNews />;
+export function NewsShell({ posts }: { posts: NewsPost[] }) {
+  return <NewsLogViewer posts={posts} />;
 }
