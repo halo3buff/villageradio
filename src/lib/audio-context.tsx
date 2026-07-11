@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useRef, useState, useEffect } from 'react';
+import { createContext, useContext, useRef, useState, useEffect, useMemo } from 'react';
 import type { Mix } from '@/lib/types';
 
 type AudioMode = 'idle' | 'broadcast' | 'individual';
@@ -78,6 +78,9 @@ function getBroadcastPosition(durations: number[], offsetMs: number): { trackIdx
 }
 
 export function AudioProvider({ children, playlist }: { children: React.ReactNode; playlist: Mix[] }) {
+  // Hidden tracks stay in the archive/sidebar (full `playlist`) but drop out of the live
+  // rotation's order and timing — `broadcast` is what tuneIntoBroadcast/correctDrift walk.
+  const broadcast = useMemo(() => playlist.filter(t => !t.hidden), [playlist]);
   const audioRef        = useRef<HTMLAudioElement | null>(null);
   const webCtxRef       = useRef<AudioContext | null>(null);
   const gainNodeRef     = useRef<GainNode | null>(null);
@@ -122,7 +125,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     let cancelled = false;
     (async () => {
       try {
-        const durations = playlist.map(t => t.durationSec || 0);
+        const durations = broadcast.map(t => t.durationSec || 0);
         if (durations.length === 0 || durations.some(d => d <= 0)) return;
         durationsRef.current = durations;
 
@@ -133,7 +136,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
         if (cancelled || modeRef.current !== 'idle') return;
 
         const { trackIdx, offsetSec } = getBroadcastPosition(durations, serverOffsetRef.current ?? 0);
-        const track = playlist[trackIdx];
+        const track = broadcast[trackIdx];
 
         // (1) element priming — buffers at the broadcast offset where allowed
         const audio = getOrCreateAudio();
@@ -152,7 +155,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
       } catch { /* warmup is best-effort — the tap path works without it */ }
     })();
     return () => { cancelled = true; };
-  }, [playlist]);
+  }, [broadcast]);
 
   function getOrCreateAudio(): HTMLAudioElement {
     if (!audioRef.current) {
@@ -234,7 +237,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
   function wireBroadcastTrack(idx: number) {
     const audio = audioRef.current!;
-    const track = playlist[idx];
+    const track = broadcast[idx];
     if (!track) return;
 
     broadcastIdxRef.current = idx;
@@ -249,8 +252,8 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
     audio.onended = () => {
       if (modeRef.current !== 'broadcast') return;
-      const nextIdx = (broadcastIdxRef.current + 1) % playlist.length;
-      const next = playlist[nextIdx];
+      const nextIdx = (broadcastIdxRef.current + 1) % broadcast.length;
+      const next = broadcast[nextIdx];
       broadcastIdxRef.current = nextIdx;
       setBroadcastIndex(nextIdx);
       setCurrentTrack(next);
@@ -275,7 +278,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
     // All tracks have durationSec hardcoded — resolves instantly, no network requests
     if (!durationsRef.current) {
-      durationsRef.current = await Promise.all(playlist.map(getDuration));
+      durationsRef.current = await Promise.all(broadcast.map(getDuration));
     }
 
     // Fetch server time once per session to correct for skewed device clocks
@@ -287,7 +290,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     const totalDuration = durationsRef.current.reduce((a, b) => a + b, 0);
 
     console.log('[VR broadcast]', {
-      trackTitle: playlist[trackIdx].title,
+      trackTitle: broadcast[trackIdx].title,
       seek: Math.round(offsetSec),
       totalDuration: Math.round(totalDuration),
       elapsed: Math.round(((Date.now() + serverOffsetRef.current) / 1000) % totalDuration),
@@ -300,7 +303,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     // track and (on preload-friendly browsers) buffered around the broadcast
     // position. If metadata is in, a direct seek lands in/near that buffer —
     // do NOT reset src, that would discard the primed data.
-    const trackHref = new URL(playlist[trackIdx].src, window.location.href).href;
+    const trackHref = new URL(broadcast[trackIdx].src, window.location.href).href;
     const sameTrack = audio.src.split('#')[0] === trackHref;
     if (sameTrack && audio.readyState >= 1 /* HAVE_METADATA */) {
       safeSeek(audio, offsetSec);

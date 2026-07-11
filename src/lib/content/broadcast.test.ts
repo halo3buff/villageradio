@@ -29,6 +29,12 @@ describe('entryToMix', () => {
     expect(mix.durationSec).toBe(498);
     expect(mix.kind).toBe('mix');
   });
+
+  it('carries hidden through to the runtime Mix', () => {
+    const hidden = { ...manifest.entries[1], hidden: true };
+    expect(entryToMix(hidden).hidden).toBe(true);
+    expect(entryToMix(manifest.entries[1]).hidden).toBeUndefined();
+  });
 });
 
 describe('manifestToMixes', () => {

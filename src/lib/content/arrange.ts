@@ -76,6 +76,7 @@ export function validateManifest(data: unknown): { ok: boolean; errors: string[]
       if (e.kind === 'inter') errors.push(`${at}: interludes must not have a series`);
     }
     if (!isStringArray(e.tags)) errors.push(`${at}: tags must be an array of strings`);
+    if (e.hidden !== undefined && typeof e.hidden !== 'boolean') errors.push(`${at}: hidden must be a boolean`);
   });
 
   return { ok: errors.length === 0, errors };

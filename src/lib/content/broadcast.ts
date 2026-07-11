@@ -29,6 +29,7 @@ export function entryToMix(entry: BroadcastEntry): Mix {
     src: `${PROXY}${entry.file}`,
     tags: entry.tags,
     kind: entry.kind,
+    hidden: entry.hidden,
   };
 }
 

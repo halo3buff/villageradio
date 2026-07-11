@@ -128,7 +128,8 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
         </span>
       </div>
       <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
-        play order is top → bottom · drag or use ↑↓ · changes are staged until you publish
+        play order is top → bottom · drag or use ↑↓ · hide skips an entry from rotation without
+        removing it · changes are staged until you publish
       </p>
 
       {/* Banners */}
@@ -160,7 +161,7 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
             onDrop={() => onDrop(i)}
             className="border-b border-black/10"
           >
-            <div className="flex items-center gap-3 py-2.5">
+            <div className={`flex items-center gap-3 py-2.5 ${entry.hidden ? 'opacity-40' : ''}`}>
               <span className="font-mono text-[9px] text-black/20 w-6 shrink-0 text-right">
                 {String(i + 1).padStart(2, '0')}
               </span>
@@ -179,6 +180,7 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
               <span className="font-mono text-[10px] text-black/80 flex-1 min-w-0 truncate">
                 {entry.title || <span className="text-black/30">untitled</span>}
                 <span className="text-black/25"> · {entry.kind}</span>
+                {entry.hidden && <span className="text-black/25"> · hidden</span>}
               </span>
               <span className="font-mono text-[9px] text-black/30 w-20 shrink-0 truncate">
                 {entry.date}
@@ -196,6 +198,10 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
                 <RowBtn
                   onClick={() => setEditingId(editingId === entry.id ? null : entry.id)}
                   label={editingId === entry.id ? 'close' : 'edit'}
+                />
+                <RowBtn
+                  onClick={() => patch(entry.id, { hidden: !entry.hidden })}
+                  label={entry.hidden ? 'unhide' : 'hide'}
                 />
                 <RowBtn onClick={() => update(removeEntry(entries, entry.id))} label="remove" />
               </span>

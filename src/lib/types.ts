@@ -9,6 +9,8 @@ export interface Mix {
   cover?: string;
   tags: string[];
   kind?: 'mix' | 'inter';
+  /** Stays in the archive/sidebar but skipped when computing the live rotation. */
+  hidden?: boolean;
 }
 
 // --- Editable content manifests (GCS config bucket; see src/lib/content) ----------
@@ -26,6 +28,8 @@ export interface BroadcastEntry {
   kind: BroadcastKind;
   series?: BroadcastSeries; // mixes only; drives the ink swatch
   tags: string[];
+  /** Excluded from the live rotation's play order/timing; still editable and playable standalone. */
+  hidden?: boolean;
 }
 
 export interface BroadcastManifest {
