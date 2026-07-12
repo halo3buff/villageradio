@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { useAudio } from '@/lib/audio-context';
 import { useTheme } from '@/components/ThemeProvider';
 import { LIGHT_THEMES } from '@/lib/theme';
+import { dspPalette, initRetroCanvas, pixelFont } from '@/components/instruments/retro';
 
 const SAMPLES = 2000;
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
@@ -62,14 +63,15 @@ export function MobileScope() {
   const { isPlaying, mode, carrierLost, broadcastPlay, pause, analyserL, analyserR } = useAudio();
   const { rx, txFlash } = useSignalNet();
   const { name: theme } = useTheme();
-  const colorRef = useRef({ trace: '0,0,0', axis: 'rgba(0,0,0,0.16)' });
+  const light = LIGHT_THEMES.has(theme);
+  const colorRef = useRef({ trace: '0,0,0', axis: 'rgba(0,0,0,0.16)', light: true });
   useEffect(() => {
-    const light = LIGHT_THEMES.has(theme);
     colorRef.current = {
       trace: light ? '0,0,0' : '255,255,255',
       axis: light ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.16)',
+      light,
     };
-  }, [theme]);
+  }, [light]);
   const aLRef = useRef<AnalyserNode | null>(null);
   const aRRef = useRef<AnalyserNode | null>(null);
   useEffect(() => { aLRef.current = analyserL; }, [analyserL]);
@@ -105,13 +107,8 @@ export function MobileScope() {
     const el = canvasRef.current; if (!el) return;
     const ro = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect;
-      const w = Math.round(width), h = Math.round(height);
-      dimsRef.current = { width: w, height: h };
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      el.width = Math.round(w * dpr);
-      el.height = Math.round(h * dpr);
-      const ctx = el.getContext('2d'); if (!ctx) return;
-      ctx.scale(dpr, dpr);
+      dimsRef.current = { width: Math.round(width), height: Math.round(height) };
+      initRetroCanvas(el, width, height);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -125,6 +122,8 @@ export function MobileScope() {
     const live = liveRef.current;
     const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.4;
 
+    const P = dspPalette(colorRef.current.light);
+
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, w, h);
 
@@ -134,6 +133,23 @@ export function MobileScope() {
     ctx.moveTo(cx - d, cy - d); ctx.lineTo(cx + d, cy + d);
     ctx.moveTo(cx + d, cy - d); ctx.lineTo(cx - d, cy + d);
     ctx.stroke();
+
+    // DSPower plot grammar: corner tick marks + axis annotations
+    ctx.strokeStyle = P.frameDim;
+    for (const [tx, ty] of [[cx - d, cy - d], [cx + d, cy - d], [cx - d, cy + d], [cx + d, cy + d]] as const) {
+      ctx.beginPath();
+      ctx.moveTo(tx - 3, ty); ctx.lineTo(tx + 3, ty);
+      ctx.moveTo(tx, ty - 3); ctx.lineTo(tx, ty + 3);
+      ctx.stroke();
+    }
+    ctx.font = pixelFont(10);
+    ctx.fillStyle = P.readout;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('X-Y  L/R PHASE', w - 6, h - 28);
+    ctx.fillStyle = P.labelDim;
+    ctx.textAlign = 'left';
+    ctx.fillText('L', Math.round(cx - d) + 4, Math.round(cy - d) + 2);
+    ctx.fillText('R', Math.round(cx + d) - 10, Math.round(cy - d) + 2);
 
     const plot = (x: number, y: number, amp: number) => {
       const gx = Math.round(x / GRID), gy = Math.round(y / GRID);
@@ -202,7 +218,7 @@ export function MobileScope() {
   return (
     <div onClick={onTap} style={{
       position: 'absolute', inset: 0, background: 'transparent',
-      border: '1px solid var(--vlg-fg, #000)', boxSizing: 'border-box', cursor: 'pointer',
+      border: `1px solid ${light ? '#cc00cc' : '#ff00ff'}`, boxSizing: 'border-box', cursor: 'pointer',
     }}>
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
 

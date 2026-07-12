@@ -13,7 +13,7 @@ const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
-const STRIPES = 'repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px)';
+const STRIPES = 'repeating-linear-gradient(90deg, var(--vlg-fg, #000) 0px, var(--vlg-fg, #000) 1px, var(--vlg-bg, #fff) 1px, var(--vlg-bg, #fff) 2px)';
 
 const BOTTOM_HEADER =
   '///////////// end_signal_not_end /////////////////\n' +

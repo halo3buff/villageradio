@@ -2,7 +2,9 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useAudio } from '@/lib/audio-context';
-import { MONO } from '@/components/instruments/retro';
+import { useTheme } from '@/components/ThemeProvider';
+import { LIGHT_THEMES } from '@/lib/theme';
+import { dspPalette, initRetroCanvas, pixelFont, watermark } from '@/components/instruments/retro';
 
 const ORDER = 12;
 const NSAMP = 1024;
@@ -66,6 +68,9 @@ function findRoots(a: Float64Array, n: number, re: Float64Array, im: Float64Arra
 
 export function MobilePoleZero() {
   const { analyserL, isPlaying, mode } = useAudio();
+  const { name: theme } = useTheme();
+  const lightRef = useRef(true);
+  useEffect(() => { lightRef.current = LIGHT_THEMES.has(theme); }, [theme]);
   const aRef = useRef<AnalyserNode | null>(null);
   const liveRef = useRef(false);
   useEffect(() => { aRef.current = analyserL; }, [analyserL]);
@@ -85,14 +90,8 @@ export function MobilePoleZero() {
     const el = canvasRef.current; if (!el) return;
     const ro = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect;
-      const w = Math.round(width), h = Math.round(height);
-      dimsRef.current = { width: w, height: h };
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      el.width = Math.round(w * dpr);
-      el.height = Math.round(h * dpr);
-      const ctx = el.getContext('2d'); if (!ctx) return;
-      ctx.scale(dpr, dpr);
-      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      dimsRef.current = { width: Math.round(width), height: Math.round(height) };
+      initRetroCanvas(el, width, height);
       for (let i = 0; i < NSAMP; i++) winRef.current[i] = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (NSAMP - 1));
     });
     ro.observe(el);
@@ -124,30 +123,35 @@ export function MobilePoleZero() {
     const ctx = c.getContext('2d'); if (!ctx) return;
     const { width: w, height: h } = dimsRef.current;
     if (w === 0 || h === 0) return;
-    const live = liveRef.current;
+    const P = dspPalette(lightRef.current);
     const cx = w / 2, cy = h / 2 + 4, R = Math.min(w, h - 20) / 2 - 14;
 
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = live ? 'rgba(255,255,255,0.38)' : '#fff';
+    ctx.fillStyle = P.bg;
     ctx.fillRect(0, 0, w, h);
 
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(cx, cy, R * 0.5, 0, Math.PI * 2); ctx.stroke();
+    // magenta plot frame + Re/Im axes
+    ctx.strokeStyle = P.frame; ctx.lineWidth = 1;
+    ctx.strokeRect(4.5, 14.5, w - 9, h - 19);
+    ctx.strokeStyle = P.frameDim;
     ctx.beginPath();
-    ctx.moveTo(cx - R * 1.12, cy); ctx.lineTo(cx + R * 1.12, cy);
-    ctx.moveTo(cx, cy - R * 1.12); ctx.lineTo(cx, cy + R * 1.12);
+    ctx.moveTo(cx - R * 1.12, Math.round(cy) + 0.5); ctx.lineTo(cx + R * 1.12, Math.round(cy) + 0.5);
+    ctx.moveTo(Math.round(cx) + 0.5, cy - R * 1.12); ctx.lineTo(Math.round(cx) + 0.5, cy + R * 1.12);
     ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
+    // unit circle (cyan) + half-radius reference
+    ctx.strokeStyle = P.cyan;
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = P.frameDim;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.5, 0, Math.PI * 2); ctx.stroke();
 
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.font = `7px ${MONO}`;
+    ctx.fillStyle = P.label; ctx.font = pixelFont(10);
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText('+1', cx + R, cy + 3); ctx.fillText('−1', cx - R, cy + 3);
+    ctx.fillText('+1', cx + R, cy + 3); ctx.fillText('-1', cx - R, cy + 3);
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-    ctx.fillText('Re', cx + R * 1.12 - 12, cy - 6);
-    ctx.fillText('jIm', cx + 3, cy - R * 1.12 + 7);
+    ctx.fillText('Re', cx + R * 1.12 - 12, cy - 7);
+    ctx.fillText('jIm', cx + 4, cy - R * 1.12 + 8);
 
+    // poles — green ×, hot poles (near the unit circle) flare yellow
     const re = reRef.current, im = imRef.current;
     for (let i = 0; i < ORDER; i++) {
       let pr = re[i], pi = im[i];
@@ -155,7 +159,7 @@ export function MobilePoleZero() {
       if (mag > 1.06) { pr /= mag / 1.02; pi /= mag / 1.02; }
       const x = cx + pr * R, y = cy - pi * R;
       const hot = mag > 0.82;
-      ctx.strokeStyle = hot ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.4)';
+      ctx.strokeStyle = hot ? P.yellow : P.green;
       ctx.lineWidth = 1; const s = hot ? 4 : 3;
       ctx.beginPath();
       ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s);
@@ -163,10 +167,11 @@ export function MobilePoleZero() {
       ctx.stroke();
     }
 
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.font = `7px ${MONO}`;
+    // header readout + watermark
+    ctx.fillStyle = P.readout; ctx.font = pixelFont(10);
     ctx.textBaseline = 'top'; ctx.textAlign = 'right';
-    ctx.fillText('× POLES', w - 6, 4);
+    ctx.fillText(`Pole-Zero Display  Order: ${ORDER}`, w - 6, 2);
+    watermark(ctx, w - 8, h - 8, P.watermark, 'right', 10);
   }, []);
 
   const animate = useCallback(() => {

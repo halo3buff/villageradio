@@ -58,8 +58,8 @@ export function ScopeTelemetry({
         zIndex: 3,
       }}>
         <div style={{ fontFamily: MONO, fontSize: 8, lineHeight: '13px', fontVariantNumeric: 'tabular-nums' }}>
-          <div style={{ color: '#000' }}>{clock.utc}</div>
-          <div style={{ color: '#555' }}>{clock.mil}</div>
+          <div style={{ color: 'var(--vlg-fg, #000)' }}>{clock.utc}</div>
+          <div style={{ color: 'var(--vlg-fg-dim, #555)' }}>{clock.mil}</div>
           <div style={{ color: RED, fontSize: 7 }}>{clock.bc}</div>
         </div>
       </div>
@@ -71,7 +71,7 @@ export function ScopeTelemetry({
       }}>
         <div className="ticker" style={{
           fontFamily: MONO, fontSize: 7, lineHeight: '10px', letterSpacing: '0.05em',
-          color: '#555', whiteSpace: 'nowrap',
+          color: 'var(--vlg-fg-dim, #555)', whiteSpace: 'nowrap',
         }}>
           {ticker}&nbsp;&nbsp;&nbsp;&nbsp;{ticker}
         </div>

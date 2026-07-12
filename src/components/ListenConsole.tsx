@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRef, useEffect, useState } from 'react';
 import { useAudio } from '@/lib/audio-context';
+import { useTheme } from '@/components/ThemeProvider';
+import { LIGHT_THEMES } from '@/lib/theme';
 import type { Mix } from '@/lib/types';
 import { LiveVideo } from '@/components/instruments/LiveVideo';
 import { Panel } from '@/components/instruments/Panel';
@@ -14,6 +16,11 @@ import { ListenOscilloscope } from '@/components/instruments/ListenOscilloscope'
 
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const RED  = '#ff0000';
+
+// theme tokens — console chrome follows the site theme
+const BG     = 'var(--vlg-bg, #fff)';
+const STRONG = 'var(--vlg-strong, #000)';
+const ink = (pct: number) => `color-mix(in srgb, var(--vlg-strong, #000) ${pct}%, transparent)`;
 
 function mmss(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
@@ -139,8 +146,15 @@ export function ListenConsole() {
   const liveSelected = mode === 'broadcast';
   const ledState = live ? 'live' as const : 'idle' as const;
 
+  // DSPower plot panes: exact VGA-on-black on dark themes, printed-on-white on light
+  const { name: themeName } = useTheme();
+  const lightTheme = LIGHT_THEMES.has(themeName);
+  const plotBg    = lightTheme ? '#ffffff' : '#000000';
+  const plotEdge  = lightTheme ? ink(28) : 'rgba(255,0,255,0.55)';
+  const plotLabel = lightTheme ? '#000000' : '#ffff00';
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#fff' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: BG }}>
       <div className="page-enter" style={{
         position: 'absolute', left: '50%',
           top: centerY !== null ? centerY : '50%',
@@ -151,27 +165,27 @@ export function ListenConsole() {
           <Image src="/icons/left-arrow.png" alt="Back" width={52} height={52} priority />
         </Link>
 
-        <div style={{ position: 'absolute', left: EQ.x, top: EQ.y, width: EQ.w, height: EQ.h, background: '#fff', border: '1px solid rgba(0,0,0,0.3)', boxSizing: 'border-box', userSelect: 'none' }}>
+        <div style={{ position: 'absolute', left: EQ.x, top: EQ.y, width: EQ.w, height: EQ.h, background: BG, border: `1px solid ${ink(30)}`, boxSizing: 'border-box', userSelect: 'none' }}>
           {/* unified nameplate rail — only spans instrument columns, not RACK */}
           <div style={{
             position: 'absolute', left: 0, top: 0, width: COL_W * 2, height: RAIL_H,
             display: 'flex', alignItems: 'center', gap: 14, padding: '0 10px',
-            borderBottom: '1px solid rgba(0,0,0,0.28)', boxSizing: 'border-box',
-            fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', color: 'rgba(0,0,0,0.5)',
-            background: '#fff',
+            borderBottom: `1px solid ${ink(28)}`, boxSizing: 'border-box',
+            fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', color: ink(50),
+            background: BG,
           }}>
-            <span style={{ color: '#000' }}>VLG-4CH</span>
-            <span style={{ color: 'rgba(0,0,0,0.4)' }}>SIGNAL ANALYZER</span>
+            <span style={{ color: STRONG }}>VLG-4CH</span>
+            <span style={{ color: ink(40) }}>SIGNAL ANALYZER</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
               <span style={{
                 width: 5, height: 5, borderRadius: '50%',
                 background: live ? RED : 'transparent',
-                border: `1px solid ${live ? RED : 'rgba(0,0,0,0.3)'}`,
+                border: `1px solid ${live ? RED : ink(30)}`,
                 animation: live ? 'vrPulse 1.6s ease-in-out infinite' : undefined,
               }} />
-              <span style={{ color: live ? RED : 'rgba(0,0,0,0.4)' }}>{live ? 'LIVE' : 'IDLE'}</span>
+              <span style={{ color: live ? RED : ink(40) }}>{live ? 'LIVE' : 'IDLE'}</span>
             </span>
-            <span ref={clockRef} style={{ color: '#000', letterSpacing: '0.1em' }}>01:00:00:00</span>
+            <span ref={clockRef} style={{ color: STRONG, letterSpacing: '0.1em' }}>01:00:00:00</span>
           </div>
 
           {/* Q1 — Al-Hadath video monitor (kept dark — video needs black bg) */}
@@ -189,12 +203,12 @@ export function ListenConsole() {
             </Panel>
           </Pane>
 
-          {/* Q2 — frequency waterfall (mobile aesthetic: white/black) */}
+          {/* Q2 — Hypersignal 3-D spectrograph (waterfall) */}
           <Pane rect={WFALL}>
-            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.28)', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', inset: 0, background: plotBg, border: `1px solid ${plotEdge}`, boxSizing: 'border-box' }}>
               <div style={{
-                position: 'absolute', left: 8, top: 5, zIndex: 2, pointerEvents: 'none',
-                fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#000',
+                position: 'absolute', left: 8, top: 3, zIndex: 2, pointerEvents: 'none',
+                fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: plotLabel,
               }}>
                 {'WFALL '}
                 <span style={{ color: RED }}>[{live ? 'LIVE' : 'IDLE'}]</span>
@@ -204,12 +218,12 @@ export function ListenConsole() {
             </div>
           </Pane>
 
-          {/* Q3 — LPC pole-zero Z-plane (mobile aesthetic) */}
+          {/* Q3 — LPC pole-zero Z-plane */}
           <Pane rect={CONTOUR}>
-            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.28)', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', inset: 0, background: plotBg, border: `1px solid ${plotEdge}`, boxSizing: 'border-box' }}>
               <div style={{
-                position: 'absolute', left: 8, top: 5, zIndex: 2, pointerEvents: 'none',
-                fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#000',
+                position: 'absolute', left: 8, top: 3, zIndex: 2, pointerEvents: 'none',
+                fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: plotLabel,
               }}>
                 {'LPC '}
                 <span style={{ color: RED }}>[Z-PLANE]</span>
@@ -219,14 +233,14 @@ export function ListenConsole() {
             </div>
           </Pane>
 
-          {/* Q4 — waveform oscilloscope (time-domain, triggered sweep) */}
+          {/* Q4 — Hypersignal Wave Display (dual-trace time domain) */}
           <Pane rect={PZ}>
-            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid rgba(0,0,0,0.28)', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', inset: 0, background: plotBg, border: `1px solid ${plotEdge}`, boxSizing: 'border-box' }}>
               <div style={{
-                position: 'absolute', left: 8, top: 5, zIndex: 2, pointerEvents: 'none',
-                fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#000',
+                position: 'absolute', left: 8, top: 3, zIndex: 2, pointerEvents: 'none',
+                fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: plotLabel,
               }}>
-                {'OSC '}
+                {'WAVE '}
                 <span style={{ color: RED }}>[{live ? 'LIVE' : 'IDLE'}]</span>
               </div>
               <ListenOscilloscope />
@@ -238,15 +252,15 @@ export function ListenConsole() {
           <Pane rect={RACK}>
             <div style={{
               position: 'absolute', inset: 0, boxSizing: 'border-box',
-              borderLeft: '1px solid rgba(0,0,0,0.28)', background: '#fff',
+              borderLeft: `1px solid ${ink(28)}`, background: BG,
               display: 'flex', flexDirection: 'column',
             }}>
               {/* TX LOG header */}
               <div style={{
                 flex: '0 0 auto', padding: '5px 8px',
-                borderBottom: '1px solid rgba(0,0,0,0.2)',
+                borderBottom: `1px solid ${ink(20)}`,
                 fontFamily: BODY, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
-                color: '#000',
+                color: STRONG,
               }}>
                 TX LOG
               </div>
@@ -255,45 +269,45 @@ export function ListenConsole() {
               <button onClick={onLive} style={{
                 flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 6,
                 padding: '7px 8px',
-                background: liveSelected ? '#000' : 'transparent',
-                border: 'none', borderBottom: '1px solid rgba(0,0,0,0.1)',
+                background: liveSelected ? STRONG : 'transparent',
+                border: 'none', borderBottom: `1px solid ${ink(10)}`,
                 cursor: 'pointer', textAlign: 'left', fontFamily: BODY,
               }}>
                 <span style={{
                   width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
                   background: live ? RED : 'transparent',
-                  border: `1px solid ${live ? RED : (liveSelected ? '#fff' : '#000')}`,
+                  border: `1px solid ${live ? RED : (liveSelected ? BG : STRONG)}`,
                   animation: live && liveSelected ? 'vrPulse 1.4s ease-in-out infinite' : undefined,
                 }} />
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1, color: liveSelected ? '#fff' : '#000' }}>
+                  <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1, color: liveSelected ? BG : STRONG }}>
                     TX-LIVE
                   </span>
                   <span style={{
                     fontSize: 8, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 1,
-                    color: liveSelected ? (live ? RED : 'rgba(255,255,255,0.45)') : (live ? RED : 'rgba(0,0,0,0.4)'),
+                    color: liveSelected
+                      ? (live ? RED : `color-mix(in srgb, ${'var(--vlg-bg, #fff)'} 45%, transparent)`)
+                      : (live ? RED : ink(40)),
                   }}>
                     {live && liveSelected ? 'RECEIVING' : 'STANDBY'}
                   </span>
                   <span ref={sessionSpanRef} style={{
                     fontSize: 7, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1,
-                    color: 'rgba(255,255,255,0.35)',
+                    color: `color-mix(in srgb, ${'var(--vlg-bg, #fff)'} 35%, transparent)`,
                     display: live && liveSelected ? 'block' : 'none',
                   }} />
                 </span>
               </button>
 
               {/* Separator */}
-              <div style={{ flex: '0 0 auto', height: 1, background: 'rgba(0,0,0,0.2)' }} />
+              <div style={{ flex: '0 0 auto', height: 1, background: ink(20) }} />
 
               {/* Archive track list */}
               <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                 {playlist.map((m, i) => {
                   const isActive = mode === 'individual' && currentTrack?.id === m.id;
                   const isPlayingClip = isActive && isPlaying;
-                  const DIM  = 'rgba(0,0,0,0.55)';
-                  const FULL = '#000';
-                  const c = (a: boolean) => a ? FULL : DIM;
+                  const c = (a: boolean) => a ? STRONG : ink(55);
                   const status = isPlayingClip ? 'TX' : isActive ? 'LOADED' : 'STANDBY';
                   return (
                     <button key={m.id} onClick={() => onSelectClip(m)} style={{
@@ -301,7 +315,7 @@ export function ListenConsole() {
                       width: '100%', height: 24,
                       paddingLeft: 6, paddingRight: 6,
                       background: 'transparent',
-                      border: 'none', borderBottom: '1px solid rgba(0,0,0,0.05)',
+                      border: 'none', borderBottom: `1px solid ${ink(5)}`,
                       cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
                       fontFamily: MONO, fontSize: 8.5, lineHeight: 1,
                     }}>
@@ -312,7 +326,7 @@ export function ListenConsole() {
                       </span>
                       <span style={{
                         flex: 1, minWidth: 5,
-                        borderBottom: '1px dotted rgba(0,0,0,0.22)',
+                        borderBottom: `1px dotted ${ink(22)}`,
                         alignSelf: 'flex-end', marginBottom: 2,
                       }} />
                       <span style={{

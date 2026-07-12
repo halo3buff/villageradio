@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Space_Mono, DM_Sans, IBM_Plex_Mono } from 'next/font/google';
+import { Space_Mono, DM_Sans, IBM_Plex_Mono, VT323 } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
@@ -28,6 +28,15 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ['400', '500'],
   subsets: ['latin'],
   variable: '--font-ibm-plex-mono',
+  display: 'swap',
+});
+
+// Bitmap-style face for the DSPower instrument canvases (resolved from the CSS
+// var by retro.ts pixelFont(), since ctx.font can't read var()).
+const vt323 = VT323({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-vt323',
   display: 'swap',
 });
 
@@ -83,7 +92,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang="en"
       data-theme={theme}
-      className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${helveticaBlack.variable} ${helveticaMedium.variable}`}
+      className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${vt323.variable} ${helveticaBlack.variable} ${helveticaMedium.variable}`}
     >
       <head>
         <meta name="theme-color" content="#080808" />

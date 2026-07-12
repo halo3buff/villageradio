@@ -259,13 +259,14 @@ export function Oscilloscope() {
     ['STATUS',   status],
   ];
 
-  const statusColor = status === 'REC' ? '#c00' : status === 'RECEIVED' ? '#000' : '#000';
+  const FG = 'var(--vlg-fg, #000)';
+  const statusColor = status === 'REC' ? '#c00' : FG;
 
   return (
     <div style={{ fontFamily: MONO, maxWidth: 720 }}>
 
       {/* ── HEADER ── */}
-      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', color: '#000' }}>
+      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', color: FG }}>
         <div>{'> RECORD TRANSMISSION'}</div>
         <div>{'// TELL A STORY'}</div>
         <div>{'// EXPLAIN YOURSELF'}</div>
@@ -315,8 +316,8 @@ export function Oscilloscope() {
       <div style={{ marginTop: 10, fontSize: 9, lineHeight: '16px', letterSpacing: '0.1em' }}>
         {readout.map(([label, value]) => (
           <div key={label} style={{ display: 'flex', gap: 12 }}>
-            <span style={{ color: '#000', minWidth: 72 }}>{label}</span>
-            <span style={{ color: label === 'STATUS' ? statusColor : '#000' }}>{value}</span>
+            <span style={{ color: FG, minWidth: 72 }}>{label}</span>
+            <span style={{ color: label === 'STATUS' ? statusColor : FG }}>{value}</span>
           </div>
         ))}
         {rec.error && <div style={{ marginTop: 4, color: '#c00' }}>{rec.error}</div>}
@@ -334,13 +335,13 @@ export function Oscilloscope() {
 
       {/* ── HANDLE ── */}
       <div style={{ display: 'flex', gap: 12, fontSize: 9, letterSpacing: '0.1em', alignItems: 'center', marginTop: 10 }}>
-        <span style={{ color: '#000', minWidth: 72 }}>HANDLE</span>
+        <span style={{ color: FG, minWidth: 72 }}>HANDLE</span>
         <input type="text" value={handle} maxLength={MAX_HANDLE} disabled={!isReview}
           onChange={(e) => setHandle(e.target.value)}
           placeholder={isReview ? 'optional' : ''}
           style={{
-            fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: '#000',
-            background: 'transparent', border: 'none', borderBottom: '1px solid #000',
+            fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: FG,
+            background: 'transparent', border: 'none', borderBottom: `1px solid ${FG}`,
             padding: '2px 0', flex: 1, outline: 'none', opacity: isReview ? 1 : 0.4,
           }} />
       </div>

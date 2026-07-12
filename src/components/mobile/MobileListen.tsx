@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRef, useEffect } from 'react';
 import { useAudio } from '@/lib/audio-context';
+import { useTheme } from '@/components/ThemeProvider';
+import { LIGHT_THEMES } from '@/lib/theme';
 import { MobileWaterfall } from '@/components/mobile/MobileWaterfall';
 import { MobilePoleZero } from '@/components/mobile/MobilePoleZero';
 import type { Mix } from '@/lib/types';
@@ -16,6 +18,11 @@ const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const RED = '#ff0000';
+
+// theme tokens — page chrome follows the site theme
+const BG     = 'var(--vlg-bg, #fff)';
+const STRONG = 'var(--vlg-strong, #000)';
+const ink = (pct: number) => `color-mix(in srgb, var(--vlg-strong, #000) ${pct}%, transparent)`;
 
 const WFALL_X = 17;
 const WFALL_W = 368;
@@ -38,6 +45,10 @@ function mmss(sec: number) {
 
 export function MobileListen() {
   const { isPlaying, mode, currentTrack, playlist, broadcastPlay, play, toggle, progress } = useAudio();
+  const { name: themeName } = useTheme();
+  const lightTheme = LIGHT_THEMES.has(themeName);
+  const plotEdge  = lightTheme ? STRONG : 'rgba(255,0,255,0.7)';
+  const plotLabel = lightTheme ? '#000' : '#ffff00';
 
   const onLive = () => {
     if (mode === 'broadcast' && isPlaying) toggle();
@@ -93,7 +104,7 @@ export function MobileListen() {
   }, [mode, isPlaying]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, overflow: 'hidden', background: '#fff' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, overflow: 'hidden', background: BG }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Nameplate rail — matches desktop VLG-4CH strip */}
@@ -101,12 +112,12 @@ export function MobileListen() {
           position: 'absolute', left: 0, top: 0, right: 0, height: dvh(20),
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: `0 ${vw(WFALL_X)}`,
-          borderBottom: '1px solid rgba(0,0,0,0.18)',
+          borderBottom: `1px solid ${ink(18)}`,
           fontFamily: BODY, fontSize: vw(8), letterSpacing: '0.12em', textTransform: 'uppercase',
         }}>
-          <span style={{ color: '#000' }}>VLG-RX</span>
-          <span style={{ color: 'rgba(0,0,0,0.4)' }}>{txLabel}</span>
-          <span ref={clockRef} style={{ color: '#000' }} />
+          <span style={{ color: STRONG }}>VLG-RX</span>
+          <span style={{ color: ink(40) }}>{txLabel}</span>
+          <span ref={clockRef} style={{ color: STRONG }} />
         </div>
 
         {/* Back arrow */}
@@ -121,7 +132,7 @@ export function MobileListen() {
         {/* WFALL label */}
         <div style={{
           position: 'absolute', left: vw(WFALL_X + 7), top: dvh(WFALL_Y + 7), zIndex: 2, pointerEvents: 'none',
-          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: '#000',
+          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: plotLabel,
         }}>
           {'WFALL '}
           <span style={{ color: RED }}>[{live ? 'LIVE' : 'IDLE'}]</span>
@@ -140,7 +151,7 @@ export function MobileListen() {
           style={{
             position: 'absolute', left: vw(WFALL_X), top: dvh(WFALL_Y),
             width: vw(WFALL_W), height: dvh(WFALL_H),
-            border: '1px solid #000', boxSizing: 'border-box', cursor: 'pointer', background: 'transparent',
+            border: `1px solid ${plotEdge}`, boxSizing: 'border-box', cursor: 'pointer', background: 'transparent',
           }}
         >
           <MobileWaterfall />
@@ -150,12 +161,12 @@ export function MobileListen() {
           }}>
             {liveSelected && isPlaying ? (
               <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden>
-                <rect x="0" y="0" width="3" height="12" fill="#000" />
-                <rect x="6" y="0" width="3" height="12" fill="#000" />
+                <rect x="0" y="0" width="3" height="12" fill={plotLabel} />
+                <rect x="6" y="0" width="3" height="12" fill={plotLabel} />
               </svg>
             ) : (
               <svg width="9" height="12" viewBox="0 0 9 12" aria-hidden>
-                <polygon points="0,0 0,12 9,6" fill="#000" />
+                <polygon points="0,0 0,12 9,6" fill={plotLabel} />
               </svg>
             )}
           </span>
@@ -164,7 +175,7 @@ export function MobileListen() {
         {/* LPC POLE-ZERO label */}
         <div style={{
           position: 'absolute', left: vw(WFALL_X + 7), top: dvh(LPC_Y + 7), zIndex: 2, pointerEvents: 'none',
-          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: '#000',
+          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: plotLabel,
         }}>
           {'LPC '}
           <span style={{ color: RED }}>[Z-PLANE]</span>
@@ -174,7 +185,7 @@ export function MobileListen() {
         <div style={{
           position: 'absolute', left: vw(WFALL_X), top: dvh(LPC_Y),
           width: vw(WFALL_W), height: dvh(LPC_H),
-          border: '1px solid #000', boxSizing: 'border-box', background: 'transparent',
+          border: `1px solid ${plotEdge}`, boxSizing: 'border-box', background: 'transparent',
         }}>
           <MobilePoleZero />
         </div>
@@ -192,27 +203,27 @@ export function MobileListen() {
               {/* dithered track line */}
               <div style={{
                 position: 'absolute', left: 0, right: 0, top: dvh(4), height: 1,
-                background: 'repeating-linear-gradient(90deg, rgba(0,0,0,0.2) 0px, rgba(0,0,0,0.2) 1px, transparent 1px, transparent 3px)',
+                background: `repeating-linear-gradient(90deg, ${ink(20)} 0px, ${ink(20)} 1px, transparent 1px, transparent 3px)`,
               }} />
               {/* solid played portion */}
               <div style={{
                 position: 'absolute', left: 0, top: dvh(4), height: 1,
                 width: `${progress * 100}%`,
-                background: '#000',
+                background: STRONG,
               }} />
               {/* playhead cursor */}
               <div style={{
                 position: 'absolute', top: dvh(1), bottom: dvh(5),
                 left: `${progress * 100}%`,
                 width: 1,
-                background: '#000',
+                background: STRONG,
                 transform: 'translateX(-50%)',
               }} />
               {/* time labels */}
               <div style={{
                 position: 'absolute', left: 0, right: 0, top: dvh(10),
                 display: 'flex', justifyContent: 'space-between',
-                fontFamily: BODY, fontSize: vw(7.5), color: 'rgba(0,0,0,0.4)',
+                fontFamily: BODY, fontSize: vw(7.5), color: ink(40),
                 letterSpacing: '0.05em',
               }}>
                 <span>{mmss(elapsed)}</span>
@@ -225,7 +236,7 @@ export function MobileListen() {
         {/* TX LOG label */}
         <div style={{
           position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y),
-          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: '#000',
+          fontFamily: BODY, fontSize: vw(11), lineHeight: dvh(11), textTransform: 'uppercase', color: STRONG,
         }}>
           TX LOG
         </div>
@@ -236,8 +247,8 @@ export function MobileListen() {
           style={{
             position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 18),
             width: vw(WFALL_W), height: dvh(36),
-            background: liveSelected ? '#000' : 'transparent',
-            border: '1px solid #000', boxSizing: 'border-box',
+            background: liveSelected ? STRONG : 'transparent',
+            border: `1px solid ${STRONG}`, boxSizing: 'border-box',
             display: 'flex', alignItems: 'center', gap: vw(8), paddingLeft: vw(10),
             cursor: 'pointer', textAlign: 'left',
           }}
@@ -245,29 +256,29 @@ export function MobileListen() {
           <span style={{
             width: vw(7), height: vw(7), borderRadius: '50%',
             background: live ? RED : 'transparent',
-            border: `1px solid ${live ? RED : '#000'}`,
+            border: `1px solid ${live ? RED : (liveSelected ? BG : STRONG)}`,
             flexShrink: 0,
             animation: live && liveSelected ? 'vrPulse 1.4s ease-in-out infinite' : undefined,
           }} />
           <span style={{ display: 'flex', flexDirection: 'column', gap: vw(3) }}>
             <span style={{
               fontFamily: BODY, fontSize: vw(11), textTransform: 'uppercase', lineHeight: 1,
-              color: liveSelected ? '#fff' : '#000',
+              color: liveSelected ? BG : STRONG,
             }}>
               TX-LIVE
             </span>
             <span style={{
               fontFamily: BODY, fontSize: vw(8), textTransform: 'uppercase', lineHeight: 1,
               color: liveSelected
-                ? (live ? RED : 'rgba(255,255,255,0.45)')
-                : (live ? RED : 'rgba(0,0,0,0.35)'),
+                ? (live ? RED : `color-mix(in srgb, ${BG} 45%, transparent)`)
+                : (live ? RED : ink(35)),
             }}>
               {live && liveSelected ? 'RECEIVING' : 'STANDBY'}
             </span>
             {/* Session RX counter — always in DOM so sessionSpanRef stays attached */}
             <span ref={sessionSpanRef} style={{
               fontFamily: BODY, fontSize: vw(7), textTransform: 'uppercase', lineHeight: 1,
-              color: 'rgba(255,255,255,0.35)',
+              color: `color-mix(in srgb, ${BG} 35%, transparent)`,
               display: live && liveSelected ? 'block' : 'none',
             }} />
           </span>
@@ -276,7 +287,7 @@ export function MobileListen() {
         {/* Separator */}
         <div style={{
           position: 'absolute', left: vw(WFALL_X), top: dvh(ARCHIVE_Y + 54),
-          width: vw(WFALL_W), height: 1, background: '#000', opacity: 0.15,
+          width: vw(WFALL_W), height: 1, background: STRONG, opacity: 0.15,
         }} />
 
         {/* Archive track list — stretches to bottom */}
@@ -289,9 +300,7 @@ export function MobileListen() {
           {playlist.map((track, i) => {
             const isActive = currentTrack?.id === track.id;
             const isPlayingClip = isActive && isPlaying && mode === 'individual';
-            const DIM = 'rgba(0,0,0,0.32)';
-            const FULL = '#000';
-            const c = (active: boolean) => active ? FULL : DIM;
+            const c = (active: boolean) => active ? STRONG : ink(32);
             const status = isPlayingClip ? 'TX' : isActive ? 'LOADED' : 'STANDBY';
             return (
               <button
@@ -302,7 +311,7 @@ export function MobileListen() {
                   width: '100%', height: dvh(26),
                   paddingLeft: vw(10), paddingRight: vw(10),
                   background: 'transparent',
-                  border: 'none', borderBottom: '1px solid rgba(0,0,0,0.06)',
+                  border: 'none', borderBottom: `1px solid ${ink(6)}`,
                   cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
                   fontFamily: MONO, fontSize: vw(9.5), lineHeight: 1,
                 }}
@@ -330,7 +339,7 @@ export function MobileListen() {
                 {/* Dot leaders */}
                 <span style={{
                   flex: 1, minWidth: vw(8),
-                  borderBottom: '1px dotted rgba(0,0,0,0.22)',
+                  borderBottom: `1px dotted ${ink(22)}`,
                   alignSelf: 'flex-end', marginBottom: '3px',
                 }} />
 
@@ -338,7 +347,7 @@ export function MobileListen() {
                 {track.duration && (
                   <span style={{
                     flexShrink: 0, fontSize: vw(8.5),
-                    color: isActive ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.28)',
+                    color: isActive ? ink(55) : ink(28),
                   }}>
                     {track.duration}
                   </span>
