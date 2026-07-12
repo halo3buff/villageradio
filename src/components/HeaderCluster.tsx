@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 
 /** Recolors black line-art (via alpha mask) to the current theme's ink color, instead of a flat invert. */
@@ -80,8 +82,12 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
         />
       ))}
 
-      {/* Pre-rendered VILL + VGE block — flipped horizontally, recolored to match the letters */}
-      <div
+      {/* Pre-rendered VILL + VGE block — flipped horizontally */}
+      <Image
+        src="/images/anti-vetica.png"
+        alt=""
+        width={Math.round(ANTI_VETICA.w)}
+        height={Math.round(ANTI_VETICA.h)}
         style={{
           position: 'absolute',
           left: ANTI_VETICA.x + xOffset,
@@ -91,7 +97,6 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
           zIndex: 2,
           pointerEvents: 'none',
           transform: 'scaleX(-1)',
-          ...maskedArt('/images/anti-vetica.png'),
         }}
       />
 
