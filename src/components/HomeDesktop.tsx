@@ -3,11 +3,9 @@
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BroadcastLiveTag } from '@/components/BroadcastLiveTag';
 import { FitStage } from '@/components/FitStage';
 import { HeaderCluster } from '@/components/HeaderCluster';
-import { MobileScope } from '@/components/mobile/MobileScope';
-import { ScopeTelemetry } from '@/components/ScopeTelemetry';
+import { HtopBroadcast } from '@/components/HtopBroadcast';
 import { grantClearance } from '@/lib/clearance';
 
 const MONO   = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
@@ -15,12 +13,11 @@ const BODY   = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const SEGOE  = "'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif";
 const RED    = '#ff0000';
 
-// Scope position in the right 1440×1024 frame — mirrored from original left-side coords.
-// Original was left:274 → right-mirrored: left = 1440-274-600 = 566
-const SCOPE_L = 566;
-const SCOPE_T = 200;
-const SCOPE_W = 600;
-const SCOPE_H = 660;
+// Broadcast unit — the htop-style terminal monitor, right side of the stage.
+const UNIT_L = 665;
+const UNIT_T = 360;
+const UNIT_W = 760;
+const UNIT_H = 560;
 
 // Identical to the mobile COMMANDS map — same firewall, different surface.
 const COMMANDS: Record<string, string> = {
@@ -138,22 +135,11 @@ export function HomeDesktop() {
             README
           </Link>
 
-          {/* Chromeless vectorscope — right side */}
-          <div style={{ position: 'absolute', left: SCOPE_L, top: SCOPE_T, width: SCOPE_W, height: SCOPE_H, pointerEvents: 'auto' }}>
-            <MobileScope />
-          </div>
-
-          {/* Telemetry overlays */}
-          <ScopeTelemetry sl={SCOPE_L} st={SCOPE_T} sw={SCOPE_W} sh={SCOPE_H} />
-
-          {/* Broadcast status */}
-          <div style={{
-            position: 'absolute', left: SCOPE_L + 8, top: SCOPE_T + 8,
-            fontFamily: BODY, fontSize: 11, lineHeight: '11px', textTransform: 'uppercase',
-            color: 'var(--vlg-fg, #000)', zIndex: 3, pointerEvents: 'none',
-          }}>
-            {'> BROADCAST '}
-            <BroadcastLiveTag />
+          {/* Broadcast unit — the 3-D splot pane: sample surfaces at rest, a
+              spectral waterfall when the broadcast plays; its key box carries
+              the tag, station time, and transport */}
+          <div style={{ position: 'absolute', left: UNIT_L, top: UNIT_T, width: UNIT_W, height: UNIT_H }}>
+            <HtopBroadcast />
           </div>
         </>
       }

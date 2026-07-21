@@ -4,8 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { MobileScope } from '@/components/mobile/MobileScope';
-import { BroadcastLiveTag } from '@/components/BroadcastLiveTag';
+import { BroadcastLCD } from '@/components/BroadcastLCD';
 import type { NavCommand } from '@/lib/types';
 import { grantClearance } from '@/lib/clearance';
 
@@ -25,7 +24,6 @@ const SW = 402;
 const SH = 714;
 
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
-const BODY = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
 const RED = '#ff0000';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
@@ -60,22 +58,6 @@ const LOGO_OVAL_X = 145;
 const LOGO_OVAL = 15;
 
 
-function z2(n: number) { return String(Math.floor(n)).padStart(2, '0'); }
-function buildClock(d: Date) {
-  const h = z2(d.getUTCHours()), m = z2(d.getUTCMinutes()), s = z2(d.getUTCSeconds());
-  const f = z2(Math.floor(d.getUTCMilliseconds() / 10));
-  return { utc: `${h}:${m}:${s} UTC`, mil: `${h}${m}${s}Z`, bc: `T-${h}:${m}:${s}:${f}` };
-}
-function hexLine(seed: number) {
-  let out = '';
-  const rnd = (i: number) => Math.abs(Math.sin(i * 997.31 + seed * 0.01)) * 0xffff;
-  for (let i = 0; i < 24; i++) {
-    out += `0x${Math.floor(rnd(i)).toString(16).padStart(4, '0').toUpperCase()} `;
-    if (i % 6 === 5) out += '// ';
-  }
-  return out;
-}
-
 /**
  * One uniform, width-driven scale factor — aspect ratio is locked to the Figma
  * frame. Reads the LAYOUT viewport (documentElement.clientWidth), never the
@@ -102,8 +84,6 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
   const cmdMap = Object.fromEntries(commands.map(c => [c.cmd, c.route]));
   const scale = useUniformScale();
   const router = useRouter();
-  const [clock, setClock] = useState(() => buildClock(new Date()));
-  const [ticker, setTicker] = useState(() => hexLine(0));
   const [cmd, setCmd] = useState('');
   const [cmdFocused, setCmdFocused] = useState(false);
   const [kbShift, setKbShift] = useState(0);
@@ -170,16 +150,6 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
     timersRef.current.push(setTimeout(() => setErr(null), 1600));
   };
 
-  useEffect(() => {
-    let f = 0;
-    const id = setInterval(() => {
-      f++;
-      setClock(buildClock(new Date()));
-      if (f % 4 === 0) setTicker(hexLine(f));
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
-
   // The site chrome paints html/body near-black; this page is white and can
   // scroll, so force a white document behind it (kills the black band that
   // shows behind the page when iOS resizes the visual viewport after nav).
@@ -228,44 +198,9 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
           color: 'var(--vlg-fg, #000)', textDecoration: 'none',
         }}>README</Link>
 
-        {/* Chromeless vectorscope — perfect square, every side equal */}
-        <div style={{ position: 'absolute', left: 17, top: 72, width: 368, height: 368 }}>
-          <MobileScope />
-        </div>
-
-        {/* Broadcast status — top-left of the scope box */}
-        <div style={{
-          position: 'absolute', left: 24, top: 79, width: 320,
-          fontFamily: BODY, fontSize: 11, lineHeight: '13px', textTransform: 'uppercase',
-          color: 'var(--vlg-fg, #000)', zIndex: 3, pointerEvents: 'none',
-        }}>
-          {'> BROADCAST '}
-          <BroadcastLiveTag />
-        </div>
-
-        {/* Timecode — top-right inside the scope box */}
-        <div style={{
-          position: 'absolute', left: 285, top: 80, width: 92,
-          textAlign: 'right', zIndex: 3, pointerEvents: 'none',
-        }}>
-          <div style={{ fontFamily: MONO, fontSize: 7, lineHeight: '12px', fontVariantNumeric: 'tabular-nums' }}>
-            <div style={{ color: 'var(--vlg-fg, #000)' }}>{clock.utc}</div>
-            <div style={{ color: 'var(--vlg-fg-dim, #555)' }}>{clock.mil}</div>
-            <div style={{ color: RED, fontSize: 6 }}>{clock.bc}</div>
-          </div>
-        </div>
-
-        {/* Freq ticker — scrolling strip below the scope box */}
-        <div style={{
-          position: 'absolute', left: 17, top: 446, width: 368, height: 14,
-          overflow: 'hidden', pointerEvents: 'none', zIndex: 3,
-        }}>
-          <div className="ticker" style={{
-            fontFamily: MONO, fontSize: 6, lineHeight: '10px', letterSpacing: '0.04em',
-            color: 'var(--vlg-fg-dim, #555)', whiteSpace: 'nowrap',
-          }}>
-            {ticker}&nbsp;&nbsp;&nbsp;&nbsp;{ticker}
-          </div>
+        {/* Live broadcast unit — label, transport, station time, MHz counter */}
+        <div style={{ position: 'absolute', left: 31, top: 96 }}>
+          <BroadcastLCD />
         </div>
 
         {/* VILLAGE word-mark cluster — ovals */}
