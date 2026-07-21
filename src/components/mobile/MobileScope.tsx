@@ -21,7 +21,7 @@ const TX_FLASH_MS = 700;
  * scope, never explained) and a brief flash when someone, somewhere, sends
  * a transmission.
  */
-function useSignalNet() {
+export function useSignalNet() {
   const [rx, setRx] = useState<number | null>(null);
   const [txFlash, setTxFlash] = useState(false);
   const lastTxRef = useRef<number | null>(null);

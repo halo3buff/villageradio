@@ -53,6 +53,19 @@ const helveticaMedium = localFont({
   display: 'swap',
 });
 
+// Real seven-segment LCD faces (DSEG, SIL OFL) for the broadcast MHz counter.
+const dseg7 = localFont({
+  src: './fonts/DSEG7Classic-Italic.woff2',
+  variable: '--font-dseg7',
+  display: 'swap',
+});
+
+const dseg14 = localFont({
+  src: './fonts/DSEG14Classic-Italic.woff2',
+  variable: '--font-dseg14',
+  display: 'swap',
+});
+
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -92,7 +105,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang="en"
       data-theme={theme}
-      className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${vt323.variable} ${helveticaBlack.variable} ${helveticaMedium.variable}`}
+      className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${vt323.variable} ${helveticaBlack.variable} ${helveticaMedium.variable} ${dseg7.variable} ${dseg14.variable}`}
     >
       <head>
         <meta name="theme-color" content="#080808" />

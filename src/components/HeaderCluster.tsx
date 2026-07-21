@@ -1,6 +1,8 @@
 'use client';
 
 import Image from 'next/image';
+import { useTheme } from '@/components/ThemeProvider';
+import { LIGHT_THEMES } from '@/lib/theme';
 
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 
@@ -63,6 +65,11 @@ const OVALS: [number, number, number, number][] = [
 ];
 
 export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
+  // The anti-vetica PNG has a baked white ground. On light themes `multiply`
+  // drops that white to transparent (black art survives); on dark themes it
+  // would erase the art, so leave it normal there.
+  const { name: theme } = useTheme();
+  const light = LIGHT_THEMES.has(theme);
   return (
     <div aria-hidden="true">
       {/* Oval marks sit behind the word-marks — recolored to match the letters, not inverted */}
@@ -82,23 +89,34 @@ export function HeaderCluster({ xOffset = 0 }: { xOffset?: number }) {
         />
       ))}
 
-      {/* Pre-rendered VILL + VGE block — flipped horizontally */}
-      <Image
-        src="/images/anti-vetica.png"
-        alt=""
-        width={Math.round(ANTI_VETICA.w)}
-        height={Math.round(ANTI_VETICA.h)}
-        style={{
-          position: 'absolute',
-          left: ANTI_VETICA.x + xOffset,
-          top: ANTI_VETICA.y,
-          width: ANTI_VETICA.w,
-          height: ANTI_VETICA.h,
-          zIndex: 2,
-          pointerEvents: 'none',
-          transform: 'scaleX(-1)',
-        }}
-      />
+      {/* Pre-rendered VILL + VGE block — flipped horizontally. The PNG has a
+          baked white ground; on light themes we drop it by multiplying the img
+          against its own bg-colored wrapper (the parent frame's transform
+          isolates the blend group, so multiplying against the page won't work).
+          Dark themes render it as-is. */}
+      <div style={{
+        position: 'absolute',
+        left: ANTI_VETICA.x + xOffset,
+        top: ANTI_VETICA.y,
+        width: ANTI_VETICA.w,
+        height: ANTI_VETICA.h,
+        zIndex: 2,
+        pointerEvents: 'none',
+        background: light ? 'var(--vlg-bg, #fff)' : 'transparent',
+      }}>
+        <Image
+          src="/images/anti-vetica.png"
+          alt=""
+          width={Math.round(ANTI_VETICA.w)}
+          height={Math.round(ANTI_VETICA.h)}
+          style={{
+            width: '100%',
+            height: '100%',
+            transform: 'scaleX(-1)',
+            mixBlendMode: light ? 'multiply' : 'normal',
+          }}
+        />
+      </div>
 
       {WORDS.map((wd, i) => (
         <div

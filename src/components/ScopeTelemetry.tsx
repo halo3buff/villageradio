@@ -30,8 +30,8 @@ function hexLine(seed: number) {
 }
 
 export function ScopeTelemetry({
-  sl = DEFAULT_SL, st = DEFAULT_ST, sw = DEFAULT_SW, sh = DEFAULT_SH,
-}: { sl?: number; st?: number; sw?: number; sh?: number } = {}) {
+  sl = DEFAULT_SL, st = DEFAULT_ST, sw = DEFAULT_SW, sh = DEFAULT_SH, above = false,
+}: { sl?: number; st?: number; sw?: number; sh?: number; above?: boolean } = {}) {
   const [clock, setClock] = useState(() => buildClock(new Date()));
   const [ticker, setTicker] = useState(() => hexLine(0));
 
@@ -47,20 +47,28 @@ export function ScopeTelemetry({
 
   return (
     <>
-      {/* ── TIMECODE — top-right inside the scope box ── */}
-      <div style={{
+      {/* ── TIMECODE — right-aligned. Default: inside the scope box, with a bg
+           that occludes the lattice underneath. `above`: floated just above the
+           grid (density-plot mode), transparent, no occlusion. ── */}
+      <div style={above ? {
         position: 'absolute',
-        left: sl + sw - 104,
+        left: sl, top: st - 46, width: sw,
+        textAlign: 'right', pointerEvents: 'none', zIndex: 3,
+      } : {
+        position: 'absolute',
+        left: sl + sw - 118,
         top: st + 8,
-        width: 96,
+        width: 110,
         textAlign: 'right',
         pointerEvents: 'none',
         zIndex: 3,
+        background: 'var(--vlg-bg, #fff)',
+        padding: '2px 4px', margin: '-2px -4px -2px 0',
       }}>
-        <div style={{ fontFamily: MONO, fontSize: 8, lineHeight: '13px', fontVariantNumeric: 'tabular-nums' }}>
-          <div style={{ color: 'var(--vlg-fg, #000)' }}>{clock.utc}</div>
-          <div style={{ color: 'var(--vlg-fg-dim, #555)' }}>{clock.mil}</div>
-          <div style={{ color: RED, fontSize: 7 }}>{clock.bc}</div>
+        <div style={{ fontFamily: MONO, fontSize: above ? 11 : 12, lineHeight: '14px', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ color: above ? 'var(--vlg-strong, #000)' : 'var(--vlg-fg-dim, #555)' }}>{clock.utc}</div>
+          <div style={{ color: above ? 'var(--vlg-strong, #000)' : 'var(--vlg-fg-dim, #555)' }}>{clock.mil}</div>
+          <div style={{ color: RED }}>{clock.bc}</div>
         </div>
       </div>
 
