@@ -78,7 +78,7 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
             {'contact: '}
             <span style={{ color: T.uid_real }}>{EMAIL}</span>
             {'\ncommands:\n'}
-            {commands.map(c => (
+            {commands.filter(c => !c.hidden).map(c => (
               <div key={c.cmd} style={{ color: paletteColor(T, c.cmd) }}>
                 {`  ${c.cmd.padEnd(12)} ${c.label}`}
               </div>

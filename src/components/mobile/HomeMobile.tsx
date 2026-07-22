@@ -78,7 +78,7 @@ function useUniformScale() {
 }
 
 export function HomeMobile({ commands }: { commands: NavCommand[] }) {
-  const cmdMap = Object.fromEntries(commands.map(c => [c.cmd, c.route]));
+  const cmdMap = Object.fromEntries(commands.filter(c => !c.blocked).map(c => [c.cmd, c.route]));
   const scale = useUniformScale();
   const router = useRouter();
   const [cmd, setCmd] = useState('');

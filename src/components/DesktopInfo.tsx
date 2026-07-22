@@ -191,18 +191,20 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
     return () => clearTimeout(id);
   }, []);
 
+  const shown = commands.filter(c => !c.hidden);
+
   // — a command occasionally loses availability —
   const [fading, setFading] = useState(-1);
   useEffect(() => {
     const ids: ReturnType<typeof setTimeout>[] = [];
     const cycle = () => {
-      setFading(Math.floor(Math.random() * commands.length));
+      setFading(Math.floor(Math.random() * shown.length));
       ids.push(setTimeout(() => setFading(-1), 1400 + Math.random() * 800));
       ids.push(setTimeout(cycle, reducedMotion() ? 40000 : 22000 + Math.random() * 18000));
     };
     ids.push(setTimeout(cycle, 20000 + Math.random() * 10000));
     return () => ids.forEach(clearTimeout);
-  }, [commands.length]);
+  }, [shown.length]);
 
   useEffect(() => {
     const update = () => {
@@ -258,7 +260,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
               color: 'var(--vlg-fg, #000)', whiteSpace: 'pre',
             }}>
               {COMMANDS_PREFIX}
-              {commands.map((c, i) => (
+              {shown.map((c, i) => (
                 <div
                   key={c.cmd}
                   style={{ color: paletteColor(T, c.cmd), opacity: fading === i ? 0.15 : 1, transition: 'opacity 1.1s ease' }}

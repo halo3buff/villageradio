@@ -4,6 +4,20 @@ import { useState, useMemo } from 'react';
 import type { NavCommand } from '@/lib/types';
 import { Banner, RowBtn, FIELD, FIELD_LABEL } from './ui';
 
+/** Text-only on/off pill: filled marker + bright when on, dim when off. */
+function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-left font-mono text-[9px] tracking-[0.12em] uppercase transition-colors ${
+        on ? 'text-black' : 'text-black/30 hover:text-black/60'
+      }`}
+    >
+      {on ? '■' : '□'} {label}
+    </button>
+  );
+}
+
 type Props = { initialCommands: NavCommand[]; generation: string };
 type Status = 'idle' | 'publishing' | 'published' | 'conflict' | 'error';
 
@@ -68,8 +82,11 @@ export function CommandsEditor({ initialCommands, generation: initialGen }: Prop
           {commands.length} commands
         </span>
       </div>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-1">
         these are the commands shown on the readme page and used by the mobile prompt · publish to update both
+      </p>
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
+        hide = drop from the readme (still works if typed) · block = dead at the prompt (for pages under construction)
       </p>
 
       {status === 'conflict' && (
@@ -82,14 +99,14 @@ export function CommandsEditor({ initialCommands, generation: initialGen }: Prop
       <div className="mb-6 border border-black/10 p-3">
         <span className={FIELD_LABEL}>readme preview</span>
         <pre className="font-mono text-[10px] text-black/70 leading-relaxed mt-1">{
-          'commands:\n' + commands.map(c => `  ${c.cmd.padEnd(12)} ${c.label}`).join('\n')
+          'commands:\n' + commands.filter(c => !c.hidden).map(c => `  ${c.cmd.padEnd(12)} ${c.label}`).join('\n')
         }</pre>
       </div>
 
       {/* Command rows */}
       <div className="border-t border-black/10">
         {commands.map((c, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end border-b border-black/10 py-3">
+          <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-3 items-end border-b border-black/10 py-3">
             <label>
               <span className={FIELD_LABEL}>command</span>
               <input className={FIELD} value={c.cmd} onChange={e => patch(i, { cmd: e.target.value })} spellCheck={false} />
@@ -102,6 +119,10 @@ export function CommandsEditor({ initialCommands, generation: initialGen }: Prop
               <span className={FIELD_LABEL}>label</span>
               <input className={FIELD} value={c.label} onChange={e => patch(i, { label: e.target.value })} />
             </label>
+            <div className="flex flex-col gap-1 pb-1">
+              <Toggle on={!!c.hidden} onClick={() => patch(i, { hidden: !c.hidden })} label="hide" />
+              <Toggle on={!!c.blocked} onClick={() => patch(i, { blocked: !c.blocked })} label="block" />
+            </div>
             <div className="pb-1">
               <RowBtn onClick={() => remove(i)} label="remove" />
             </div>

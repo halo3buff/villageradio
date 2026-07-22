@@ -88,6 +88,10 @@ export interface NavCommand {
   cmd: string;    // text the user types at the prompt
   route: string;  // Next.js route it navigates to
   label: string;  // friendly name shown in the README block
+  /** Omit from the README block — the command still works if typed (obscurity). */
+  hidden?: boolean;
+  /** Inert at the prompt — typing it dies as SIG_UNKNOWN. For pages under construction. */
+  blocked?: boolean;
 }
 
 export interface CommandsManifest {
