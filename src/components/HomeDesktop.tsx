@@ -15,9 +15,9 @@ const RED    = '#ff0000';
 
 // Broadcast unit — the htop-style terminal monitor, right side of the stage.
 const UNIT_L = 665;
-const UNIT_T = 360;
+const UNIT_T = 300;
 const UNIT_W = 760;
-const UNIT_H = 560;
+const UNIT_H = 820;
 
 // Identical to the mobile COMMANDS map — same firewall, different surface.
 const COMMANDS: Record<string, string> = {

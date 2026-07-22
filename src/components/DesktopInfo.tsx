@@ -115,7 +115,6 @@ const COMMANDS_PREFIX =
   `\n` +
   `commands:`;
 
-const TICKER_LINE = `99.00.88.77.66.55.44.33.22.11.00.err.null.void.0x0000000000000000`;
 const ZEROS_LINE = `0000000000000000000000000000000000000000000000000000000000`;
 
 const GHOST_FRAGMENTS = ['¿¿¿', '0.0', '//void', ':::', '><>', '~/root', '...?'];
@@ -280,25 +279,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
           </div>
           <style>{`
             @keyframes vr-blink{50%{opacity:0}}
-            @keyframes vr-tick{from{transform:translateX(0)}to{transform:translateX(-100%)}}
-            .vr-ticker{animation:vr-tick 26s linear infinite}
-            @media (prefers-reduced-motion: reduce){
-              .vr-ticker{animation:none;padding-left:0 !important}
-            }
           `}</style>
-        </div>
-
-        {/* Ticker — outside the clipped canvas so it spans the full screen width */}
-        <div style={{
-          position: 'absolute', left: 0, bottom: 36, height: 14,
-          width: `calc(100vw / ${scale})`, overflow: 'hidden',
-        }}>
-          <span className="vr-ticker" style={{
-            display: 'inline-block', whiteSpace: 'pre', paddingLeft: '100%',
-            fontFamily: MONO, fontSize: 11, lineHeight: '14px', color: 'var(--vlg-fg, #000)',
-          }}>
-            {TICKER_LINE}
-          </span>
         </div>
       </div>
 

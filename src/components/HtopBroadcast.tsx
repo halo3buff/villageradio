@@ -3,22 +3,23 @@
 import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAudio } from '@/lib/audio-context';
 import { BroadcastLiveTag } from '@/components/BroadcastLiveTag';
+import { ThroughputStrip } from '@/components/ThroughputStrip';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
 /**
- * HtopBroadcast — the broadcast as a monochrome `htop` monitor (reference:
- * a classic htop screen). The six top-left meters visualise the signal:
- * bars 1–4 are four frequency bands (sub / low / mid / high) from the live
- * FFT, `Lvl` is the overall level, `Pk` the peak in dB. The right-hand block
- * is live broadcast telemetry (source, signal tag, rolling level average,
- * on-air uptime, SNR, transport). The process table below treats each
- * frequency bin as a process — sorted by energy so the rows constantly
- * reorder and "flow" like htop, with peak-hold and hold-timers.
+ * HtopBroadcast — the broadcast as a monochrome `htop` monitor. A dot-matrix
+ * LED strip up top traces the live waveform; the six meters visualise the
+ * signal (bars 1–4 = four frequency bands sub/low/mid/high from the live FFT,
+ * `Lvl` overall level, `Pk` peak dB); the telemetry block is live broadcast
+ * status (source, signal tag, rolling level average, on-air uptime, SNR,
+ * transport); the process table treats each frequency bin as a process, sorted
+ * by energy so the rows constantly reorder and "flow" like htop.
  *
- * All text is DOM (text IS the interface); the hot values are written
- * straight to `textContent` in a rAF loop so nothing re-renders React.
- * Idle (not on air) = a low shimmer so the meters and log never go dead.
+ * `mobile` renders a compact stacked variant for the phone layout — smaller
+ * type, narrower bars, a trimmed table and telemetry — reusing all the same
+ * audio logic. Hot values are written straight to `textContent` in a rAF loop
+ * so nothing re-renders React. Idle = a low shimmer so nothing goes dead.
  */
 
 const BANDS: [number, number, string][] = [
@@ -27,9 +28,7 @@ const BANDS: [number, number, string][] = [
   [800, 4000, 'mid'],
   [4000, 16000, 'hi'],
 ];
-const ROWS = 18;                 // process-table rows (frequency bins)
 const F_LO = 35, F_HI = 16000;   // table bin range, Hz
-const METER_W = 28;              // inner width of a meter bar
 const METER_GAIN = 0.8;          // display headroom so loud bands don't peg 100%
 // "On air since" — the project's first commit ("Initial build"), so the uptime
 // is the real elapsed time the station has existed. Drives the On-air counter.
@@ -57,10 +56,10 @@ function logBinsInto(buf: Uint8Array, sr: number, out: Float32Array): void {
   }
 }
 
-function meterLine(label: string, pct: number, readout: string): string {
-  const f = Math.max(0, Math.min(METER_W, Math.round(pct * METER_W)));
-  let inner = '|'.repeat(f) + ' '.repeat(METER_W - f);
-  inner = inner.slice(0, METER_W - readout.length) + readout;
+function meterLine(label: string, pct: number, readout: string, width: number): string {
+  const f = Math.max(0, Math.min(width, Math.round(pct * width)));
+  let inner = '|'.repeat(f) + ' '.repeat(width - f);
+  inner = inner.slice(0, width - readout.length) + readout;
   return label.padStart(3) + '[' + inner + ']';
 }
 
@@ -84,14 +83,19 @@ function fmtUptime(ms: number): string {
 const TABLE_HEADER =
   ['PID'.padStart(5), 'BAND'.padEnd(4), 'FREQ'.padStart(5), 'LVLdB'.padStart(6),
     'S', 'ENR%'.padStart(5), 'PK%'.padStart(5), 'HOLD+'.padStart(8), 'SIGNAL'].join(' ');
+const TABLE_HEADER_M =
+  ['BAND'.padEnd(3), 'FREQ'.padStart(5), 'ENR'.padStart(4), 'S', 'SIGNAL'].join(' ');
 
 // Passive status/config footer — informational, not interactive (no fake keys).
 const STATUS =
-  'sort: energy  ·  18 log bins 35–16khz  ·  blackman  ·  peak-hold on';
+  'sort: energy  ·  log bins 35–16khz  ·  blackman  ·  peak-hold on';
 
-export function HtopBroadcast() {
+export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
   const { analyserFreq, isPlaying, mode, carrierLost, currentTrack, broadcastPlay, pause } = useAudio();
   const isBroadcasting = mode === 'broadcast' && isPlaying;
+
+  const rowCount = mobile ? 7 : 13;
+  const meterW = mobile ? 16 : 28;
 
   const aFRef = useRef<AnalyserNode | null>(null);
   const liveRef = useRef(false);
@@ -111,18 +115,18 @@ export function HtopBroadcast() {
   const fftRef = useRef<HTMLSpanElement>(null);
 
   // per-bin persistent state for the process table
-  const bins = useMemo(() => Array.from({ length: ROWS }, (_, i) => {
-    const cf = F_LO * Math.pow(F_HI / F_LO, (i + 0.5) / ROWS);
+  const bins = useMemo(() => Array.from({ length: rowCount }, (_, i) => {
+    const cf = F_LO * Math.pow(F_HI / F_LO, (i + 0.5) / rowCount);
     const band = BANDS.find(([lo, hi]) => cf >= lo && cf < hi)?.[2]
       ?? (cf < 20 ? 'sub' : 'hi');
     return {
       pid: 120 + ((i * 2654435761) >>> 0) % 89000,
       band, cf, peak: 0, holdStart: performance.now(),
     };
-  }), []);
+  }), [rowCount]);
 
   const freqBuf = useRef<Uint8Array<ArrayBuffer>>(new Uint8Array(1024));
-  const rowBuf = useRef<Float32Array<ArrayBuffer>>(new Float32Array(ROWS));
+  const rowBuf = useRef<Float32Array<ArrayBuffer>>(new Float32Array(rowCount));
   const load = useRef<[number, number, number]>([0, 0, 0]);
   const rafRef = useRef(0);
   const frameRef = useRef(0);
@@ -132,6 +136,7 @@ export function HtopBroadcast() {
     const t = now * 0.001;
     const live = liveRef.current;
     const aF = aFRef.current;
+    if (rowBuf.current.length !== rowCount) rowBuf.current = new Float32Array(rowCount);
 
     // ── read the spectrum (or idle shimmer) ────────────────────────────────
     const band = [0, 0, 0, 0];
@@ -145,7 +150,7 @@ export function HtopBroadcast() {
       logBinsInto(freqBuf.current, sr, rowBuf.current);
     } else {
       for (let k = 0; k < 4; k++) band[k] = 0.03 + 0.03 * Math.abs(Math.sin(t * 0.4 + k * 1.3));
-      for (let i = 0; i < ROWS; i++) {
+      for (let i = 0; i < rowCount; i++) {
         rowBuf.current[i] = 0.02 + 0.05 * Math.max(0, Math.sin(t * 0.6 + i * 0.7))
           * Math.max(0, Math.sin(t * 0.23 + i));
       }
@@ -164,12 +169,12 @@ export function HtopBroadcast() {
       const g = METER_GAIN;
       const pkDb = peak > 1e-4 ? (20 * Math.log10(peak)).toFixed(1) : '-inf';
       metersRef.current.textContent = [
-        meterLine('1', band[0] * g, `${(band[0] * g * 100).toFixed(1)}%`),
-        meterLine('2', band[1] * g, `${(band[1] * g * 100).toFixed(1)}%`),
-        meterLine('3', band[2] * g, `${(band[2] * g * 100).toFixed(1)}%`),
-        meterLine('4', band[3] * g, `${(band[3] * g * 100).toFixed(1)}%`),
-        meterLine('Lvl', level * g, `${(level * g * 100).toFixed(1)}%`),
-        meterLine('Pk', peak * g, `${pkDb}dB`),
+        meterLine('1', band[0] * g, `${(band[0] * g * 100).toFixed(1)}%`, meterW),
+        meterLine('2', band[1] * g, `${(band[1] * g * 100).toFixed(1)}%`, meterW),
+        meterLine('3', band[2] * g, `${(band[2] * g * 100).toFixed(1)}%`, meterW),
+        meterLine('4', band[3] * g, `${(band[3] * g * 100).toFixed(1)}%`, meterW),
+        meterLine('Lvl', level * g, `${(level * g * 100).toFixed(1)}%`, meterW),
+        meterLine('Pk', peak * g, `${pkDb}dB`, meterW),
       ].join('\n');
     }
 
@@ -179,26 +184,32 @@ export function HtopBroadcast() {
         const enr = rowBuf.current[i];
         if (enr >= bn.peak) { bn.peak = enr; bn.holdStart = now; }
         else bn.peak *= 0.992;
-        const lvlDb = enr > 1e-4 ? (20 * Math.log10(enr)).toFixed(1) : '-99.9';
         const state = enr > 0.5 ? 'R' : enr > 0.22 ? 'D' : 'S';
         const barN = Math.round(enr * 20);
-        return {
-          enr,
-          text: [
+        const text = mobile
+          ? [
+            bn.band.padEnd(3),
+            fmtFreq(bn.cf).padStart(5),
+            (enr * 100).toFixed(0).padStart(4),
+            state,
+            '|'.repeat(Math.min(barN, 22)),
+          ].join(' ')
+          : [
             String(bn.pid).padStart(5),
             bn.band.padEnd(4),
             fmtFreq(bn.cf).padStart(5),
-            lvlDb.padStart(6),
+            (enr > 1e-4 ? (20 * Math.log10(enr)).toFixed(1) : '-99.9').padStart(6),
             state,
             (enr * 100).toFixed(1).padStart(5),
             (bn.peak * 100).toFixed(1).padStart(5),
             fmtHold((now - bn.holdStart) / 1000).padStart(8),
             '|'.repeat(barN),
-          ].join(' '),
-        };
+          ].join(' ');
+        return { enr, text };
       });
       rows.sort((a, b) => b.enr - a.enr);
-      tableRef.current.textContent = TABLE_HEADER + '\n' + rows.map(r => r.text).join('\n');
+      const header = mobile ? TABLE_HEADER_M : TABLE_HEADER;
+      tableRef.current.textContent = header + '\n' + rows.map(r => r.text).join('\n');
     }
 
     // ── telemetry block (throttled) ────────────────────────────────────────
@@ -218,32 +229,47 @@ export function HtopBroadcast() {
 
     frameRef.current++;
     rafRef.current = requestAnimationFrame(tick);
-  }, [bins]);
+  }, [bins, mobile, rowCount, meterW]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [tick]);
 
+  const fs = mobile ? 11 : 14;
+  const lh = mobile ? 15 : 19;
   const base: React.CSSProperties = {
-    fontFamily: MONO, fontSize: 14, lineHeight: '19px',
+    fontFamily: MONO, fontSize: fs, lineHeight: `${lh}px`,
     letterSpacing: '0.02em', color: 'var(--vlg-fg, #000)', margin: 0,
   };
   const label = { color: 'var(--vlg-fg-dim, #555)' };
+  const dotW = mobile ? 340 : 580;
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-      {/* top row: meters (left) + telemetry (right) */}
-      <div style={{ display: 'flex', gap: 44, alignItems: 'flex-start' }}>
+      {/* htop-style throughput graph — secondary broadcast visual */}
+      <div style={{ position: 'relative', width: dotW, height: mobile ? 62 : 88, marginBottom: mobile ? 12 : 16 }}>
+        <ThroughputStrip mobile={mobile} />
+      </div>
+
+      {/* meters + telemetry (side-by-side on desktop, stacked on mobile) */}
+      <div style={{
+        display: 'flex', flexDirection: 'row',
+        gap: mobile ? 18 : 44, alignItems: 'flex-start',
+      }}>
         <pre ref={metersRef} style={base} />
 
-        <div style={{ ...base, whiteSpace: 'pre', lineHeight: '16px' }}>
+        <div style={{ ...base, whiteSpace: 'pre' }}>
           <div><span style={label}>Source: </span><span ref={srcRef}>village radio</span></div>
           <div><span style={label}>Signal: </span><BroadcastLiveTag /></div>
-          <div><span style={label}>Codec:  </span>pcm 48.0kHz · fft <span ref={fftRef}>4096pt</span></div>
+          {!mobile && (
+            <div><span style={label}>Codec:  </span>pcm 48.0kHz · fft <span ref={fftRef}>4096pt</span></div>
+          )}
           <div><span style={label}>Level avg: </span><span ref={loadRef}>0.00 0.00 0.00</span></div>
           <div><span style={label}>On air: </span><span ref={upRef}>0d 00:00:00</span></div>
-          <div><span style={label}>SNR: </span><span ref={snrRef}>-- dB</span></div>
+          {!mobile && (
+            <div><span style={label}>SNR: </span><span ref={snrRef}>-- dB</span></div>
+          )}
           <button
             onClick={() => (isBroadcasting ? pause() : broadcastPlay())}
             style={{
@@ -252,16 +278,18 @@ export function HtopBroadcast() {
               color: 'var(--vlg-strong, #000)',
             }}
           >
-            {isBroadcasting ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}
+            {isBroadcasting ? '[ ❚❚ STOP ]' : '[ ▶ PLAY ]'}
           </button>
         </div>
       </div>
 
       {/* the flowing process table */}
-      <pre ref={tableRef} style={{ ...base, marginTop: 18 }} />
+      <pre ref={tableRef} style={{ ...base, marginTop: mobile ? 12 : 18 }} />
 
-      {/* passive status/config footer (informational, not interactive) */}
-      <div style={{ ...base, marginTop: 16, color: 'var(--vlg-fg-dim, #555)', whiteSpace: 'nowrap' }}>{STATUS}</div>
+      {/* passive status/config footer (desktop only — mobile is tight) */}
+      {!mobile && (
+        <div style={{ ...base, marginTop: 16, color: 'var(--vlg-fg-dim, #555)', whiteSpace: 'nowrap' }}>{STATUS}</div>
+      )}
     </div>
   );
 }

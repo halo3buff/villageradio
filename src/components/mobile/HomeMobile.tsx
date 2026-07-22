@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { BroadcastLCD } from '@/components/BroadcastLCD';
+import { HtopBroadcast } from '@/components/HtopBroadcast';
 import type { NavCommand } from '@/lib/types';
 import { grantClearance } from '@/lib/clearance';
 
@@ -26,9 +26,6 @@ const SH = 714;
 const DISPLAY = 'var(--font-hn-black), "Helvetica Neue", Arial, sans-serif';
 const RED = '#ff0000';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-
-const SCANLINES =
-  'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.10) 3px)';
 
 // Shift for the decorative word-mark cluster (jumbled letters + ovals)
 // relative to the Figma-frame coordinates: up with the page compression,
@@ -198,9 +195,9 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
           color: 'var(--vlg-fg, #000)', textDecoration: 'none',
         }}>README</Link>
 
-        {/* Live broadcast unit — label, transport, station time, MHz counter */}
-        <div style={{ position: 'absolute', left: 31, top: 96 }}>
-          <BroadcastLCD />
+        {/* Live broadcast monitor — htop-style meters + dot-matrix (mobile-compact) */}
+        <div style={{ position: 'absolute', left: 20, top: 80, width: 362, height: 380 }}>
+          <HtopBroadcast mobile />
         </div>
 
         {/* VILLAGE word-mark cluster — ovals */}
@@ -280,13 +277,6 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
             }}
           />
         </div>
-
-        {/* CRT scanlines — scope box only */}
-        <div aria-hidden style={{
-          position: 'absolute', left: 17, top: 72, width: 368, height: 368,
-          zIndex: 7, pointerEvents: 'none',
-          background: SCANLINES, opacity: 0.6,
-        }} />
 
       </div>
     </main>

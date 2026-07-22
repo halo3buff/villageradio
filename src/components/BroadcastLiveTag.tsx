@@ -15,10 +15,15 @@ export function BroadcastLiveTag() {
   return (
     <>
       <span style={{ color: RED }}>[{carrierLost ? 'NO CARRIER' : 'LIVE'}]</span>
+      {/* Blinking block sized to match the command-prompt cursor (0.55em × 0.9em). */}
       <span style={{
-        color: RED,
+        display: 'inline-block',
+        width: '0.55em', height: '0.9em',
+        marginLeft: '0.35em',
+        background: RED,
+        verticalAlign: '-0.1em',
         animation: carrierLost ? 'none' : 'vr-blink 1s step-end infinite',
-      }}> █</span>
+      }} />
     </>
   );
 }
