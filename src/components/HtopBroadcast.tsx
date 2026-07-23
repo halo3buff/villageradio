@@ -3,7 +3,8 @@
 import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAudio } from '@/lib/audio-context';
 import { BroadcastLiveTag } from '@/components/BroadcastLiveTag';
-import { ThroughputStrip } from '@/components/ThroughputStrip';
+import { LcdPanel } from '@/components/LcdPanel';
+import { ShannonDiagram } from '@/components/ShannonDiagram';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
@@ -56,12 +57,12 @@ function logBinsInto(buf: Uint8Array, sr: number, out: Float32Array): void {
   }
 }
 
-function meterLine(label: string, pct: number, readout: string, width: number): string {
-  const f = Math.max(0, Math.min(width, Math.round(pct * width)));
-  let inner = '|'.repeat(f) + ' '.repeat(width - f);
-  inner = inner.slice(0, width - readout.length) + readout;
-  return label.padStart(3) + '[' + inner + ']';
+// LED segment meter — solid ink cells that light up over an empty-square track.
+function applyLed(el: HTMLSpanElement, on: boolean): void {
+  el.style.background = on ? 'var(--vlg-strong, #000)' : 'transparent';
 }
+const METER_LABELS = ['1', '2', '3', '4', 'Lvl', 'Pk'];
+const BAR_SEG = 20;   // fixed LED segments per process-table row (constant width → no reflow)
 
 function fmtFreq(f: number): string {
   return f < 1000 ? String(Math.round(f)) : `${(f / 1000).toFixed(1)}k`;
@@ -106,13 +107,14 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
   const trackRef = useRef('village radio');
   useEffect(() => { trackRef.current = currentTrack?.title ?? 'village radio'; }, [currentTrack]);
 
-  const metersRef = useRef<HTMLPreElement>(null);
-  const tableRef = useRef<HTMLPreElement>(null);
+  const cellRefs = useRef<(HTMLSpanElement | null)[][]>([]);
+  const readoutRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const rowTextRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const rowCellRefs = useRef<(HTMLSpanElement | null)[][]>([]);
   const srcRef = useRef<HTMLSpanElement>(null);
   const loadRef = useRef<HTMLSpanElement>(null);
   const upRef = useRef<HTMLSpanElement>(null);
   const snrRef = useRef<HTMLSpanElement>(null);
-  const fftRef = useRef<HTMLSpanElement>(null);
 
   // per-bin persistent state for the process table
   const bins = useMemo(() => Array.from({ length: rowCount }, (_, i) => {
@@ -165,34 +167,49 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
     // ── meters (every frame). Bars carry display headroom (METER_GAIN) so a
     //    loud band reads high without pegging the bracket; Pk's readout stays
     //    the true dBFS ───────────────────────────────────────────────────────
-    if (metersRef.current) {
+    {
       const g = METER_GAIN;
       const pkDb = peak > 1e-4 ? (20 * Math.log10(peak)).toFixed(1) : '-inf';
-      metersRef.current.textContent = [
-        meterLine('1', band[0] * g, `${(band[0] * g * 100).toFixed(1)}%`, meterW),
-        meterLine('2', band[1] * g, `${(band[1] * g * 100).toFixed(1)}%`, meterW),
-        meterLine('3', band[2] * g, `${(band[2] * g * 100).toFixed(1)}%`, meterW),
-        meterLine('4', band[3] * g, `${(band[3] * g * 100).toFixed(1)}%`, meterW),
-        meterLine('Lvl', level * g, `${(level * g * 100).toFixed(1)}%`, meterW),
-        meterLine('Pk', peak * g, `${pkDb}dB`, meterW),
-      ].join('\n');
+      const vals = [band[0] * g, band[1] * g, band[2] * g, band[3] * g, level * g, peak * g];
+      const outs = [
+        `${(band[0] * g * 100).toFixed(1)}%`,
+        `${(band[1] * g * 100).toFixed(1)}%`,
+        `${(band[2] * g * 100).toFixed(1)}%`,
+        `${(band[3] * g * 100).toFixed(1)}%`,
+        `${(level * g * 100).toFixed(1)}%`,
+        `${pkDb}dB`,
+      ];
+      for (let i = 0; i < METER_LABELS.length; i++) {
+        // only light up when the broadcast is actually playing — idle = all off
+        const f = live ? Math.max(0, Math.min(meterW, Math.round(vals[i] * meterW))) : 0;
+        const cells = cellRefs.current[i];
+        if (cells) {
+          for (let j = 0; j < meterW; j++) {
+            const el = cells[j];
+            if (!el) continue;
+            applyLed(el, j < f);
+          }
+        }
+        const ro = readoutRefs.current[i];
+        if (ro) ro.textContent = live ? outs[i] : (i === 5 ? '-inf dB' : '0.0%');
+      }
     }
 
     // ── process table (throttled for the htop "flow") ──────────────────────
-    if (frameRef.current % 6 === 0 && tableRef.current) {
+    if (frameRef.current % 6 === 0) {
       const rows = bins.map((bn, i) => {
         const enr = rowBuf.current[i];
         if (enr >= bn.peak) { bn.peak = enr; bn.holdStart = now; }
         else bn.peak *= 0.992;
         const state = enr > 0.5 ? 'R' : enr > 0.22 ? 'D' : 'S';
-        const barN = Math.round(enr * 20);
+        // SIGNAL is now an LED segment bar (fixed width); idle = unlit
+        const barN = live ? Math.min(BAR_SEG, Math.round(enr * 20)) : 0;
         const text = mobile
           ? [
             bn.band.padEnd(3),
             fmtFreq(bn.cf).padStart(5),
             (enr * 100).toFixed(0).padStart(4),
             state,
-            '|'.repeat(Math.min(barN, 22)),
           ].join(' ')
           : [
             String(bn.pid).padStart(5),
@@ -203,13 +220,23 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
             (enr * 100).toFixed(1).padStart(5),
             (bn.peak * 100).toFixed(1).padStart(5),
             fmtHold((now - bn.holdStart) / 1000).padStart(8),
-            '|'.repeat(barN),
           ].join(' ');
-        return { enr, text };
+        return { enr, text, barN };
       });
       rows.sort((a, b) => b.enr - a.enr);
-      const header = mobile ? TABLE_HEADER_M : TABLE_HEADER;
-      tableRef.current.textContent = header + '\n' + rows.map(r => r.text).join('\n');
+      for (let r = 0; r < rows.length; r++) {
+        const rt = rowTextRefs.current[r];
+        if (rt) rt.textContent = rows[r].text + ' ';
+        const cells = rowCellRefs.current[r];
+        if (cells) {
+          const barN = rows[r].barN;
+          for (let j = 0; j < BAR_SEG; j++) {
+            const el = cells[j];
+            if (!el) continue;
+            applyLed(el, j < barN);
+          }
+        }
+      }
     }
 
     // ── telemetry block (throttled) ────────────────────────────────────────
@@ -222,9 +249,6 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
       if (snrRef.current) {
         snrRef.current.textContent = live ? `${(40 + level * 30).toFixed(1)} dB` : '-- dB';
       }
-      if (fftRef.current) {
-        fftRef.current.textContent = aF ? `${aF.fftSize}pt` : '4096pt';
-      }
     }
 
     frameRef.current++;
@@ -236,60 +260,128 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [tick]);
 
-  const fs = mobile ? 11 : 14;
-  const lh = mobile ? 15 : 19;
+  // Desktop type matches the info page's mono body (11px / 14px)
+  const fs = 11;
+  const lh = mobile ? 15 : 14;
   const base: React.CSSProperties = {
     fontFamily: MONO, fontSize: fs, lineHeight: `${lh}px`,
     letterSpacing: '0.02em', color: 'var(--vlg-fg, #000)', margin: 0,
   };
-  const label = { color: 'var(--vlg-fg-dim, #555)' };
+  const label = { color: 'var(--vlg-fg, #000)' };
   const dotW = mobile ? 340 : 580;
+  const cellPx = 5;
+  const cellGap = 3;
+
+  // meters + telemetry row (the "live broadcast" readout — its top edge is the
+  // Source/1[ line, its stack bottoms out at the process table / status footer)
+  const metersBlock = (
+    <div style={{
+      display: 'flex', flexDirection: 'row',
+      gap: 18, alignItems: 'flex-start',
+    }}>
+      <div style={{ ...base, display: 'flex', flexDirection: 'column', gap: mobile ? 3 : 4 }}>
+        {METER_LABELS.map((lab, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={{ ...label, width: 24, textAlign: 'right', marginRight: 5 }}>{lab}</span>
+            <span>[</span>
+            <span style={{ display: 'inline-flex', gap: cellGap, margin: '0 4px' }}>
+              {Array.from({ length: meterW }).map((_, j) => (
+                <span
+                  key={j}
+                  ref={el => { (cellRefs.current[i] ??= [])[j] = el; }}
+                  style={{
+                    width: cellPx, height: cellPx, display: 'inline-block', boxSizing: 'border-box',
+                    border: '1px solid var(--vlg-fg, #111)',
+                  }}
+                />
+              ))}
+            </span>
+            <span>]</span>
+            <span
+              ref={el => { readoutRefs.current[i] = el; }}
+              style={{ ...label, marginLeft: 6, width: mobile ? 48 : 52, overflow: 'hidden', display: 'inline-block' }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Fixed-width column: the telemetry text changes on play (track title,
+          live tag, SNR…); pinning the width stops those from resizing the
+          shrink-wrapped frame and sliding the whole unit. */}
+      <div style={{ ...base, whiteSpace: 'pre', width: mobile ? undefined : 190, overflow: 'hidden' }}>
+        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={label}>Source: </span><span ref={srcRef}>village radio</span>
+        </div>
+        <div><span style={label}>Signal: </span><BroadcastLiveTag /></div>
+        {!mobile && (
+          <div><span style={label}>Codec:  </span>pcm 48.0kHz</div>
+        )}
+        <div><span style={label}>Level avg: </span><span ref={loadRef}>0.00 0.00 0.00</span></div>
+        <div><span style={label}>On air: </span><span ref={upRef}>0d 00:00:00</span></div>
+        {!mobile && (
+          <div><span style={label}>SNR: </span><span ref={snrRef}>-- dB</span></div>
+        )}
+        <button
+          onClick={() => (isBroadcasting ? pause() : broadcastPlay())}
+          style={{
+            ...base, marginTop: 4, background: 'none', border: 'none', padding: 0,
+            cursor: 'pointer', pointerEvents: 'auto', textTransform: 'uppercase',
+            color: 'var(--vlg-strong, #000)',
+          }}
+        >
+          {isBroadcasting ? '[ ❚❚ STOP ]' : '[ ▶ PLAY ]'}
+        </button>
+      </div>
+    </div>
+  );
+
+  const tableBlock = (
+    <div style={{ ...base, marginTop: mobile ? 12 : 14 }}>
+      <div style={{ whiteSpace: 'pre', color: 'var(--vlg-fg, #000)' }}>{mobile ? TABLE_HEADER_M : TABLE_HEADER}</div>
+      {Array.from({ length: rowCount }).map((_, r) => (
+        <div key={r} style={{ display: 'flex', alignItems: 'center' }}>
+          <span ref={el => { rowTextRefs.current[r] = el; }} style={{ whiteSpace: 'pre' }} />
+          <span style={{ display: 'inline-flex', gap: cellGap, marginLeft: 4 }}>
+            {Array.from({ length: BAR_SEG }).map((_, j) => (
+              <span
+                key={j}
+                ref={el => { (rowCellRefs.current[r] ??= [])[j] = el; }}
+                style={{
+                  width: cellPx, height: cellPx, display: 'inline-block', boxSizing: 'border-box',
+                  border: '1px solid var(--vlg-fg, #111)',
+                }}
+              />
+            ))}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+  const statusBlock = (
+    <div style={{ ...base, marginTop: 12, color: 'var(--vlg-fg, #000)', whiteSpace: 'nowrap' }}>{STATUS}</div>
+  );
 
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-      {/* htop-style throughput graph — secondary broadcast visual */}
-      <div style={{ position: 'relative', width: dotW, height: mobile ? 62 : 88, marginBottom: mobile ? 12 : 16 }}>
-        <ThroughputStrip mobile={mobile} />
-      </div>
-
-      {/* meters + telemetry (side-by-side on desktop, stacked on mobile) */}
-      <div style={{
-        display: 'flex', flexDirection: 'row',
-        gap: mobile ? 18 : 44, alignItems: 'flex-start',
-      }}>
-        <pre ref={metersRef} style={base} />
-
-        <div style={{ ...base, whiteSpace: 'pre' }}>
-          <div><span style={label}>Source: </span><span ref={srcRef}>village radio</span></div>
-          <div><span style={label}>Signal: </span><BroadcastLiveTag /></div>
-          {!mobile && (
-            <div><span style={label}>Codec:  </span>pcm 48.0kHz · fft <span ref={fftRef}>4096pt</span></div>
-          )}
-          <div><span style={label}>Level avg: </span><span ref={loadRef}>0.00 0.00 0.00</span></div>
-          <div><span style={label}>On air: </span><span ref={upRef}>0d 00:00:00</span></div>
-          {!mobile && (
-            <div><span style={label}>SNR: </span><span ref={snrRef}>-- dB</span></div>
-          )}
-          <button
-            onClick={() => (isBroadcasting ? pause() : broadcastPlay())}
-            style={{
-              ...base, marginTop: 4, background: 'none', border: 'none', padding: 0,
-              cursor: 'pointer', pointerEvents: 'auto', textTransform: 'uppercase',
-              color: 'var(--vlg-strong, #000)',
-            }}
-          >
-            {isBroadcasting ? '[ ❚❚ STOP ]' : '[ ▶ PLAY ]'}
-          </button>
+    <div style={{ position: 'relative', pointerEvents: 'none' }}>
+      {/* top visual row. Mobile: LCD strip. Desktop: hex-dump filler on the left,
+          LCD as a square on the right, sitting above the Source/telemetry column. */}
+      {mobile ? (
+        <div style={{ position: 'relative', width: dotW, height: 96, marginBottom: 12 }}>
+          <LcdPanel mobile />
         </div>
-      </div>
-
-      {/* the flowing process table */}
-      <pre ref={tableRef} style={{ ...base, marginTop: mobile ? 12 : 18 }} />
-
-      {/* passive status/config footer (desktop only — mobile is tight) */}
-      {!mobile && (
-        <div style={{ ...base, marginTop: 16, color: 'var(--vlg-fg-dim, #555)', whiteSpace: 'nowrap' }}>{STATUS}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', gap: 12, marginBottom: 12, paddingRight: 28 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <ShannonDiagram />
+          </div>
+          <div style={{ position: 'relative', width: 140, height: 140, flexShrink: 0 }}>
+            <LcdPanel />
+          </div>
+        </div>
       )}
+      {metersBlock}
+      {tableBlock}
+      {!mobile && statusBlock}
     </div>
   );
 }

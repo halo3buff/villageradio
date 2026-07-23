@@ -195,9 +195,22 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
           color: 'var(--vlg-fg, #000)', textDecoration: 'none',
         }}>README</Link>
 
-        {/* Live broadcast monitor — htop-style meters + dot-matrix (mobile-compact) */}
-        <div style={{ position: 'absolute', left: 20, top: 80, width: 362, height: 380 }}>
-          <HtopBroadcast mobile />
+        {/* Live broadcast monitor — htop-style meters (mobile-compact), boxed in a
+            bracket-labelled frame so it reads as an enclosed instrument */}
+        <div style={{
+          position: 'absolute', left: 20, top: 80, width: 362,
+          border: '1px solid var(--vlg-fg, #111)',
+        }}>
+          <span style={{
+            position: 'absolute', top: -6, left: 14, padding: '0 6px', zIndex: 2,
+            background: 'var(--vlg-bg, #ede8df)', fontFamily: MONO, fontSize: 9,
+            letterSpacing: '0.18em', color: 'var(--vlg-fg, #111)', pointerEvents: 'none',
+          }}>
+            [ BROADCAST ]
+          </span>
+          <div style={{ padding: 14 }}>
+            <HtopBroadcast mobile />
+          </div>
         </div>
 
         {/* VILLAGE word-mark cluster — ovals */}

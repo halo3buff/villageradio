@@ -33,7 +33,7 @@ export type Theme = {
 
 export const THEMES: Record<string, Theme> = {
   default: {
-    bg:'#f6f6f4', ts:'#888888', uid_palette:['#008880','#208820','#8020a0','#1860c0','#a04000','#006090','#6a1a6a','#0a7a50','#8a3000','#2040a0'], uid_real:'#111111', col_host:'#b05870', col_data:'#666666',
+    bg:'#fafafa', ts:'#888888', uid_palette:['#008880','#208820','#8020a0','#1860c0','#a04000','#006090','#6a1a6a','#0a7a50','#8a3000','#2040a0'], uid_real:'#111111', col_host:'#b05870', col_data:'#666666',
     bar_bg:'#f2f2f2', bar_border:'#d8d8d8', bar_dim:'#aaaaaa', bar_bright:'#111111',
     filter_col:'#666666',
     tab_bg:'#e8e8e8', tab_fg:'#888888', tab_active_bg:'#222222', tab_active_fg:'#ffffff',

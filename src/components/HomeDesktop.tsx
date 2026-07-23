@@ -14,10 +14,9 @@ const SEGOE  = "'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif";
 const RED    = '#ff0000';
 
 // Broadcast unit — the htop-style terminal monitor, right side of the stage.
-const UNIT_L = 665;
-const UNIT_T = 300;
-const UNIT_W = 760;
-const UNIT_H = 820;
+// The frame shrink-wraps its content (auto width/height, pinned 35px from the
+// right edge), so the boundary stops exactly where the readout ends.
+const UNIT_T = 290;
 
 // Identical to the mobile COMMANDS map — same firewall, different surface.
 const COMMANDS: Record<string, string> = {
@@ -135,11 +134,15 @@ export function HomeDesktop() {
             README
           </Link>
 
-          {/* Broadcast unit — the 3-D splot pane: sample surfaces at rest, a
-              spectral waterfall when the broadcast plays; its key box carries
-              the tag, station time, and transport */}
-          <div style={{ position: 'absolute', left: UNIT_L, top: UNIT_T, width: UNIT_W, height: UNIT_H }}>
-            <HtopBroadcast />
+          {/* Broadcast unit — the htop-style monitor, boxed in a frame that
+              shrink-wraps the content so the boundary hugs it */}
+          <div style={{
+            position: 'absolute', right: 35, top: UNIT_T,
+            border: '1px solid var(--vlg-fg, #111)',
+          }}>
+            <div style={{ padding: 20 }}>
+              <HtopBroadcast />
+            </div>
           </div>
         </>
       }
