@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { FitStage } from '@/components/FitStage';
 import { HeaderCluster } from '@/components/HeaderCluster';
 import { HtopBroadcast } from '@/components/HtopBroadcast';
+import { RetroWindow, TEMPLE_BLUE } from '@/components/RetroWindow';
 import { grantClearance } from '@/lib/clearance';
 
 const MONO   = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
@@ -16,7 +17,7 @@ const RED    = '#ff0000';
 // Broadcast unit — the htop-style terminal monitor, right side of the stage.
 // The frame shrink-wraps its content (auto width/height, pinned 35px from the
 // right edge), so the boundary stops exactly where the readout ends.
-const UNIT_T = 290;
+const UNIT_T = 470;
 
 // Identical to the mobile COMMANDS map — same firewall, different surface.
 const COMMANDS: Record<string, string> = {
@@ -69,14 +70,48 @@ export function HomeDesktop() {
     <FitStage
       left={
         <>
+          {/* Pixelate filter — samples one pixel per 5×5 cell then dilates it into
+              a block, so the header art reads as low-res without moving anything. */}
+          <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+            <filter id="vlg-pixelate">
+              <feFlood x="2" y="2" height="1" width="1" />
+              <feComposite width="5" height="5" />
+              <feTile result="a" />
+              <feComposite in="SourceGraphic" in2="a" operator="in" />
+              <feMorphology operator="dilate" radius="2.5" />
+            </filter>
+          </svg>
+
+          {/* Window chrome framing the header art (decorative, sits behind it) */}
+          <RetroWindow
+            title="VILLAGE.SYS"
+            style={{
+              position: 'absolute', left: 16, top: 56, width: 402, height: 300,
+              zIndex: 0, pointerEvents: 'none', background: 'transparent',
+            }}
+          />
+
           {/* HeaderCluster — shifted left via xOffset so it anchors top-left.
-              Cluster coords span x:1052–1440; offset -1017 moves leftmost element to x:35. */}
-          <HeaderCluster xOffset={-1017} />
+              Cluster coords span x:1052–1440; offset -1017 moves leftmost element to x:35.
+              Wrapped in a sized, pixelated layer (top offset drops the art down into
+              its window; the filter clips to this box). */}
+          <div style={{ position: 'absolute', left: 0, top: 50, width: 474, height: 330, filter: 'url(#vlg-pixelate)' }}>
+            <HeaderCluster xOffset={-1017} />
+          </div>
+
+          {/* Window chrome framing the command prompt (decorative, behind it) */}
+          <RetroWindow
+            title="TERMINAL"
+            style={{
+              position: 'absolute', left: 8, top: 740, width: 344, height: 208,
+              zIndex: 0, pointerEvents: 'none', background: 'transparent',
+            }}
+          />
 
           {/* Command prompt — MONO style, understated */}
           <div
             style={{
-              position: 'absolute', left: 20, top: 890,
+              position: 'absolute', left: 20, top: 906,
               pointerEvents: 'auto', cursor: 'text',
               fontFamily: MONO, fontSize: 16, lineHeight: 1,
               letterSpacing: '0.04em', color: 'var(--vlg-fg, #000)',
@@ -134,15 +169,20 @@ export function HomeDesktop() {
             README
           </Link>
 
-          {/* Broadcast unit — the htop-style monitor, boxed in a frame that
-              shrink-wraps the content so the boundary hugs it */}
-          <div style={{
-            position: 'absolute', right: 35, top: UNIT_T,
-            border: '1px solid var(--vlg-fg, #111)',
-          }}>
-            <div style={{ padding: 20 }}>
+          {/* Broadcast unit — the htop-style monitor, framed in retro window
+              chrome. The var overrides re-skin everything inside: MONO → VT323
+              bitmap face, ink → Temple blue. */}
+          <div
+            style={{
+              position: 'absolute', right: 35, top: UNIT_T,
+              '--font-ibm-plex-mono': 'var(--font-ibm-vga)',
+              '--vlg-fg': TEMPLE_BLUE,
+              '--vlg-strong': '#08087a',
+            } as React.CSSProperties}
+          >
+            <RetroWindow title="BROADCAST" bodyPad={16}>
               <HtopBroadcast />
-            </div>
+            </RetroWindow>
           </div>
         </>
       }

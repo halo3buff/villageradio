@@ -40,6 +40,14 @@ const vt323 = VT323({
   display: 'swap',
 });
 
+// Authentic IBM VGA 8x16 DOS text-mode face (public domain), converted from BDF
+// to outline TTF — used by the retro window-chrome test skin.
+const ibmVga = localFont({
+  src: './fonts/IBMVGA8x16.ttf',
+  variable: '--font-ibm-vga',
+  display: 'swap',
+});
+
 // Display + body faces for the redesigned homepage (used via CSS variables).
 const helveticaBlack = localFont({
   src: './fonts/HelveticaNeueBlack.otf',
@@ -105,7 +113,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang="en"
       data-theme={theme}
-      className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${vt323.variable} ${helveticaBlack.variable} ${helveticaMedium.variable} ${dseg7.variable} ${dseg14.variable}`}
+      className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${vt323.variable} ${ibmVga.variable} ${helveticaBlack.variable} ${helveticaMedium.variable} ${dseg7.variable} ${dseg14.variable}`}
     >
       <head>
         <meta name="theme-color" content="#080808" />
