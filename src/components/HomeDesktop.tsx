@@ -1,23 +1,33 @@
 'use client';
 
-import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FitStage } from '@/components/FitStage';
-import { HeaderCluster } from '@/components/HeaderCluster';
-import { HtopBroadcast } from '@/components/HtopBroadcast';
-import { RetroWindow, TEMPLE_BLUE } from '@/components/RetroWindow';
 import { grantClearance } from '@/lib/clearance';
+import { C64Logo } from '@/components/C64Logo';
+import { HtopBroadcast } from '@/components/HtopBroadcast';
 
-const MONO   = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-const BODY   = 'var(--font-hn-medium), "Helvetica Neue", Arial, sans-serif';
-const SEGOE  = "'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif";
-const RED    = '#ff0000';
+// Authentic IBM VGA 8x16 DOS text-mode face.
+const FONT = "var(--font-ibm-vga), 'Courier New', monospace";
 
-// Broadcast unit — the htop-style terminal monitor, right side of the stage.
-// The frame shrink-wraps its content (auto width/height, pinned 35px from the
-// right edge), so the boundary stops exactly where the readout ends.
-const UNIT_T = 470;
+// Sampled straight from the reference image.
+const BG64 = '#01289d';   // C64 royal-blue screen
+const FG64 = '#a5def8';   // C64 light-blue ink
+const WHITE = '#FFFFFF';
+const CYAN  = '#00AAAA';
+const GREEN = '#55FF55';
+const LTRED = '#FF5555';
+const YELLOW = '#FFFF55';
+const GRAY = '#a8a8a8';   // TempleOS light-gray dialog fill (from the reference)
+const PURPLE = '#aa22aa'; // TempleOS purple heading (from the reference)
+const BORDER_BLUE = '#000070'; // dark royal-blue frame lines (from the reference)
+
+// The BASIC listing shown on the boot screen.
+const LISTING =
+  '10 PRINT CHR$(147):REM CLEAR SCREEN\n' +
+  '20 FOR I=0 TO 15:POKE 53280,I:REM SCREEN BORDER COLOR DEMO\n' +
+  '30 POKE 53281,0:REM BACKGROUND BLACK\n' +
+  '40 GOSUB 1000:REM DISPLAY LOGO\n' +
+  '50 END';
 
 // Identical to the mobile COMMANDS map — same firewall, different surface.
 const COMMANDS: Record<string, string> = {
@@ -36,7 +46,12 @@ function hashInput(s: string): string {
   return (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
 }
 
-/** Desktop homepage — HeaderCluster top-left, scope + README right side, MONO command prompt. */
+/**
+ * Desktop homepage — a TempleOS-style split screen. The left half is a live
+ * Village-64 (Commodore-flavoured) boot screen: code-drawn logo, real text,
+ * blinking cursor. The interactive command prompt is pinned at the bottom; the
+ * right half is an empty white pane.
+ */
 export function HomeDesktop() {
   const router   = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,13 +60,30 @@ export function HomeDesktop() {
   const [cmd,  setCmd]  = useState('');
   const [echo, setEcho] = useState<Echo | null>(null);
   const [err,  setErr]  = useState<string | null>(null);
+  // Live UTC clock — placeholder matches SSR, real time set after mount.
+  const [clock, setClock] = useState('Sun 06/07 14:36:36');
+
+  useEffect(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const p = (n: number) => String(n).padStart(2, '0');
+    const tick = () => {
+      const d = new Date();
+      setClock(
+        `${days[d.getUTCDay()]} ${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())} ` +
+        `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`,
+      );
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (echo) return;
     if (e.key !== 'Enter') return;
     const raw  = cmd.trim();
     if (!raw) return;
-    const norm = raw.replace(/[\u2018\u2019]/g, "'");
+    const norm = raw.replace(/[‘’]/g, "'");
     const path = COMMANDS[norm];
     if (path) {
       grantClearance(path);
@@ -67,75 +99,65 @@ export function HomeDesktop() {
   };
 
   return (
-    <FitStage
-      left={
-        <>
-          {/* Pixelate filter — samples one pixel per 5×5 cell then dilates it into
-              a block, so the header art reads as low-res without moving anything. */}
-          <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
-            <filter id="vlg-pixelate">
-              <feFlood x="2" y="2" height="1" width="1" />
-              <feComposite width="5" height="5" />
-              <feTile result="a" />
-              <feComposite in="SourceGraphic" in2="a" operator="in" />
-              <feMorphology operator="dilate" radius="2.5" />
-            </filter>
-          </svg>
+    <div
+      style={{
+        position: 'absolute', inset: 0, background: '#000',
+        color: WHITE, fontFamily: FONT, fontSize: 16, lineHeight: '16px',
+        letterSpacing: '0.02em', overflow: 'hidden', userSelect: 'none',
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
+      {/* ── Top task/menu bar (full width) ─────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 16, whiteSpace: 'nowrap',
+        overflow: 'hidden', padding: '3px 6px', flexShrink: 0,
+      }}>
+        <span style={{ color: WHITE }}>♦ MENU</span>
+        <span style={{ color: '#AAAAAA' }}>{clock} UTC FPS:31 Mem:001604CC00 CPU 6</span>
+        <span style={{ marginLeft: 'auto', color: WHITE }}>PRTSCRN</span>
+      </div>
 
-          {/* Window chrome framing the header art (decorative, sits behind it) */}
-          <RetroWindow
-            title="VILLAGE.SYS"
-            style={{
-              position: 'absolute', left: 16, top: 56, width: 402, height: 300,
-              zIndex: 0, pointerEvents: 'none', background: 'transparent',
-            }}
+      {/* ── Split: two windows, double-line divider just left of center ─────── */}
+      <div style={{
+        flex: 1, minHeight: 0, display: 'flex',
+        border: `2px solid ${WHITE}`,
+      }}>
+        {/* LEFT — live Village-64 boot screen */}
+        <div style={{
+          flex: '0 0 50%', minWidth: 0, display: 'flex', flexDirection: 'column',
+          padding: '18px 16px 12px', overflow: 'hidden',
+          background: BG64, color: FG64, lineHeight: '17px',
+          borderRight: `4px double ${WHITE}`,
+        }}>
+          <div style={{ textAlign: 'center' }}>{'**** VILLAGE 64 BASIC V2 ****'}</div>
+          <div style={{ textAlign: 'center' }}>{'64K RAM SYSTEM  38911 BASIC BYTES FREE'}</div>
+
+          <C64Logo
+            color={FG64}
+            style={{ width: '56%', height: 'auto', alignSelf: 'center', margin: '22px 0 20px' }}
           />
 
-          {/* HeaderCluster — shifted left via xOffset so it anchors top-left.
-              Cluster coords span x:1052–1440; offset -1017 moves leftmost element to x:35.
-              Wrapped in a sized, pixelated layer (top offset drops the art down into
-              its window; the filter clips to this box). */}
-          <div style={{ position: 'absolute', left: 0, top: 50, width: 474, height: 330, filter: 'url(#vlg-pixelate)' }}>
-            <HeaderCluster xOffset={-1017} />
-          </div>
+          <div style={{ whiteSpace: 'pre' }}>{LISTING}</div>
+          <div style={{ height: 14 }} />
+          <div>READY.</div>
 
-          {/* Window chrome framing the command prompt (decorative, behind it) */}
-          <RetroWindow
-            title="TERMINAL"
-            style={{
-              position: 'absolute', left: 8, top: 740, width: 344, height: 208,
-              zIndex: 0, pointerEvents: 'none', background: 'transparent',
-            }}
-          />
-
-          {/* Command prompt — MONO style, understated */}
+          {/* Live command prompt — pinned at the bottom */}
           <div
-            style={{
-              position: 'absolute', left: 20, top: 906,
-              pointerEvents: 'auto', cursor: 'text',
-              fontFamily: MONO, fontSize: 16, lineHeight: 1,
-              letterSpacing: '0.04em', color: 'var(--vlg-fg, #000)',
-              whiteSpace: 'nowrap', userSelect: 'none',
-            }}
             onClick={() => inputRef.current?.focus()}
+            style={{ cursor: 'text', marginTop: 'auto', whiteSpace: 'nowrap' }}
           >
+            <span style={{ color: GREEN }}>{'C:/Home>'}</span>
             {echo ? (
-              <span style={{ color: RED }}>
-                {'> '}{echo.cmd}{'  ->  '}{echo.path}
-              </span>
+              <span style={{ color: LTRED }}>{echo.cmd}{'  ->  '}{echo.path}</span>
             ) : err ? (
-              <span style={{ fontFamily: BODY, fontSize: 11, letterSpacing: '0.05em' }}>
-                {err}
-              </span>
+              <span style={{ color: LTRED }}>{err}</span>
             ) : (
               <>
-                {'> '}
                 <span>{cmd}</span>
                 <span style={{
-                  display: 'inline-block',
-                  width: '0.55em', height: '0.9em',
-                  background: 'var(--vlg-cmd-cursor, #000)', verticalAlign: '-0.1em',
-                  animation: 'vr-blink 1s step-end infinite',
+                  display: 'inline-block', width: '0.6em', height: '1em',
+                  background: YELLOW, verticalAlign: '-0.15em',
+                  marginLeft: 1, animation: 'vr-blink 1s step-end infinite',
                 }} />
               </>
             )}
@@ -153,39 +175,37 @@ export function HomeDesktop() {
               }}
             />
           </div>
-        </>
-      }
-      right={
-        <>
-          {/* README — top-right corner, 35px from right edge */}
-          <Link
-            href="/information"
-            style={{
-              position: 'absolute', right: 35, top: 35,
-              fontFamily: SEGOE, fontSize: 11, lineHeight: '11px',
-              color: 'var(--vlg-fg, #000)', textDecoration: 'none', pointerEvents: 'auto',
-            }}
-          >
-            README
-          </Link>
 
-          {/* Broadcast unit — the htop-style monitor, framed in retro window
-              chrome. The var overrides re-skin everything inside: MONO → VT323
-              bitmap face, ink → Temple blue. */}
-          <div
-            style={{
-              position: 'absolute', right: 35, top: UNIT_T,
-              '--font-ibm-plex-mono': 'var(--font-ibm-vga)',
-              '--vlg-fg': TEMPLE_BLUE,
-              '--vlg-strong': '#08087a',
-            } as React.CSSProperties}
-          >
-            <RetroWindow title="BROADCAST" bodyPad={16}>
+          <div style={{ color: CYAN, marginTop: 4 }}>TX</div>
+        </div>
+
+        {/* RIGHT — white pane; the live broadcast is a discrete TempleOS gray
+            dialog occupying only the upper-right, like the reference. */}
+        <div style={{
+          flex: 1, minWidth: 0, background: WHITE, overflow: 'hidden',
+          padding: 16, display: 'flex',
+          justifyContent: 'flex-end', alignItems: 'flex-start',
+        }}>
+          {/* Gray square — no outer border; a blue double-line frame sits inside */}
+          <div style={{ display: 'inline-block', background: GRAY, padding: 6, overflow: 'hidden' }}>
+            <div
+              style={{
+                display: 'flex', flexDirection: 'column',
+                border: `3px double ${BORDER_BLUE}`, padding: '8px 12px 12px',
+                // Re-skin the broadcast: VGA face, royal-blue ink on gray.
+                '--font-ibm-plex-mono': 'var(--font-ibm-vga)',
+                '--vlg-fg': '#2a2ac0',
+                '--vlg-strong': '#141488',
+              } as React.CSSProperties}
+            >
+              <div style={{ textAlign: 'center', color: PURPLE, marginBottom: 8 }}>
+                Live Broadcast Monitor
+              </div>
               <HtopBroadcast />
-            </RetroWindow>
+            </div>
           </div>
-        </>
-      }
-    />
+        </div>
+      </div>
+    </div>
   );
 }
