@@ -22,6 +22,11 @@ export function ShannonDiagram() {
           markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill={ink} />
         </marker>
+        {/* The destination is the station mark itself — black line-art recolored
+            to the theme's ink through its own alpha, same trick as maskedArt(). */}
+        <mask id="sh-logo" style={{ maskType: 'alpha' }}>
+          <image href="/icons/hero_logo_p.png" x="740" y="68" width="98" height="98" />
+        </mask>
       </defs>
       <g stroke={ink} strokeWidth="1.5" fill="none">
         {/* boxes */}
@@ -29,7 +34,6 @@ export function ShannonDiagram() {
         <rect x="160" y="75" width="90" height="85" />
         <rect x="426" y="103" width="28" height="28" />
         <rect x="600" y="75" width="90" height="85" />
-        <rect x="740" y="75" width="90" height="85" />
         <rect x="392" y="205" width="95" height="75" />
         {/* signal path */}
         <line x1="115" y1="117" x2="156" y2="117" markerEnd="url(#sh-arrow)" />
@@ -39,6 +43,7 @@ export function ShannonDiagram() {
         {/* noise feed */}
         <line x1="440" y1="205" x2="440" y2="135" markerEnd="url(#sh-arrow)" />
       </g>
+      <rect x="740" y="68" width="98" height="98" fill={ink} mask="url(#sh-logo)" />
       <g style={text}>
         <text x="72" y="46" textAnchor="middle">INFORMATION</text>
         <text x="72" y="62" textAnchor="middle">SOURCE</text>
@@ -48,7 +53,6 @@ export function ShannonDiagram() {
         <text x="527" y="140" textAnchor="middle">RECEIVED</text>
         <text x="527" y="156" textAnchor="middle">SIGNAL</text>
         <text x="645" y="62" textAnchor="middle">RECEIVER</text>
-        <text x="785" y="62" textAnchor="middle">DESTINATION</text>
         <text x="715" y="182" textAnchor="middle">MESSAGE</text>
         <text x="440" y="300" textAnchor="middle">NOISE</text>
         <text x="440" y="316" textAnchor="middle">SOURCE</text>
