@@ -41,6 +41,17 @@ export function HomeTemp({ commands }: { commands: NavCommand[] }) {
     return () => vv.removeEventListener('resize', update);
   }, [focused]);
 
+  // The body carries Tailwind's `min-h-screen` (100vh). On iOS 100vh is the
+  // LARGE viewport height, so with the URL bar showing it forces the body
+  // taller than the visible area — a scrollbar on a page that has nothing to
+  // scroll. This screen is fixed-position, so drop the floor while it's up.
+  useEffect(() => {
+    const body = document.body;
+    const prev = body.style.minHeight;
+    body.style.minHeight = '0';
+    return () => { body.style.minHeight = prev; };
+  }, []);
+
   // iOS Smart Punctuation curls straight quotes, which would break '.. and ^^' forever.
   const normalise = (raw: string) =>
     raw.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\s+$/, '');

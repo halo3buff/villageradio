@@ -12,7 +12,7 @@ export function ShannonDiagram() {
   };
   return (
     <svg
-      viewBox="0 0 880 330"
+      viewBox="-8 11 880 330"
       preserveAspectRatio="xMidYMid meet"
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
       aria-label="Shannon communication system diagram"
@@ -25,7 +25,7 @@ export function ShannonDiagram() {
         {/* The destination is the station mark itself — black line-art recolored
             to the theme's ink through its own alpha, same trick as maskedArt(). */}
         <mask id="sh-logo" style={{ maskType: 'alpha' }}>
-          <image href="/icons/hero_logo_p.png" x="730" y="58" width="118" height="118" />
+          <image href="/icons/hero_logo_p.png" x="714" y="42" width="150" height="150" />
         </mask>
       </defs>
       <g stroke={ink} strokeWidth="1.5" fill="none">
@@ -43,7 +43,7 @@ export function ShannonDiagram() {
         {/* noise feed */}
         <line x1="440" y1="205" x2="440" y2="135" markerEnd="url(#sh-arrow)" />
       </g>
-      <rect x="730" y="58" width="118" height="118" fill={ink} mask="url(#sh-logo)" />
+      <rect x="714" y="42" width="150" height="150" fill={ink} mask="url(#sh-logo)" />
       <g style={text}>
         <text x="72" y="46" textAnchor="middle">INFORMATION</text>
         <text x="72" y="62" textAnchor="middle">SOURCE</text>
