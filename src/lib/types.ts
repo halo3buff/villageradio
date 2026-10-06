@@ -115,3 +115,11 @@ export interface TransmissionItem {
   sizeBytes: number;
   state: TransmissionState;
 }
+
+/**
+ * The command codes ARE the passwords — the README lists what each one opens,
+ * never the code itself.
+ */
+export function censorCmd(_cmd: string): string {
+  return '█'.repeat(5);   // fixed width: the length is a hint too
+}

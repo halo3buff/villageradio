@@ -3,7 +3,7 @@ import { Space_Mono, DM_Sans, IBM_Plex_Mono, VT323 } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
-import { getBroadcast, getTheme } from '@/lib/content/loaders';
+import { getBroadcast, getCommands, getTheme } from '@/lib/content/loaders';
 import { DEFAULT_THEME, isThemeName, siteCssVars } from '@/lib/theme';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -99,7 +99,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [playlist, rawTheme] = await Promise.all([getBroadcast(), getTheme()]);
+  const [playlist, rawTheme, commands] = await Promise.all([getBroadcast(), getTheme(), getCommands()]);
   const theme = isThemeName(rawTheme) ? rawTheme : DEFAULT_THEME;
   return (
     <html
@@ -116,7 +116,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <AudioProvider playlist={playlist}>
             {/* Burns a gated page's clearance the moment the visitor leaves it */}
             <ClearanceWarden />
-            <SiteFrame nav={<Nav />} audioPlayer={<AudioPlayer />}>
+            <SiteFrame nav={<Nav />} audioPlayer={<AudioPlayer />} commands={commands}>
               {children}
             </SiteFrame>
           </AudioProvider>

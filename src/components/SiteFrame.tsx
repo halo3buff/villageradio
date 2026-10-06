@@ -1,6 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { CommandPrompt } from '@/components/CommandPrompt';
+import type { NavCommand } from '@/lib/types';
 
 /**
  * Wraps the global site chrome (nav, news strip, persistent audio player). The
@@ -10,20 +12,27 @@ import { usePathname } from 'next/navigation';
  * on any public route — only /admin keeps the full legacy chrome, exactly as
  * before.
  */
-const CHROMELESS = new Set(['/', '/listen', '/transmit']);
+const CHROMELESS = new Set(['/', '/listen', '/transmit', '/station']);
+
+// /admin is a different machine and keeps the legacy chrome.
+const NO_PROMPT = (p: string) => p === '/admin' || p.startsWith('/admin/');
 export function SiteFrame({
   nav,
   audioPlayer,
+  commands,
   children,
 }: {
   nav: React.ReactNode;
   audioPlayer: React.ReactNode;
+  commands: NavCommand[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
 
+  const prompt = NO_PROMPT(pathname) ? null : <CommandPrompt commands={commands} />;
+
   if (CHROMELESS.has(pathname)) {
-    return <>{children}</>;
+    return <>{children}{prompt}</>;
   }
 
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
@@ -40,6 +49,7 @@ export function SiteFrame({
     <>
       {nav}
       {children}
+      {prompt}
     </>
   );
 }

@@ -4,9 +4,18 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAudio } from '@/lib/audio-context';
 import { BroadcastLiveTag } from '@/components/BroadcastLiveTag';
 import { LcdPanel } from '@/components/LcdPanel';
-import { ShannonDiagram } from '@/components/ShannonDiagram';
+import { StickChart } from '@/components/StickChart';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
+
+// Winamp-style sunken bevel for the viz panels.
+const SUNKEN: React.CSSProperties = {
+  position: 'relative',
+  padding: 3,
+  border: '1px solid rgba(0,0,0,0.5)',
+  boxShadow: 'inset 1px 1px 0 rgba(0,0,0,0.4), inset -1px -1px 0 rgba(255,255,255,0.4)',
+  boxSizing: 'border-box',
+};
 
 /**
  * HtopBroadcast — the broadcast as a monochrome `htop` monitor. A dot-matrix
@@ -62,7 +71,10 @@ function applyLed(el: HTMLSpanElement, on: boolean): void {
   el.style.background = on ? 'var(--vlg-strong, #000)' : 'transparent';
 }
 const METER_LABELS = ['1', '2', '3', '4', 'Lvl', 'Pk'];
-const BAR_SEG = 20;   // fixed LED segments per process-table row (constant width → no reflow)
+// LED segments per process-table row (constant width → no reflow). Desktop is
+// wider so the SIGNAL bars fill the container left→right.
+const BAR_SEG_MOBILE = 20;
+const BAR_SEG_DESKTOP = 30;
 
 function fmtFreq(f: number): string {
   return f < 1000 ? String(Math.round(f)) : `${(f / 1000).toFixed(1)}k`;
@@ -97,6 +109,7 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
 
   const rowCount = mobile ? 7 : 13;
   const meterW = mobile ? 16 : 28;
+  const barSeg = mobile ? BAR_SEG_MOBILE : BAR_SEG_DESKTOP;
 
   const aFRef = useRef<AnalyserNode | null>(null);
   const liveRef = useRef(false);
@@ -203,7 +216,7 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
         else bn.peak *= 0.992;
         const state = enr > 0.5 ? 'R' : enr > 0.22 ? 'D' : 'S';
         // SIGNAL is now an LED segment bar (fixed width); idle = unlit
-        const barN = live ? Math.min(BAR_SEG, Math.round(enr * 20)) : 0;
+        const barN = live ? Math.min(barSeg, Math.round(enr * barSeg)) : 0;
         const text = mobile
           ? [
             bn.band.padEnd(3),
@@ -230,7 +243,7 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
         const cells = rowCellRefs.current[r];
         if (cells) {
           const barN = rows[r].barN;
-          for (let j = 0; j < BAR_SEG; j++) {
+          for (let j = 0; j < barSeg; j++) {
             const el = cells[j];
             if (!el) continue;
             applyLed(el, j < barN);
@@ -253,7 +266,7 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
 
     frameRef.current++;
     rafRef.current = requestAnimationFrame(tick);
-  }, [bins, mobile, rowCount, meterW]);
+  }, [bins, mobile, rowCount, meterW, barSeg]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(tick);
@@ -272,55 +285,52 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
   const cellPx = 5;
   const cellGap = 3;
 
-  // meters + telemetry row (the "live broadcast" readout — its top edge is the
-  // Source/1[ line, its stack bottoms out at the process table / status footer)
-  const metersBlock = (
-    <div style={{
-      display: 'flex', flexDirection: 'row',
-      gap: 18, alignItems: 'flex-start',
-    }}>
-      <div style={{ ...base, display: 'flex', flexDirection: 'column', gap: mobile ? 3 : 4 }}>
-        {METER_LABELS.map((lab, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ ...label, width: 24, textAlign: 'right', marginRight: 5 }}>{lab}</span>
-            <span>[</span>
-            <span style={{ display: 'inline-flex', gap: cellGap, margin: '0 4px' }}>
-              {Array.from({ length: meterW }).map((_, j) => (
-                <span
-                  key={j}
-                  ref={el => { (cellRefs.current[i] ??= [])[j] = el; }}
-                  style={{
-                    width: cellPx, height: cellPx, display: 'inline-block', boxSizing: 'border-box',
-                    border: '1px solid var(--vlg-fg, #111)',
-                  }}
-                />
-              ))}
-            </span>
-            <span>]</span>
-            <span
-              ref={el => { readoutRefs.current[i] = el; }}
-              style={{ ...label, marginLeft: 6, width: mobile ? 48 : 52, overflow: 'hidden', display: 'inline-block' }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Fixed-width column: the telemetry text changes on play (track title,
-          live tag, SNR…); pinning the width stops those from resizing the
-          shrink-wrapped frame and sliding the whole unit. */}
-      <div style={{ ...base, whiteSpace: 'pre', width: mobile ? undefined : 190, overflow: 'hidden' }}>
-        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          <span style={label}>Source: </span><span ref={srcRef}>village radio</span>
+  // The 1-4/Lvl/Pk LED meters (mobile only — desktop uses the two stick charts).
+  const metersColumn = (
+    <div style={{ ...base, display: 'flex', flexDirection: 'column', gap: mobile ? 3 : 4 }}>
+      {METER_LABELS.map((lab, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 24, textAlign: 'right', marginRight: 5 }}>{lab}</span>
+          <span>[</span>
+          <span style={{ display: 'inline-flex', gap: cellGap, margin: '0 4px' }}>
+            {Array.from({ length: meterW }).map((_, j) => (
+              <span
+                key={j}
+                ref={el => { (cellRefs.current[i] ??= [])[j] = el; }}
+                style={{
+                  width: cellPx, height: cellPx, display: 'inline-block', boxSizing: 'border-box',
+                  border: '1px solid var(--vlg-fg, #111)',
+                }}
+              />
+            ))}
+          </span>
+          <span>]</span>
+          <span
+            ref={el => { readoutRefs.current[i] = el; }}
+            style={{ ...label, marginLeft: 6, width: mobile ? 48 : 52, overflow: 'hidden', display: 'inline-block' }}
+          />
         </div>
-        <div><span style={label}>Signal: </span><BroadcastLiveTag /></div>
-        {!mobile && (
-          <div><span style={label}>Codec:  </span>pcm 48.0kHz</div>
-        )}
-        <div><span style={label}>Level avg: </span><span ref={loadRef}>0.00 0.00 0.00</span></div>
-        <div><span style={label}>On air: </span><span ref={upRef}>0d 00:00:00</span></div>
-        {!mobile && (
-          <div><span style={label}>SNR: </span><span ref={snrRef}>-- dB</span></div>
-        )}
+      ))}
+    </div>
+  );
+
+  // Telemetry readout (source / signal / codec / level / uptime / SNR). The
+  // PLAY button is mobile-only; on desktop the page provides the control.
+  const telemetryBlock = (
+    <div style={{ ...base, whiteSpace: 'pre', width: mobile ? undefined : 190, overflow: 'hidden' }}>
+      <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={label}>Source: </span><span ref={srcRef}>village radio</span>
+      </div>
+      <div><span style={label}>Signal: </span><BroadcastLiveTag /></div>
+      {!mobile && (
+        <div><span style={label}>Codec:  </span>pcm 48.0kHz</div>
+      )}
+      <div><span style={label}>Level avg: </span><span ref={loadRef}>0.00 0.00 0.00</span></div>
+      <div><span style={label}>On air: </span><span ref={upRef}>0d 00:00:00</span></div>
+      {!mobile && (
+        <div><span style={label}>SNR: </span><span ref={snrRef}>-- dB</span></div>
+      )}
+      {mobile && (
         <button
           onClick={() => (isBroadcasting ? pause() : broadcastPlay())}
           style={{
@@ -331,7 +341,7 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
         >
           {isBroadcasting ? '[ ❚❚ STOP ]' : '[ ▶ PLAY ]'}
         </button>
-      </div>
+      )}
     </div>
   );
 
@@ -342,7 +352,7 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
         <div key={r} style={{ display: 'flex', alignItems: 'center' }}>
           <span ref={el => { rowTextRefs.current[r] = el; }} style={{ whiteSpace: 'pre' }} />
           <span style={{ display: 'inline-flex', gap: cellGap, marginLeft: 4 }}>
-            {Array.from({ length: BAR_SEG }).map((_, j) => (
+            {Array.from({ length: barSeg }).map((_, j) => (
               <span
                 key={j}
                 ref={el => { (rowCellRefs.current[r] ??= [])[j] = el; }}
@@ -361,27 +371,42 @@ export function HtopBroadcast({ mobile = false }: { mobile?: boolean } = {}) {
     <div style={{ ...base, marginTop: 12, color: 'var(--vlg-fg, #000)', whiteSpace: 'nowrap' }}>{STATUS}</div>
   );
 
-  return (
-    <div style={{ position: 'relative', pointerEvents: 'none' }}>
-      {/* top visual row. Mobile: LCD strip. Desktop: hex-dump filler on the left,
-          LCD as a square on the right, sitting above the Source/telemetry column. */}
-      {mobile ? (
+  if (mobile) {
+    return (
+      <div style={{ position: 'relative', pointerEvents: 'none' }}>
         <div style={{ position: 'relative', width: dotW, height: 96, marginBottom: 12 }}>
           <LcdPanel mobile />
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', gap: 12, marginBottom: 12, paddingRight: 28 }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <ShannonDiagram />
-          </div>
-          <div style={{ position: 'relative', width: 140, height: 140, flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 18, alignItems: 'flex-start' }}>
+          {metersColumn}
+          {telemetryBlock}
+        </div>
+        {tableBlock}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: 'relative', pointerEvents: 'none' }}>
+      {/* Top: two live stick-plot charts on the left; the vectorscope with the
+          telemetry readout tucked beneath it on the right. */}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {([['A · LOW', 20, 500], ['B · HIGH', 500, 12000]] as const).map(([lab, lo, hi]) => (
+            <div key={lab} style={SUNKEN}>
+              <StickChart label={lab} lo={lo} hi={hi} width={340} height={92} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 190, flexShrink: 0 }}>
+          <div style={{ ...SUNKEN, width: 140, height: 140 }}>
             <LcdPanel />
           </div>
+          {telemetryBlock}
         </div>
-      )}
-      {metersBlock}
+      </div>
       {tableBlock}
-      {!mobile && statusBlock}
+      {statusBlock}
     </div>
   );
 }

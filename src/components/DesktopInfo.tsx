@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import type { NavCommand } from '@/lib/types';
+import { censorCmd } from '@/lib/types';
 import { useTheme } from '@/components/ThemeProvider';
 import { paletteColor } from '@/lib/theme';
 
@@ -253,7 +254,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
           {/* Command instructions — white-backed, pinned to bottom */}
           <div style={{
             position: 'absolute', left: 0, bottom: 0, width: SW,
-            background: 'var(--vlg-bg, #fff)', paddingTop: 80, paddingBottom: 8,
+            background: 'var(--vlg-bg, #fff)', paddingTop: 80, paddingBottom: 92,
           }}>
             <div style={{
               fontFamily: MONO, fontSize: 11, lineHeight: '14px',
@@ -265,18 +266,12 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
                   key={c.cmd}
                   style={{ color: paletteColor(T, c.cmd), opacity: fading === i ? 0.15 : 1, transition: 'opacity 1.1s ease' }}
                 >
-                  {`  ${c.cmd.padEnd(12)} ${c.label}`}
+                  {`  ${censorCmd(c.cmd).padEnd(12)} ${c.label}`}
                 </div>
               ))}
               {/* two blank lines: spacing + placeholder row for the full-width ticker strip below */}
-              {'\n\n' + ZEROS_LINE + '\n'}
-              <span style={{ color: T.uid_real }}>
-                {`MAIN:/vlg/stn/broadcast > ${ghost}`}
-              </span>
-              <span style={{
-                display: 'inline-block', width: 7, height: 12, background: T.uid_real, verticalAlign: -2,
-                animation: typing ? 'none' : 'vr-blink 1s steps(1) infinite',
-              }} />
+              {/* The prompt itself is global — see SiteFrame. */}
+              {'\n\n' + ZEROS_LINE}
             </div>
           </div>
           <style>{`

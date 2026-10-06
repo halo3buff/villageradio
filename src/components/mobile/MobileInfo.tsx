@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { NavCommand } from '@/lib/types';
+import { censorCmd } from '@/lib/types';
 import { useTheme } from '@/components/ThemeProvider';
 import { paletteColor } from '@/lib/theme';
 
@@ -80,7 +81,7 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
             {'\ncommands:\n'}
             {commands.filter(c => !c.hidden).map(c => (
               <div key={c.cmd} style={{ color: paletteColor(T, c.cmd) }}>
-                {`  ${c.cmd.padEnd(12)} ${c.label}`}
+                {`  ${censorCmd(c.cmd).padEnd(12)} ${c.label}`}
               </div>
             ))}
             {'\n' + BOTTOM_SUFFIX}

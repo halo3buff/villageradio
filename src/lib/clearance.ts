@@ -19,7 +19,7 @@ const KEY_PREFIX = 'vr-clearance:';
 
 /** Paths that sit behind a checkpoint. '/' and /information stay open — the
  *  terminal and the manual must always be reachable. */
-export const GATED_PATHS = new Set(['/listen', '/news', '/photography', '/work', '/transmit']);
+export const GATED_PATHS = new Set(['/listen', '/news', '/photography', '/work', '/transmit', '/station']);
 
 export function grantClearance(path: string): void {
   if (!GATED_PATHS.has(path)) return;
