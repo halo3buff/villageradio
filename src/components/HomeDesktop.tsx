@@ -18,16 +18,20 @@ export function HomeDesktop() {
   return (
     <div
       style={{
-        position: 'absolute', inset: 0, overflow: 'hidden',
+        position: 'absolute', inset: 0, overflow: 'auto',
         fontFamily: SYS, color: INK, background: DESKTOP,
       }}
     >
       {/* The radio itself — the analogue summary strip */}
+      {/* margin:auto centres the strip while it fits and lets it scroll once
+          the stacked mobile layout is taller than the screen */}
       <div style={{
-        position: 'absolute', inset: 0, display: 'flex',
-        alignItems: 'center', justifyContent: 'center',
+        minHeight: '100%', display: 'flex',
+        padding: '36px 0 64px', boxSizing: 'border-box',
       }}>
-        <AnalogueStrip />
+        <div style={{ margin: 'auto' }}>
+          <AnalogueStrip />
+        </div>
       </div>
 
       {/* README — top-right corner */}

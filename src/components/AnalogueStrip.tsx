@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAudio } from '@/lib/audio-context';
 import {
   Spectrum, LoudnessMeter, TestSignal, THIRD_OCTAVE,
@@ -29,6 +29,11 @@ import {
  */
 
 const W = 1122, H = 238;
+// Narrow viewports stack the panels instead of running them in a row, so
+// each one keeps its own width rather than being squeezed to a quarter.
+const STACK_W = 284;              // widest panel + its frame
+const STACK_MAX_CSS = 700;        // below this the strip stacks
+const STACK_ORDER = [4, 1, 2, 3]; // Lissajous first
 
 const P1 = { x: 2, w: 279 };
 const P2 = { x: 281, w: 279 };
@@ -97,6 +102,8 @@ export function AnalogueStrip() {
   const hiL = useRef<AnalyserNode | null>(null);
   const hiR = useRef<AnalyserNode | null>(null);
   const playing = useRef(false);
+  const [stacked, setStacked] = useState(false);
+  const stackedRef = useRef(false);
 
   // Higher-resolution tap: the shared analysers are 2048-point, too coarse to
   // resolve a 20 Hz band. An AnalyserNode passes audio through, so this reads
@@ -243,13 +250,17 @@ export function AnalogueStrip() {
       if (now - lastDraw >= 1 / 60) {
         lastDraw = now;
         const cssW = wrap.clientWidth || W;
-        const s = (cssW / W) * (window.devicePixelRatio || 1);
-        if (el.width !== Math.round(W * s)) {
-          el.width = Math.round(W * s); el.height = Math.round(H * s);
-          el.style.height = `${(H * cssW) / W}px`;
+        const stack = cssW < STACK_MAX_CSS;
+        if (stack !== stackedRef.current) { stackedRef.current = stack; setStacked(stack); }
+        const cw = stack ? STACK_W : W;
+        const ch = stack ? H * STACK_ORDER.length : H;
+        const s = (cssW / cw) * (window.devicePixelRatio || 1);
+        if (el.width !== Math.round(cw * s) || el.height !== Math.round(ch * s)) {
+          el.width = Math.round(cw * s); el.height = Math.round(ch * s);
+          el.style.height = `${(ch * cssW) / cw}px`;
         }
         ctx.setTransform(s, 0, 0, s, 0, 0);
-        draw(ctx, s, m);
+        draw(ctx, s, m, stack);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -272,7 +283,7 @@ export function AnalogueStrip() {
           width: '2.1%', aspectRatio: '1.35', textAlign: 'center', cursor: 'pointer',
         }}
       >
-        {isPlaying ? '■' : '▶'}
+        {isPlaying ? '■︎' : '▶︎'}
       </button>
     </div>
   );
@@ -280,21 +291,23 @@ export function AnalogueStrip() {
 
 // ───────────────────────────────────────────────────────────────────────────
 
-function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics) {
+function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = false) {
+  const CW = stacked ? STACK_W : W;
+  const CH = stacked ? H * STACK_ORDER.length : H;
   const hair = 1 / s;
   const snap = (v: number) => (Math.round(v * s) + 0.5) / s;
 
   if (GRADIENT) {
     // 2% of luminance across the full height — enough to seat the panel on
     // the page, not enough to read as chrome.
-    const g = ctx.createLinearGradient(0, 0, 0, H);
+    const g = ctx.createLinearGradient(0, 0, 0, CH);
     g.addColorStop(0, BG);
     g.addColorStop(1, GRADIENT_FOOT);
     ctx.fillStyle = g;
   } else {
     ctx.fillStyle = BG;
   }
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, CW, CH);
 
   const text = (str: string, x: number, y: number, color = TEXT, align: Align = 'left', size = 12.5, bold = false, mono = false) => {
     ctx.font = `${bold ? 'bold ' : ''}${size * (mono ? 0.94 : 1)}px ${mono ? NUM_FONT : LABEL_FONT}`;
@@ -313,15 +326,26 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics) {
     ctx.strokeStyle = color; ctx.lineWidth = hair;
     ctx.strokeRect(snap(x), snap(y), w, h);
   };
-  const inPanel = (x: number, w: number, fn: () => void) => {
-    ctx.save(); ctx.beginPath(); ctx.rect(x + 1, 2, w - 2, H - 4); ctx.clip(); fn(); ctx.restore();
+  // Each panel body draws in its own desktop coordinates. Stacking keeps that
+  // and simply moves the slot, so there is one layout description, not two.
+  const slotOf = (n: number) => STACK_ORDER.indexOf(n) * H;
+  const inPanel = (n: number, x: number, w: number, fn: () => void) => {
+    ctx.save();
+    if (stacked) ctx.translate(1 - x, slotOf(n));
+    ctx.beginPath(); ctx.rect(x + 1, 2, w - 2, H - 4); ctx.clip();
+    fn();
+    ctx.restore();
   };
 
-  frame(1, 1, W - 3, H - 3);
-  for (const x of [P2.x, P3.x, P4.x]) vline(x, 1, H - 2);
+  if (stacked) {
+    for (let i = 0; i < STACK_ORDER.length; i++) frame(1, 1 + i * H, CW - 3, H - 2);
+  } else {
+    frame(1, 1, W - 3, H - 3);
+    for (const x of [P2.x, P3.x, P4.x]) vline(x, 1, H - 2);
+  }
 
   // ── panel 1: the parcel table -> loudness by source ──────────────────────
-  inPanel(P1.x, P1.w, () => {
+  inPanel(1, P1.x, P1.w, () => {
     // column 0's header is the transport button's seat, so it stays empty
     const hdr: [string, number][] = [['LU-M', 88], ['LU-S', 126], ['LRA', 158], ['TP', 196], ['PLR', 234], ['PSR', 272]];
     hdr.forEach(([t, x]) => text(t, x, 16, TEXT, 'right'));
@@ -379,7 +403,7 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics) {
   });
 
   // ── panel 2: kinematics -> the band table ────────────────────────────────
-  inPanel(P2.x, P2.w, () => {
+  inPanel(2, P2.x, P2.w, () => {
     text('LEVEL (dBFS)', 408, 16, TEXT, 'right');
     text('PEAK', 467, 16, TEXT, 'right');
     text('COH', 518, 16, TEXT, 'right');
@@ -430,7 +454,7 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics) {
   });
 
   // ── panel 3: SARS -> live events against thresholds ─────────────────────
-  inPanel(P3.x, P3.w, () => {
+  inPanel(3, P3.x, P3.w, () => {
     text('MATCH - Signal Analogue System', P3.x + P3.w / 2, 15, TEXT, 'center', 13);
     hline(P3.x + 2, P3.x + P3.w - 2, 20);
     frame(P3.x + 4, 22, P3.split - P3.x - 8, H - 26);
@@ -472,7 +496,7 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics) {
   // ── panel 4: the stereo field as a Lissajous dot cloud ──────────────────
   // x = right channel, y = left channel, both -1..1. The dashed diagonals are
   // the correlation axes: y (+45) is mono, q (-45) is out of phase.
-  inPanel(P4.x, P4.w, () => {
+  inPanel(4, P4.x, P4.w, () => {
     text('Lissajous - stereo field', P4.x + P4.w / 2, 13, TEXT, 'center', 12);
 
     const size = 186;

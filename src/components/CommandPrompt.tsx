@@ -17,7 +17,7 @@ const PS1 = 'MAIN:/vlg/stn/broadcast > ';
  * keyboard); tap anywhere along it to focus.
  */
 // Not in the CMS command list, so it never appears on the README or in admin.
-const PASSPHRASE: Record<string, string> = { who_is_gilgamesh: '/station' };
+const PASSPHRASE: Record<string, string> = { whoisgilgamesh: '/station' };
 
 export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const cmdMap = {
