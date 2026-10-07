@@ -45,7 +45,7 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
 
         {/* Stripe background */}
         <div style={{
-          position: 'absolute', left: vw(22), top: dvh(82), width: vw(354), height: dvh(746),
+          position: 'absolute', left: vw(22), top: dvh(82), width: vw(354), height: dvh(640),
           background: STRIPES,
         }} />
 
@@ -68,7 +68,7 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
 
         {/* Bottom text block */}
         <div style={{
-          position: 'absolute', left: vw(22), top: dvh(733), width: vw(354),
+          position: 'absolute', left: vw(22), top: dvh(627), width: vw(354),
           background: 'var(--vlg-bg, #fff)', paddingBottom: 4,
         }}>
           <div style={{
