@@ -33,7 +33,13 @@ const W = 1122, H = 238;
 // each one keeps its own width rather than being squeezed to a quarter.
 const STACK_W = 284;              // widest panel + its frame
 const STACK_MAX_CSS = 700;        // below this the strip stacks
-const STACK_ORDER = [4, 1, 2, 3]; // Lissajous first
+// Mobile carries the Lissajous and the band/correlation panel only — the
+// two that read at a glance. The parcel table and the compliance list are
+// desktop-only; cramming them in forced a scroll and nothing was legible.
+const STACK_ORDER = [4, 2];
+const STACK_SLOT_H: Record<number, number> = { 4: 238, 2: 204 };
+const STACK_H = STACK_ORDER.reduce((a, n) => a + STACK_SLOT_H[n], 0);
+const TIGHTEN = 34;               // dead space removed from panel 2's middle
 
 const P1 = { x: 2, w: 279 };
 const P2 = { x: 281, w: 279 };
@@ -253,7 +259,7 @@ export function AnalogueStrip() {
         const stack = cssW < STACK_MAX_CSS;
         if (stack !== stackedRef.current) { stackedRef.current = stack; setStacked(stack); }
         const cw = stack ? STACK_W : W;
-        const ch = stack ? H * STACK_ORDER.length : H;
+        const ch = stack ? STACK_H : H;
         const s = (cssW / cw) * (window.devicePixelRatio || 1);
         if (el.width !== Math.round(cw * s) || el.height !== Math.round(ch * s)) {
           el.width = Math.round(cw * s); el.height = Math.round(ch * s);
@@ -307,7 +313,7 @@ export function AnalogueStrip() {
 
 function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = false) {
   const CW = stacked ? STACK_W : W;
-  const CH = stacked ? H * STACK_ORDER.length : H;
+  const CH = stacked ? STACK_H : H;
   const hair = 1 / s;
   const snap = (v: number) => (Math.round(v * s) + 0.5) / s;
 
@@ -342,17 +348,25 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
   };
   // Each panel body draws in its own desktop coordinates. Stacking keeps that
   // and simply moves the slot, so there is one layout description, not two.
-  const slotOf = (n: number) => STACK_ORDER.indexOf(n) * H;
+  const slotOf = (n: number) => {
+    const i = STACK_ORDER.indexOf(n);
+    if (i < 0) return -1;
+    let top = 0;
+    for (let k = 0; k < i; k++) top += STACK_SLOT_H[STACK_ORDER[k]];
+    return top;
+  };
+  const slotH = (n: number) => (stacked ? STACK_SLOT_H[n] : H);
   const inPanel = (n: number, x: number, w: number, fn: () => void) => {
+    if (stacked && slotOf(n) < 0) return;      // not carried on this layout
     ctx.save();
     if (stacked) ctx.translate(1 - x, slotOf(n));
-    ctx.beginPath(); ctx.rect(x + 1, 2, w - 2, H - 4); ctx.clip();
+    ctx.beginPath(); ctx.rect(x + 1, 2, w - 2, slotH(n) - 4); ctx.clip();
     fn();
     ctx.restore();
   };
 
   if (stacked) {
-    for (let i = 0; i < STACK_ORDER.length; i++) frame(1, 1 + i * H, CW - 3, H - 2);
+    for (const n of STACK_ORDER) frame(1, 1 + slotOf(n), CW - 3, STACK_SLOT_H[n] - 2);
   } else {
     frame(1, 1, W - 3, H - 3);
     for (const x of [P2.x, P3.x, P4.x]) vline(x, 1, H - 2);
@@ -421,7 +435,7 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
     text('LEVEL (dBFS)', 408, 16, TEXT, 'right');
     text('PEAK', 467, 16, TEXT, 'right');
     text('COH', 518, 16, TEXT, 'right');
-    text('WIDTH', 558, 16, TEXT, 'right');
+    text('WID', 558, 16, TEXT, 'right');
     hline(P2.x + 2, P2.x + P2.w - 2, 20);
 
     GROUPS.forEach(([name], i) => {
@@ -441,30 +455,33 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
     text(f2(m.corr), 496, y6, m.corr < 0 ? RED : TEXT, 'right', 12.5, false, true);
     text(`${f0((1 - m.corr) * 50)}%`, 555, y6, TEXT, 'right', 12.5, false, true);
 
-    text('Crest factor =', 289, 150);
-    text(`${f1(m.crest)} dB`, 397, 150, TEXT, 'left', 12.5, false, true);
-    text('Centroid =', 289, 163);
-    text(m.centroid >= 1000 ? `${(m.centroid / 1000).toFixed(2)} kHz` : `${f0(m.centroid)} Hz`, 397, 163);
+    // on mobile the block below the table closes the gap the desktop slot left
+    const dy = stacked ? -TIGHTEN : 0;
+    hline(P2.x + 4, P2.x + P2.w - 4, 138 + dy, GRIDC);
+    text('Crest factor =', 289, 150 + dy);
+    text(`${f1(m.crest)} dB`, 397, 150 + dy, TEXT, 'left', 12.5, false, true);
+    text('Centroid =', 289, 163 + dy);
+    text(m.centroid >= 1000 ? `${(m.centroid / 1000).toFixed(2)} kHz` : `${f0(m.centroid)} Hz`, 397, 163 + dy);
 
-    text('...Stereo Motion Vectors...', 289, 182);
+    text('...Stereo Motion Vectors...', 289, 182 + dy);
     const mid = m.rms + 20 * Math.log10(Math.max(0.05, (1 + m.corr) / 2));
     const side = m.rms + 20 * Math.log10(Math.max(0.05, (1 - m.corr) / 2));
-    text('Mid level =', 289, 195);
-    text(`${f1(mid)} dB`, 397, 195, CYAN, 'left', 12.5, false, true);
-    text('Side level =', 289, 208);
-    text(`${f1(side)} dB`, 397, 208, RED, 'left', 12.5, false, true);
-    text('Phase angle =', 289, 221);
-    text(`${f0(Math.acos(clamp(m.corr, -1, 1)) * 57.2958)} deg`, 421, 221, TEXT, 'left', 12.5, false, true);
-    text('Spectral slope =', 289, 234);
-    text(`${f1(m.slope)} dB/oct`, 421, 234, TEXT, 'left', 12.5, false, true);
+    text('Mid level =', 289, 195 + dy);
+    text(`${f1(mid)} dB`, 397, 195 + dy, CYAN, 'left', 12.5, false, true);
+    text('Side level =', 289, 208 + dy);
+    text(`${f1(side)} dB`, 397, 208 + dy, RED, 'left', 12.5, false, true);
+    text('Phase angle =', 289, 221 + dy);
+    text(`${f0(Math.acos(clamp(m.corr, -1, 1)) * 57.2958)} deg`, 421, 221 + dy, TEXT, 'left', 12.5, false, true);
+    text('Spectral slope =', 289, 234 + dy);
+    text(`${f1(m.slope)} dB/oct`, 421, 234 + dy, TEXT, 'left', 12.5, false, true);
 
     // correlation needle, where the wind barbs sat
     ctx.strokeStyle = m.corr < 0 ? RED : CYAN; ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.moveTo(508, 176); ctx.lineTo(508 + 22 * clamp(m.corr, -1, 1), 156); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(508, 176 + dy); ctx.lineTo(508 + 22 * clamp(m.corr, -1, 1), 156 + dy); ctx.stroke();
     ctx.strokeStyle = DIM; ctx.lineWidth = hair;
-    ctx.beginPath(); ctx.moveTo(486, 176); ctx.lineTo(530, 176); ctx.stroke();
-    text('correlation', 484, 192, CYAN, 'left', 11);
-    text(`r = ${f2(m.corr)}`, 496, 205, CYAN, 'left', 11);
+    ctx.beginPath(); ctx.moveTo(486, 176 + dy); ctx.lineTo(530, 176 + dy); ctx.stroke();
+    text('correlation', 484, 192 + dy, CYAN, 'left', 11);
+    text(`r = ${f2(m.corr)}`, 496, 205 + dy, CYAN, 'left', 11);
   });
 
   // ── panel 3: SARS -> live events against thresholds ─────────────────────
