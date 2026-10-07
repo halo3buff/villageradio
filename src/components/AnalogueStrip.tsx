@@ -269,21 +269,35 @@ export function AnalogueStrip() {
   }, []);
 
   return (
-    <div ref={wrapRef} style={{ width: 'min(1122px, 98vw)', position: 'relative' }}>
+    <div ref={wrapRef} style={{ width: '100%', position: 'relative' }}>
       <canvas ref={canvasRef} style={{ display: 'block', width: '100%', background: BG }} />
       <button
         type="button"
         onClick={() => (isPlaying ? pause() : broadcastPlay())}
         aria-label={isPlaying ? 'Stop broadcast' : 'Play broadcast'}
         style={{
-          position: 'absolute', left: '0.55%', top: '1.5%',
-          font: `${BTN_PX}px ${LABEL_FONT}`, color: isPlaying ? RED : TEXT,
-          background: 'transparent', border: `1px solid ${BORDER}`,
-          padding: 0, lineHeight: 1, whiteSpace: 'nowrap',
-          width: '2.1%', aspectRatio: '1.35', textAlign: 'center', cursor: 'pointer',
+          position: 'absolute',
+          left: stacked ? 7 : '0.55%',
+          top: stacked ? 6 : '1.5%',
+          color: isPlaying ? RED : TEXT,
+          background: BG, border: `1px solid ${BORDER}`,
+          padding: 0, lineHeight: 0,
+          width: stacked ? 44 : '2.1%', aspectRatio: '1.35',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
         }}
       >
-        {isPlaying ? '■︎' : '▶︎'}
+        {/* drawn, not typed: a glyph renders as colour emoji on phones, and a
+            font-sized one cannot be given a real touch target */}
+        <svg
+          viewBox="0 0 10 10"
+          style={{ width: stacked ? '48%' : '44%', height: 'auto', display: 'block' }}
+          aria-hidden
+        >
+          {isPlaying
+            ? <rect x="1" y="1" width="8" height="8" fill="currentColor" />
+            : <path d="M2 1 L9 5 L2 9 Z" fill="currentColor" />}
+        </svg>
       </button>
     </div>
   );
