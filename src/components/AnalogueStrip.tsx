@@ -28,17 +28,36 @@ import {
  * an internally generated sweep + pink noise when the carrier is down.
  */
 
-const W = 1122, H = 238;
-// Narrow viewports stack the panels instead of running them in a row, so
-// each one keeps its own width rather than being squeezed to a quarter.
+const H = 238;                    // one panel's height
+
+// Desktop is a 2x2 grid: Lissajous and MATCH on top, the parcel table and the
+// band table beneath. Mobile keeps the two that read at a glance, stacked.
+const CELL_W = 282;               // widest panel, so every cell matches
+const GRID = [[4, 3], [1, 2]];    // [row][col] of panel numbers
+const GRID_W = CELL_W * 2 + 2;
+const GRID_H = H * 2;
+
 const STACK_W = 284;              // widest panel + its frame
 const STACK_MAX_CSS = 700;        // below this the strip stacks
-// Mobile carries the Lissajous and the band/correlation panel only — the
-// two that read at a glance. The parcel table and the compliance list are
-// desktop-only; cramming them in forced a scroll and nothing was legible.
 const STACK_ORDER = [4, 2];
 const STACK_SLOT_H: Record<number, number> = { 4: 238, 2: 204 };
 const STACK_H = STACK_ORDER.reduce((a, n) => a + STACK_SLOT_H[n], 0);
+
+/** Where a panel sits in the current layout, or null if it is not carried. */
+function slotFor(n: number, stacked: boolean): { x: number; y: number; h: number } | null {
+  if (stacked) {
+    const i = STACK_ORDER.indexOf(n);
+    if (i < 0) return null;
+    let y = 0;
+    for (let k = 0; k < i; k++) y += STACK_SLOT_H[STACK_ORDER[k]];
+    return { x: 0, y, h: STACK_SLOT_H[n] };
+  }
+  for (let r = 0; r < GRID.length; r++) {
+    const c = GRID[r].indexOf(n);
+    if (c >= 0) return { x: c * CELL_W, y: r * H, h: H };
+  }
+  return null;
+}
 const TIGHTEN = 34;               // dead space removed from panel 2's middle
 
 const P1 = { x: 2, w: 279 };
@@ -255,11 +274,11 @@ export function AnalogueStrip() {
       // the figure has to move with the audio, so this runs every frame
       if (now - lastDraw >= 1 / 60) {
         lastDraw = now;
-        const cssW = wrap.clientWidth || W;
+        const cssW = wrap.clientWidth || GRID_W;
         const stack = cssW < STACK_MAX_CSS;
         if (stack !== stackedRef.current) { stackedRef.current = stack; setStacked(stack); }
-        const cw = stack ? STACK_W : W;
-        const ch = stack ? STACK_H : H;
+        const cw = stack ? STACK_W : GRID_W;
+        const ch = stack ? STACK_H : GRID_H;
         const s = (cssW / cw) * (window.devicePixelRatio || 1);
         if (el.width !== Math.round(cw * s) || el.height !== Math.round(ch * s)) {
           el.width = Math.round(cw * s); el.height = Math.round(ch * s);
@@ -283,12 +302,11 @@ export function AnalogueStrip() {
         aria-label={isPlaying ? 'Stop broadcast' : 'Play broadcast'}
         style={{
           position: 'absolute',
-          left: stacked ? 7 : '0.55%',
-          top: stacked ? 6 : '1.5%',
+          left: 7, top: 6,
           color: isPlaying ? RED : TEXT,
           background: BG, border: `1px solid ${BORDER}`,
           padding: 0, lineHeight: 0,
-          width: stacked ? 44 : '2.1%', aspectRatio: '1.35',
+          width: stacked ? 44 : 34, aspectRatio: '1.35',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer',
         }}
@@ -297,7 +315,7 @@ export function AnalogueStrip() {
             font-sized one cannot be given a real touch target */}
         <svg
           viewBox="0 0 10 10"
-          style={{ width: stacked ? '48%' : '44%', height: 'auto', display: 'block' }}
+          style={{ width: '48%', height: 'auto', display: 'block' }}
           aria-hidden
         >
           {isPlaying
@@ -312,8 +330,8 @@ export function AnalogueStrip() {
 // ───────────────────────────────────────────────────────────────────────────
 
 function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = false) {
-  const CW = stacked ? STACK_W : W;
-  const CH = stacked ? STACK_H : H;
+  const CW = stacked ? STACK_W : GRID_W;
+  const CH = stacked ? STACK_H : GRID_H;
   const hair = 1 / s;
   const snap = (v: number) => (Math.round(v * s) + 0.5) / s;
 
@@ -346,36 +364,32 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
     ctx.strokeStyle = color; ctx.lineWidth = hair;
     ctx.strokeRect(snap(x), snap(y), w, h);
   };
-  // Each panel body draws in its own desktop coordinates. Stacking keeps that
-  // and simply moves the slot, so there is one layout description, not two.
-  const slotOf = (n: number) => {
-    const i = STACK_ORDER.indexOf(n);
-    if (i < 0) return -1;
-    let top = 0;
-    for (let k = 0; k < i; k++) top += STACK_SLOT_H[STACK_ORDER[k]];
-    return top;
-  };
-  const slotH = (n: number) => (stacked ? STACK_SLOT_H[n] : H);
+  // Each panel body draws in its own coordinates; the layout only decides
+  // which cell those coordinates land in.
   const inPanel = (n: number, x: number, w: number, fn: () => void) => {
-    if (stacked && slotOf(n) < 0) return;      // not carried on this layout
+    const slot = slotFor(n, stacked);
+    if (!slot) return;
     ctx.save();
-    if (stacked) ctx.translate(1 - x, slotOf(n));
-    ctx.beginPath(); ctx.rect(x + 1, 2, w - 2, slotH(n) - 4); ctx.clip();
+    ctx.translate(slot.x + 1 - x, slot.y);
+    ctx.beginPath(); ctx.rect(x + 1, 2, w - 2, slot.h - 4); ctx.clip();
     fn();
     ctx.restore();
   };
 
   if (stacked) {
-    for (const n of STACK_ORDER) frame(1, 1 + slotOf(n), CW - 3, STACK_SLOT_H[n] - 2);
+    for (const n of STACK_ORDER) {
+      const slot = slotFor(n, true)!;
+      frame(1, 1 + slot.y, CW - 3, slot.h - 2);
+    }
   } else {
-    frame(1, 1, W - 3, H - 3);
-    for (const x of [P2.x, P3.x, P4.x]) vline(x, 1, H - 2);
+    for (let r = 0; r < GRID.length; r++) {
+      for (let c = 0; c < GRID[r].length; c++) frame(1 + c * CELL_W, 1 + r * H, CELL_W - 2, H - 2);
+    }
   }
 
   // ── panel 1: the parcel table -> loudness by source ──────────────────────
   inPanel(1, P1.x, P1.w, () => {
-    // column 0's header is the transport button's seat, so it stays empty
-    const hdr: [string, number][] = [['LU-M', 88], ['LU-S', 126], ['LRA', 158], ['TP', 196], ['PLR', 234], ['PSR', 272]];
+    const hdr: [string, number][] = [['SRC', 50], ['LU-M', 88], ['LU-S', 126], ['LRA', 158], ['TP', 196], ['PLR', 234], ['PSR', 272]];
     hdr.forEach(([t, x]) => text(t, x, 16, TEXT, 'right'));
     hline(3, P1.x + P1.w - 2, 20);
 

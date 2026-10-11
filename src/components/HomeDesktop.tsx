@@ -33,7 +33,7 @@ export function HomeDesktop() {
         minHeight: '100%', display: 'flex',
         padding: '36px 0 12px', boxSizing: 'border-box',
       }}>
-        <div style={{ margin: 'auto', width: 'min(1122px, 100%)' }}>
+        <div style={{ margin: 'auto', width: 'min(820px, 100%)' }}>
           <AnalogueStrip />
         </div>
       </div>
