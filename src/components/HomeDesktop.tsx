@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { AnalogueStrip } from '@/components/AnalogueStrip';
 
 const SYS  = "'Geneva', Tahoma, 'MS Sans Serif', Verdana, sans-serif";
+const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
 const INK = '#111';
 // The command prompt is fixed at bottom-left (24px up, 40px tall). The station
@@ -48,9 +49,10 @@ export function HomeDesktop() {
       <Link
         href="/information"
         style={{
-          position: 'absolute', top: 14, right: 18, zIndex: 5,
-          fontFamily: SYS, fontSize: 13, color: '#0000cc',
-          textDecoration: 'underline', pointerEvents: 'auto',
+          position: 'absolute', top: 24, right: 24, zIndex: 5,
+          fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',
+          color: 'var(--vlg-fg, #000)', textDecoration: 'none',
+          pointerEvents: 'auto',
         }}
       >
         README
