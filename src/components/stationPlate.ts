@@ -26,13 +26,12 @@ const ROW_DX = 168, ROW_DY = -386 + HDR;  // where the lower portion lands in th
 
 // The lower portion's pieces for the stack: rows of source rects
 // [x0, y0, x1, y1] in full-plate units, each cut tight to its content. Every
-// row is scaled up until it spans the screen's width, so nothing leaves dead
-// space. LU-M and the peak-hold row are left out.
+// row is scaled to span the screen's width, so nothing leaves dead space.
+// LU-M, the peak-hold row and the true-peak overs box are left out.
 const STACK_ROWS: [number, number, number, number][][] = [
-  [[33, 406, 148, 449], [251, 405, 353, 453]],   // readout list | SPECT
-  [[364, 405, 524, 453], [358, 509, 448, 531]],  // MID/SIDE | true-peak overs
-  [[24, 468, 191, 568], [454, 470, 572, 568]],   // spectrum | bit matrix
-  [[195, 501, 331, 569], [343, 533, 442, 566]],  // uptime, L/R, corr | RMS, on since
+  [[33, 406, 148, 449], [251, 405, 353, 453], [343, 533, 442, 566]],  // readouts | SPECT | RMS, on since
+  [[364, 405, 524, 453], [195, 501, 331, 569]],                        // MID/SIDE | uptime, L/R, corr
+  [[24, 468, 191, 568], [454, 470, 572, 568]],                         // spectrum | bit matrix
 ];
 const S_X0 = 22, S_X1 = 339, S_GAP = 16;   // content edges, gap between pieces
 const S_TOP = HDR_STACK + 22;               // the screen's top edge
@@ -55,8 +54,8 @@ const STACK_REST = (() => {
   });
   return Math.round(y + 10);
 })();
-// The screen is as tall as the phone allows: fitStack stretches or squeezes
-// it so the whole stack fills the space it's given exactly.
+// The screen is as tall as the phone allows: fitStack sizes it so the whole
+// stack fills the space it's given exactly. The field inside stays round.
 const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0;
 let lissH = LISS_MAX;
 export const STACK_MIN_H = S_TOP + LISS_MIN + STACK_REST;
@@ -132,7 +131,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   const iso = new Date().toISOString();
 
   // the stereo field: x = right, y = left; the diagonals are mono / anti-phase
-  // R / Ry = horizontal / vertical radius: a short screen squeezes the field
+  // R / Ry = horizontal / vertical radius
   const field = (cx: number, cy: number, R: number, Ry = R) => {
     const dim = 'rgba(236,230,210,0.28)';
     line(cx - R, cy, cx + R, cy, dim, 0.6);
@@ -198,7 +197,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     // ── the small screen: the stereo field, far left / on top, on the stock ──
     const X = 22, Y = 22 + hdr, D = stack ? LISS_MAX : 156, DH = stack ? lissH : D;
     box(X, Y, D, DH, 'rgba(236,230,210,0.35)', 0.6);
-    field(X + D / 2, Y + DH / 2 + DH / 39, D * 0.4, DH * 0.4);
+    field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
     badge();
     t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2, 5);
     t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5);
