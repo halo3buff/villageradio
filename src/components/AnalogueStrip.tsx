@@ -7,7 +7,7 @@ import {
   bandCoherence, bandLevelDb, spectralSlopeDbPerOct,
   correlation, peakDb, truePeakDb, rmsDb,
 } from '@/lib/dsp';
-import { drawPlate, plateDims } from './stationPlate';
+import { drawPlate, fitStack, plateDims } from './stationPlate';
 
 /**
  * AnalogueStrip — the SHARPpy summary strip, panel for panel, reading the
@@ -138,7 +138,10 @@ export type Metrics = {
   since: number;
 };
 
-export function AnalogueStrip() {
+/** fitHeight: the height the stacked (phone) plate may fill, in CSS px. */
+export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) {
+  const fitRef = useRef(fitHeight);
+  fitRef.current = fitHeight;
   const { analyserL, analyserR, isPlaying, broadcastPlay, pause } = useAudio();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -146,6 +149,7 @@ export function AnalogueStrip() {
   const hiR = useRef<AnalyserNode | null>(null);
   const playing = useRef(false);
   const [stacked, setStacked] = useState(false);
+  const [, setPlateH] = useState(0);   // re-docks the button when the stack resizes
   const stackedRef = useRef(false);
 
   // Higher-resolution tap: the shared analysers are 2048-point, too coarse to
@@ -296,6 +300,10 @@ export function AnalogueStrip() {
         const cssW = wrap.clientWidth || GRID_W;
         const stack = cssW < STACK_MAX_CSS;
         if (stack !== stackedRef.current) { stackedRef.current = stack; setStacked(stack); }
+        if (PLATE && stack && fitRef.current) {
+          fitStack(fitRef.current() / cssW);
+          setPlateH(plateDims(true).h);
+        }
         const cw = PLATE ? plateDims(stack).w : (stack ? STACK_W : GRID_W) + RULE;
         const ch = PLATE ? plateDims(stack).h : (stack ? STACK_H : GRID_H) + RULE;
         const s = (cssW / cw) * (window.devicePixelRatio || 1);

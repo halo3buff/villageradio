@@ -35,12 +35,13 @@ const STACK_ROWS: [number, number, number, number][][] = [
   [[195, 501, 331, 569], [343, 533, 442, 566]],  // uptime, L/R, corr | RMS, on since
 ];
 const S_X0 = 22, S_X1 = 339, S_GAP = 16;   // content edges, gap between pieces
-const S_LISS = 317;                         // the screen's side
-// laid out once: [x0, y0, x1, y1, dest x, dest y, scale]
+const S_TOP = HDR_STACK + 22;               // the screen's top edge
+// laid out once, from the screen's bottom edge down:
+// [x0, y0, x1, y1, dest x, dest y, scale]
 const PIECES: number[][] = [];
 let STACK_RULE = 0;
-const STACK_H = (() => {
-  let y = 30 + 22 + S_LISS + 14;   // header, screen
+const STACK_REST = (() => {
+  let y = 14;
   STACK_ROWS.forEach((row, r) => {
     if (r === 2) { STACK_RULE = y; y += 10; }   // rule above the matrices
     const k = (S_X1 - S_X0 - S_GAP * (row.length - 1)) / row.reduce((a, [x0, , x1]) => a + x1 - x0, 0);
@@ -54,14 +55,24 @@ const STACK_H = (() => {
   });
   return Math.round(y + 10);
 })();
+// The screen is as tall as the phone allows: fitStack stretches or squeezes
+// it so the whole stack fills the space it's given exactly.
+const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0;
+let lissH = LISS_MAX;
+export const STACK_MIN_H = S_TOP + LISS_MIN + STACK_REST;
 
 // Plate units. btn is the badge on the screen; AnalogueStrip docks the play
 // button on it.
 export type PlateDims = { w: number; h: number; btn: { x: number; y: number; w: number; h: number } };
 const FULL: PlateDims = { w: 600, h: 600, btn: { x: 198, y: 67, w: 49, h: 32 } };
 const WIDE: PlateDims = { w: 780, h: 200 + HDR, btn: { x: 27, y: 27 + HDR, w: 24, h: 15 } };
-const TALL: PlateDims = { w: 372, h: STACK_H, btn: { x: 27, y: 27 + HDR_STACK, w: 36, h: 22 } };
+const TALL: PlateDims = { w: 372, h: S_TOP + lissH + STACK_REST, btn: { x: 27, y: 27 + HDR_STACK, w: 36, h: 22 } };
 export const plateDims = (stack: boolean) => (stack ? TALL : ROW ? WIDE : FULL);
+/** Size the stack to an available height / width ratio. */
+export function fitStack(ratio: number) {
+  lissH = Math.round(clamp(ratio * TALL.w - S_TOP - STACK_REST, LISS_MIN, LISS_MAX));
+  TALL.h = S_TOP + lissH + STACK_REST;
+}
 
 // Inverted from the reference: black stock, cream ink. Swap PAPER and INK
 // (and drop the screen's outline) to print it on cream again.
@@ -121,24 +132,25 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   const iso = new Date().toISOString();
 
   // the stereo field: x = right, y = left; the diagonals are mono / anti-phase
-  const field = (cx: number, cy: number, R: number) => {
+  // R / Ry = horizontal / vertical radius: a short screen squeezes the field
+  const field = (cx: number, cy: number, R: number, Ry = R) => {
     const dim = 'rgba(236,230,210,0.28)';
     line(cx - R, cy, cx + R, cy, dim, 0.6);
-    line(cx, cy - R, cx, cy + R, dim, 0.6);
+    line(cx, cy - Ry, cx, cy + Ry, dim, 0.6);
     ctx.setLineDash([3, 4]);
-    line(cx - R, cy + R, cx + R, cy - R, dim, 0.6);
-    line(cx - R, cy - R, cx + R, cy + R, dim, 0.6);
+    line(cx - R, cy + Ry, cx + R, cy - Ry, dim, 0.6);
+    line(cx - R, cy - Ry, cx + R, cy + Ry, dim, 0.6);
     ctx.setLineDash([]);
     for (const v of [-1, -0.5, 0.5, 1]) {
       line(cx + v * R, cy - 2.5, cx + v * R, cy + 2.5, dim, 0.6);
-      line(cx - 2.5, cy - v * R, cx + 2.5, cy - v * R, dim, 0.6);
+      line(cx - 2.5, cy - v * Ry, cx + 2.5, cy - v * Ry, dim, 0.6);
     }
-    t('XL', cx + 4, cy - R + 5, 5);
+    t('XL', cx + 4, cy - Ry + 5, 5);
     t('XR', cx + R - 9, cy - 4, 5);
     // blue phosphor: one path, one fill, so the glow is drawn once not per dot
     ctx.beginPath();
     for (let k = 0; k < m.lHead; k++) {
-      ctx.rect(cx + clamp(m.lx[k], -1, 1) * R - 0.6, cy - clamp(m.ly[k], -1, 1) * R - 0.6, 1.2, 1.2);
+      ctx.rect(cx + clamp(m.lx[k], -1, 1) * R - 0.6, cy - clamp(m.ly[k], -1, 1) * Ry - 0.6, 1.2, 1.2);
     }
     ctx.save();
     ctx.fillStyle = TRACE; ctx.shadowColor = TRACE; ctx.shadowBlur = 6 * s;
@@ -184,13 +196,13 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   if (!plate) {
     if (stack) header(10, 180, 351); else header(10, 380, 750);
     // ── the small screen: the stereo field, far left / on top, on the stock ──
-    const X = 22, Y = 22 + hdr, D = stack ? S_LISS : 156;
-    box(X, Y, D, D, 'rgba(236,230,210,0.35)', 0.6);
-    field(X + D / 2, Y + D / 2 + D / 39, D * 0.4);
+    const X = 22, Y = 22 + hdr, D = stack ? LISS_MAX : 156, DH = stack ? lissH : D;
+    box(X, Y, D, DH, 'rgba(236,230,210,0.35)', 0.6);
+    field(X + D / 2, Y + DH / 2 + DH / 39, D * 0.4, DH * 0.4);
     badge();
     t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2, 5);
-    t(`r ${f2(m.corr)}`, X + 5, Y + D - 5, 5.5);
-    t(`WIDTH ${width}%`, X + D - 5, Y + D - 5, 5.5, INK, 'right');
+    t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5);
+    t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, INK, 'right');
   } else {
     header(35, 298, 563);
 
@@ -244,10 +256,11 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   // screen. Moves are by whole device pixels so the hairlines stay crisp.
   const px = (v: number) => Math.round(v * s) / s;
   if (stack) {
-    line(S_X0, STACK_RULE, S_X1, STACK_RULE);
+    const base = S_TOP + lissH;
+    line(S_X0, base + STACK_RULE, S_X1, base + STACK_RULE);
     for (const [x0, y0, x1, y1, dx, dy, k] of PIECES) {
       ctx.save();
-      ctx.translate(px(dx), px(dy)); ctx.scale(k, k); ctx.translate(-x0, -y0);
+      ctx.translate(px(dx), px(base + dy)); ctx.scale(k, k); ctx.translate(-x0, -y0);
       ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
       lower();
       ctx.restore();

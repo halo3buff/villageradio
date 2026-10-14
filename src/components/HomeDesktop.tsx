@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { AnalogueStrip } from '@/components/AnalogueStrip';
-import { plateDims } from '@/components/stationPlate';
-
-const TALL = plateDims(true);
+import { STACK_MIN_H } from '@/components/stationPlate';
+import { useEffect, useRef } from 'react';
 
 const SYS  = "'Geneva', Tahoma, 'MS Sans Serif', Verdana, sans-serif";
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
@@ -13,6 +12,7 @@ const INK = 'var(--vlg-fg, #111)';
 // The command prompt is fixed at bottom-left (24px up, 40px tall). The station
 // scrolls INSIDE the space above it, so nothing ever slides underneath.
 const PROMPT_BAND = 72;
+const PAD_TOP = 16, PAD_BOTTOM = 12;
 const DESKTOP = 'var(--vlg-bg, #fff)';   // same ground as the blocker screen
 
 /**
@@ -22,31 +22,44 @@ const DESKTOP = 'var(--vlg-bg, #fff)';   // same ground as the blocker screen
  * The command prompt is global — see SiteFrame.
  */
 export function HomeDesktop() {
+  const outerRef = useRef<HTMLDivElement>(null);
+  // the body's min-h-screen is iOS's LARGE viewport, taller than what's
+  // visible with the URL bar up: drop it while the station is up, so the
+  // page has nothing to scroll (as HomeTemp does)
+  useEffect(() => {
+    const body = document.body;
+    const prev = body.style.minHeight;
+    body.style.minHeight = '0';
+    return () => { body.style.minHeight = prev; };
+  }, []);
+
   return (
     <div
+      ref={outerRef}
       style={{
-        position: 'absolute', top: 0, left: 0, right: 0, bottom: PROMPT_BAND,
+        // fixed, so on iOS it tracks the visible viewport, not the large one
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: PROMPT_BAND,
         overflow: 'hidden', overscrollBehavior: 'contain',
         fontFamily: SYS, color: INK, background: DESKTOP,
       }}
     >
       {/* The radio itself — the analogue summary strip */}
-      {/* The station's width. Below 716px it's the phone stack (see
-          stationPlate), sized so its whole height fits
-          between the top padding (36 + 12) and the prompt band: the page
-          never scrolls. margin:auto centres it. */}
+      {/* The station's width. Below 716px it's the phone stack, whose screen
+          stretches to fill the height given by fitHeight (see stationPlate);
+          this cap only bites on phones too short for even its smallest
+          screen. The page never scrolls. margin:auto centres it. */}
       <style>{`
         .station-fit { width: min(1160px, calc(100% - 16px)); }
         @media (max-width: 715px) {
-          .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + 48}px) * ${TALL.w} / ${TALL.h})); }
+          .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + PAD_TOP + PAD_BOTTOM}px) * 372 / ${STACK_MIN_H})); }
         }
       `}</style>
       <div style={{
         minHeight: '100%', display: 'flex',
-        padding: '36px 0 12px', boxSizing: 'border-box',
+        padding: `${PAD_TOP}px 0 ${PAD_BOTTOM}px`, boxSizing: 'border-box',
       }}>
         <div className="station-fit" style={{ margin: 'auto' }}>
-          <AnalogueStrip />
+          <AnalogueStrip fitHeight={() => (outerRef.current?.clientHeight ?? 0) - PAD_TOP - PAD_BOTTOM} />
         </div>
       </div>
 
