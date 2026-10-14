@@ -91,3 +91,9 @@
 @media (prefers-reduced-motion: reduce) {
   .soot-sprite { animation: none; }
 }
+
+/* The back arrow is black line art: flip it to light on dark themes.
+   next/image keeps the file name inside its optimised src, so this matches. */
+img[src*="left-arrow"] {
+  filter: invert(var(--vlg-invert, 0));
+}

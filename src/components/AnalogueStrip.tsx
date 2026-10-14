@@ -7,6 +7,7 @@ import {
   bandCoherence, bandLevelDb, spectralSlopeDbPerOct,
   correlation, peakDb, truePeakDb, rmsDb,
 } from '@/lib/dsp';
+import { drawPlate, plateDims } from './stationPlate';
 
 /**
  * AnalogueStrip — the SHARPpy summary strip, panel for panel, reading the
@@ -28,14 +29,30 @@ import {
  * an internally generated sweep + pink noise when the carrier is down.
  */
 
+// The station's face. true = the instrument plate (stationPlate.ts);
+// false = the SHARPpy summary strip drawn below. Same measurements either way.
+const PLATE = true;
+
 const H = 238;                    // one panel's height
 
 // Desktop is a 2x2 grid: Lissajous and MATCH on top, the parcel table and the
 // band table beneath. Mobile keeps the two that read at a glance, stacked.
-const CELL_W = 282;               // widest panel, so every cell matches
-const GRID = [[4, 3], [1, 2]];    // [row][col] of panel numbers
-const GRID_W = CELL_W * 2 + 2;
-const GRID_H = H * 2;
+// Desktop: the Lissajous takes a tall cell on the left, the three readout
+// panels ride beside it at reduced scale.
+const SIDE_S = 0.8;               // the readout panels' scale
+const SIDE_W = Math.round(282 * SIDE_S);
+const SIDE_H = Math.round(H * SIDE_S);
+const LISS_W = 430;
+const GRID_W = LISS_W + SIDE_W;
+const GRID_H = SIDE_H * 3;
+const RULE = 2;                   // a row and a column to spare, so the far rules survive
+const BAR = 20;                   // title bar / header row
+const TOOL = 30;                  // the Lissajous toolbar, desktop only
+const STATUS = 18;                // the Lissajous status bar
+const TINT = 0.4;                 // WASH at this alpha tints headers and bars
+const TITLE = '#a8a8a8';          // title bars: grey
+const WASH = '#808080';
+const SIDE_ORDER = [3, 1, 2];     // top to bottom beside the Lissajous
 
 const STACK_W = 284;              // widest panel + its frame
 const STACK_MAX_CSS = 700;        // below this the strip stacks
@@ -43,20 +60,21 @@ const STACK_ORDER = [4, 2];
 const STACK_SLOT_H: Record<number, number> = { 4: 238, 2: 204 };
 const STACK_H = STACK_ORDER.reduce((a, n) => a + STACK_SLOT_H[n], 0);
 
+type Slot = { x: number; y: number; w: number; h: number; sc: number };
+
 /** Where a panel sits in the current layout, or null if it is not carried. */
-function slotFor(n: number, stacked: boolean): { x: number; y: number; h: number } | null {
+function slotFor(n: number, stacked: boolean): Slot | null {
   if (stacked) {
     const i = STACK_ORDER.indexOf(n);
     if (i < 0) return null;
     let y = 0;
     for (let k = 0; k < i; k++) y += STACK_SLOT_H[STACK_ORDER[k]];
-    return { x: 0, y, h: STACK_SLOT_H[n] };
+    return { x: 0, y, w: STACK_W, h: STACK_SLOT_H[n], sc: 1 };
   }
-  for (let r = 0; r < GRID.length; r++) {
-    const c = GRID[r].indexOf(n);
-    if (c >= 0) return { x: c * CELL_W, y: r * H, h: H };
-  }
-  return null;
+  if (n === 4) return { x: 0, y: 0, w: LISS_W, h: GRID_H, sc: 1 };
+  const i = SIDE_ORDER.indexOf(n);
+  if (i < 0) return null;
+  return { x: LISS_W, y: i * SIDE_H, w: SIDE_W, h: SIDE_H, sc: SIDE_S };
 }
 const TIGHTEN = 34;               // dead space removed from panel 2's middle
 
@@ -65,19 +83,18 @@ const P2 = { x: 281, w: 279 };
 const P3 = { x: 560, w: 278, split: 700 };
 const P4 = { x: 838, w: 282 };
 
-// Printed on the site's own white rather than the original's black: the ink
-// inverts to near-black and every accent is darkened until it carries the
-// same weight on paper that the bright version carried on screen.
-let BG = '#ffffff';
-const BORDER = '#3a7f9f';
-const TEXT = '#101010';
-const DIM = '#6a6a6a';
-const CYAN = '#0a6b8c';
-const RED = '#c00000';
-const GOLD = '#8a6a00';
-const GREEN = '#0a7a20';
-const MAGENTA = '#a000a0';
-const GRIDC = '#a8ccd8';
+// On the site's black, as the original was: light ink, and accents bright
+// enough to carry on a dark screen.
+let BG = '#000000';
+const BORDER = '#ffffff';
+const TEXT = '#f0f0f0';
+const DIM = '#8a8a8a';
+const CYAN = '#40c0e8';
+const RED = '#ff4a4a';
+const GOLD = '#e0b020';
+const GREEN = '#38d058';
+const MAGENTA = '#f060f0';
+const GRIDC = '#2a4a58';
 
 // The site's own faces: its interface sans for labels, its IBM Plex Mono for
 // every figure. Tabular numerals also keep the value columns properly ranged.
@@ -92,7 +109,7 @@ const LISS_SPAN = 2048;     // samples back from the head (~43 ms at 48k)
 const HOLD_DECAY = 12;      // dB per second
 const BTN_PX = 10;          // transport button type size
 const GRADIENT = true;      // whisper of a wash behind the strip
-const GRADIENT_FOOT = '#f1f1ef';   // the bottom of that wash
+const GRADIENT_FOOT = '#0e0e0e';   // the bottom of that wash
 
 type Align = 'left' | 'right' | 'center';
 
@@ -109,13 +126,14 @@ const GROUPS: [string, number, number][] = [
   ['5k-20k', 5000, 20000],
 ];
 
-type Metrics = {
+export type Metrics = {
   live: boolean; sr: number;
   mom: number; short: number; integ: number; lra: number;
   tpL: number; tpR: number; pkL: number; pkR: number; rms: number;
   corr: number; plr: number; psr: number; crest: number;
   centroid: number; slope: number; overs: number; silence: boolean;
   gLevel: number[]; gPeak: number[]; gCoh: number[];
+  bands: Float32Array;                 // third-octave levels, dBFS
   lx: Float32Array; ly: Float32Array; lHead: number;
   since: number;
 };
@@ -185,6 +203,7 @@ export function AnalogueStrip() {
       corr: 1, plr: 0, psr: 0, crest: 0, centroid: 0, slope: 0, overs: 0, silence: true,
       gLevel: [0, 0, 0, 0, 0], gPeak: [0, 0, 0, 0, 0], gCoh: [0, 0, 0, 0, 0],
       since: 0,
+      bands: bandDb,
       lx: new Float32Array(LISS), ly: new Float32Array(LISS), lHead: 0,
     };
 
@@ -277,15 +296,15 @@ export function AnalogueStrip() {
         const cssW = wrap.clientWidth || GRID_W;
         const stack = cssW < STACK_MAX_CSS;
         if (stack !== stackedRef.current) { stackedRef.current = stack; setStacked(stack); }
-        const cw = stack ? STACK_W : GRID_W;
-        const ch = stack ? STACK_H : GRID_H;
+        const cw = PLATE ? plateDims(stack).w : (stack ? STACK_W : GRID_W) + RULE;
+        const ch = PLATE ? plateDims(stack).h : (stack ? STACK_H : GRID_H) + RULE;
         const s = (cssW / cw) * (window.devicePixelRatio || 1);
         if (el.width !== Math.round(cw * s) || el.height !== Math.round(ch * s)) {
           el.width = Math.round(cw * s); el.height = Math.round(ch * s);
           el.style.height = `${(ch * cssW) / cw}px`;
         }
         ctx.setTransform(s, 0, 0, s, 0, 0);
-        draw(ctx, s, m, stack);
+        if (PLATE) drawPlate(ctx, s, m, NUM_FONT, stack); else draw(ctx, s, m, stack);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -293,6 +312,7 @@ export function AnalogueStrip() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  const pd = plateDims(stacked);
   return (
     <div ref={wrapRef} style={{ width: '100%', position: 'relative' }}>
       <canvas ref={canvasRef} style={{ display: 'block', width: '100%', background: BG }} />
@@ -300,11 +320,24 @@ export function AnalogueStrip() {
         type="button"
         onClick={() => (isPlaying ? pause() : broadcastPlay())}
         aria-label={isPlaying ? 'Stop broadcast' : 'Play broadcast'}
-        style={{
+        style={PLATE ? {
+          // the plate's badge is the transport: the button covers it exactly
           position: 'absolute',
-          left: 7, top: 6,
+          left: `${(pd.btn.x / pd.w) * 100}%`, top: `${(pd.btn.y / pd.h) * 100}%`,
+          width: `${(pd.btn.w / pd.w) * 100}%`, height: `${(pd.btn.h / pd.h) * 100}%`,
+          color: '#161616', background: '#ece6d2', border: 0, padding: 0, lineHeight: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+        } : {
+          position: 'absolute',
+          // docked in canvas units: centred in the toolbar row under the title bar
+          left: `${(6 / ((stacked ? STACK_W : GRID_W) + RULE)) * 100}%`,
+          top: `${((stacked ? 36 : 33) / ((stacked ? STACK_H : GRID_H) + RULE)) * 100}%`,
+          transform: 'translateY(-50%)',
           color: isPlaying ? RED : TEXT,
           background: BG, border: `1px solid ${BORDER}`,
+          // raised at rest, pressed in while it plays
+          boxShadow: isPlaying ? `inset 1px 1px 0 ${WASH}` : `inset -1px -1px 0 ${WASH}`,
           padding: 0, lineHeight: 0,
           width: stacked ? 44 : 34, aspectRatio: '1.35',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -330,9 +363,9 @@ export function AnalogueStrip() {
 // ───────────────────────────────────────────────────────────────────────────
 
 function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = false) {
-  const CW = stacked ? STACK_W : GRID_W;
-  const CH = stacked ? STACK_H : GRID_H;
-  const hair = 1 / s;
+  const CW = (stacked ? STACK_W : GRID_W) + RULE;
+  const CH = (stacked ? STACK_H : GRID_H) + RULE;
+  const hair = 1.4 / s;
   const snap = (v: number) => (Math.round(v * s) + 0.5) / s;
 
   if (GRADIENT) {
@@ -362,33 +395,40 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
   };
   const frame = (x: number, y: number, w: number, h: number, color = BORDER) => {
     ctx.strokeStyle = color; ctx.lineWidth = hair;
-    ctx.strokeRect(snap(x), snap(y), w, h);
+    // both corners snapped, so neighbours that share an edge share one line
+    ctx.strokeRect(snap(x), snap(y), snap(x + w) - snap(x), snap(y + h) - snap(y));
+  };
+  const fill = (x: number, w: number, y0: number, y1: number, color: string, alpha = 1) => {
+    ctx.globalAlpha = alpha; ctx.fillStyle = color;
+    ctx.fillRect(x, y0, w, y1 - y0);
+    ctx.globalAlpha = 1;
   };
   // Each panel body draws in its own coordinates; the layout only decides
   // which cell those coordinates land in.
-  const inPanel = (n: number, x: number, w: number, fn: () => void) => {
+  const inPanel = (n: number, x: number, _w: number, fn: (lw: number, lh: number) => void) => {
     const slot = slotFor(n, stacked);
     if (!slot) return;
+    // the slot's size in the panel's own coordinates
+    const lw = slot.w / slot.sc, lh = slot.h / slot.sc;
     ctx.save();
-    ctx.translate(slot.x + 1 - x, slot.y);
-    ctx.beginPath(); ctx.rect(x + 1, 2, w - 2, slot.h - 4); ctx.clip();
-    fn();
+    ctx.translate(slot.x + 1, slot.y);
+    ctx.scale(slot.sc, slot.sc);
+    ctx.translate(-x, 0);
+    ctx.beginPath(); ctx.rect(x + 1, 2, lw - 2, lh - 2); ctx.clip();
+    fn(lw, lh);
     ctx.restore();
   };
 
-  if (stacked) {
-    for (const n of STACK_ORDER) {
-      const slot = slotFor(n, true)!;
-      frame(1, 1 + slot.y, CW - 3, slot.h - 2);
-    }
-  } else {
-    for (let r = 0; r < GRID.length; r++) {
-      for (let c = 0; c < GRID[r].length; c++) frame(1 + c * CELL_W, 1 + r * H, CELL_W - 2, H - 2);
-    }
+  const panels = stacked ? STACK_ORDER : [4, ...SIDE_ORDER];
+  for (const n of panels) {
+    const slot = slotFor(n, stacked)!;
+    // each frame runs onto its neighbour's, so a seam is one rule, not two
+    frame(slot.x + 1, slot.y + 1, slot.w, slot.h);
   }
 
   // ── panel 1: the parcel table -> loudness by source ──────────────────────
-  inPanel(1, P1.x, P1.w, () => {
+  inPanel(1, P1.x, P1.w, (lw) => {
+    fill(P1.x, lw, 0, BAR, WASH, TINT);
     const hdr: [string, number][] = [['SRC', 50], ['LU-M', 88], ['LU-S', 126], ['LRA', 158], ['TP', 196], ['PLR', 234], ['PSR', 272]];
     hdr.forEach(([t, x]) => text(t, x, 16, TEXT, 'right'));
     hline(3, P1.x + P1.w - 2, 20);
@@ -412,7 +452,7 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
       text(f1(r[5]), 234, y, TEXT, 'right', 12.5, false, true);
       text(f1(r[6]), 272, y, TEXT, 'right', 12.5, false, true);
     });
-    frame(5, 66, P1.w - 10, 14, '#707070');
+    frame(5, 66, P1.w - 10, 14, DIM);
     hline(3, P1.x + P1.w - 2, 84);
 
     const block: [string, string, string][] = [
@@ -429,23 +469,22 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
       text(r[1], 100, y, TEXT, 'left', 12.5, false, true);
       text(r[2], 186, y, TEXT, 'left', 12.5, false, true);
     });
-    hline(3, P1.x + P1.w - 2, 183);
-
     frame(4, 184, 190, H - 187, BORDER);
     frame(196, 184, P1.w - 200, H - 187, BORDER);
     GROUPS.slice(0, 4).forEach(([name], i) =>
-      text(`${name} = ${f1(m.gLevel[i])} dBFS`, 8, 194 + i * 12.2, TEXT, 'left', 12.5, false, true));
+      text(`${name} = ${f1(m.gLevel[i])} dBFS`, 9, 196 + i * 11.6, TEXT, 'left', 11, false, true));
     const right: [string, string][] = [
       [`HDRM ${f1(-1 - tp)}`, TEXT],
       [`TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`, GOLD],
       [`OVR ${m.overs}`, m.overs ? RED : GOLD],
       [`${m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST'}`, m.live && tp > -1 ? RED : TEXT],
     ];
-    right.forEach(([l, c], i) => text(l, 200, 194 + i * 12.2, c, 'left', 11, true, true));
+    right.forEach(([l, c], i) => text(l, 201, 196 + i * 11.6, c, 'left', 11, true, true));
   });
 
   // ── panel 2: kinematics -> the band table ────────────────────────────────
-  inPanel(2, P2.x, P2.w, () => {
+  inPanel(2, P2.x, P2.w, (lw) => {
+    fill(P2.x, lw, 0, BAR, WASH, TINT);
     text('LEVEL (dBFS)', 408, 16, TEXT, 'right');
     text('PEAK', 467, 16, TEXT, 'right');
     text('COH', 518, 16, TEXT, 'right');
@@ -475,7 +514,7 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
     text('Crest factor =', 289, 150 + dy);
     text(`${f1(m.crest)} dB`, 397, 150 + dy, TEXT, 'left', 12.5, false, true);
     text('Centroid =', 289, 163 + dy);
-    text(m.centroid >= 1000 ? `${(m.centroid / 1000).toFixed(2)} kHz` : `${f0(m.centroid)} Hz`, 397, 163 + dy);
+    text(m.centroid >= 1000 ? `${(m.centroid / 1000).toFixed(2)} kHz` : `${f0(m.centroid)} Hz`, 397, 163 + dy, TEXT, 'left', 12.5, false, true);
 
     text('...Stereo Motion Vectors...', 289, 182 + dy);
     const mid = m.rms + 20 * Math.log10(Math.max(0.05, (1 + m.corr) / 2));
@@ -499,9 +538,11 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
   });
 
   // ── panel 3: SARS -> live events against thresholds ─────────────────────
-  inPanel(3, P3.x, P3.w, () => {
-    text('MATCH - Signal Analogue System', P3.x + P3.w / 2, 15, TEXT, 'center', 13);
-    hline(P3.x + 2, P3.x + P3.w - 2, 20);
+  inPanel(3, P3.x, P3.w, (lw) => {
+    fill(P3.x, lw, 0, BAR, TITLE);
+    text('MATCH - Signal Analogue System', P3.x + lw / 2, 14.5, BG, 'center', 12, true);
+    fill(P3.x + 4, P3.split - P3.x - 8, 22, 42, WASH, TINT);
+    fill(P3.split + 2, P3.x + P3.w - P3.split - 6, 22, 42, WASH, TINT);
     frame(P3.x + 4, 22, P3.split - P3.x - 8, H - 26);
     frame(P3.split + 2, 22, P3.x + P3.w - P3.split - 6, H - 26);
 
@@ -532,25 +573,49 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
       text(`${ok ? 'PASS' : 'FAIL'}  ${l}`, P3.split + 5, 52 + i * 13, ok ? CYAN : RED, 'left', 11));
 
     const passed = checks.filter(c => c[1]).length;
-    text(`(${m.overs} true-peak overs)`, lc, 220, MAGENTA, 'center', 11);
-    text(`MATCH: ${f0(clamp(m.corr, 0, 1) * 100)}% MONO`, lc, 233, MAGENTA, 'center', 11);
-    text(`(${passed} of ${checks.length} passing)`, rc, 220, MAGENTA, 'center', 11);
-    text(`COMPLIANCE: ${Math.round((passed / checks.length) * 100)}%`, rc, 233, MAGENTA, 'center', 11);
+    // the verdict rows sit clear of the frame's foot, under their own rule
+    hline(P3.x + 4, P3.split - 4, 201, GRIDC);
+    hline(P3.split + 2, P3.x + P3.w - 4, 201, GRIDC);
+    text(`(${m.overs} true-peak overs)`, lc, 214, MAGENTA, 'center', 11);
+    text(`MATCH: ${f0(clamp(m.corr, 0, 1) * 100)}% MONO`, lc, 227, MAGENTA, 'center', 11);
+    text(`(${passed} of ${checks.length} passing)`, rc, 214, MAGENTA, 'center', 11);
+    text(`COMPLIANCE: ${Math.round((passed / checks.length) * 100)}%`, rc, 227, MAGENTA, 'center', 11);
   });
 
   // ── panel 4: the stereo field as a Lissajous dot cloud ──────────────────
   // x = right channel, y = left channel, both -1..1. The dashed diagonals are
   // the correlation axes: y (+45) is mono, q (-45) is out of phase.
-  inPanel(4, P4.x, P4.w, () => {
-    text('Lissajous - stereo field', P4.x + P4.w / 2, 13, TEXT, 'center', 12);
+  inPanel(4, P4.x, P4.w, (lw, lh) => {
+    // on desktop the title bar matches the scaled side panels' beside it, and
+    // a toolbar row follows; the phone has no height for one
+    const bar = stacked ? BAR : BAR * SIDE_S;
+    const top = stacked ? BAR : BAR + TOOL;
+    fill(P4.x, lw, 0, bar, TITLE);
+    text('Lissajous - stereo field', P4.x + lw / 2, bar - 4.5, BG, 'center', stacked ? 12 : 10.5, true);
+    if (!stacked) {
+      fill(P4.x, lw, bar, top, WASH, TINT);
+      hline(P4.x, P4.x + lw, top);
+      // carrier lamp: blinks on air, sits dark on the test signal
+      const lit = m.live && performance.now() % 1000 < 500;
+      fill(P4.x + 46, 8, 29, 37, m.live ? (lit ? RED : BG) : DIM);
+      frame(P4.x + 46, 29, 8, 8, DIM);
+      text(m.live ? 'ON AIR' : 'TEST SIGNAL', P4.x + 60, 37, TEXT, 'left', 11);
+      text(`${(m.sr / 1000).toFixed(1)} kHz  L/R`, P4.x + lw - 8, 37, TEXT, 'right', 10, false, true);
+    }
 
-    const size = 186;
-    const cx = P4.x + P4.w / 2 + 6;
-    const cy = 20 + size / 2;
+    // square, as large as the cell allows between the bars, tick labels included
+    const foot = lh - STATUS;
+    const size = Math.min(lw - 44, foot - top - 18);
+    const cx = P4.x + lw / 2;
+    const cy = top + (foot - top - 14) / 2;
     const R = size / 2;
     const toX = (v: number) => cx + clamp(v, -1, 1) * R;
     const toY = (v: number) => cy - clamp(v, -1, 1) * R;
 
+    // a sunken well: clean paper, shaded under its top and left edges
+    fill(cx - R, size, cy - R, cy + R, BG);
+    hline(cx - R, cx + R, cy - R + 1, WASH);
+    vline(cx - R + 1, cy - R, cy + R, WASH);
     frame(cx - R, cy - R, size, size, DIM);
     hline(cx - R, cx + R, cy, DIM);          // x_R = 0
     vline(cx, cy - R, cy + R, DIM);          // x_L = 0
@@ -584,8 +649,21 @@ function draw(ctx: CanvasRenderingContext2D, s: number, m: Metrics, stacked = fa
     }
     ctx.globalAlpha = 1;
 
-    text(`r = ${f2(m.corr)}`, P4.x + 8, H - 8, TEXT, 'left', 10, false, true);
-    text(`width ${f0((1 - m.corr) * 50)}%`, P4.x + P4.w - 8, H - 8, TEXT, 'right', 10, false, true);
+    // status bar: one reading to a cell
+    fill(P4.x, lw, foot, lh, WASH, TINT);
+    hline(P4.x, P4.x + lw, foot);
+    const cells = [
+      `r = ${f2(m.corr)}`,
+      `width ${f0((1 - m.corr) * 50)}%`,
+      `phase ${f0(Math.acos(clamp(m.corr, -1, 1)) * 57.2958)} deg`,
+      `up ${f0(m.since)}s`,
+    ];
+    if (stacked) cells.pop();
+    const cellW = lw / cells.length;
+    cells.forEach((c, i) => {
+      if (i) vline(P4.x + i * cellW, foot, lh);
+      text(c, P4.x + i * cellW + 6, lh - 5.5, TEXT, 'left', 10, false, true);
+    });
   });
 
 }

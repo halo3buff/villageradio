@@ -9,11 +9,11 @@ const MAX_HANDLE = 64;
 const MAX_DURATION = 180;
 
 // Win3.1 / DSPower chrome palette
-const CHROME    = '#ececec';
-const CHROME_HI = '#f6f6f6';
-const CHROME_LO = '#dcdcdc';
-const CHROME_BD = '#8a8a8a';
-const CHROME_TX = '#1c1c1c';
+const CHROME    = '#1a1a1a';
+const CHROME_HI = '#262626';
+const CHROME_LO = '#121212';
+const CHROME_BD = '#6a6a6a';
+const CHROME_TX = '#e8e8e8';
 
 type PageState = 'transmitting' | 'sent' | null;
 
@@ -127,10 +127,10 @@ export function Oscilloscope() {
     if (!c || !container) return;
 
     const drawGrid = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, w, h);
       const cols = 12, rows = 4;
-      ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
       ctx.lineWidth = 1;
       for (let i = 0; i <= cols; i++) {
         ctx.beginPath(); ctx.moveTo((i * w) / cols, 0); ctx.lineTo((i * w) / cols, h); ctx.stroke();
@@ -139,7 +139,7 @@ export function Oscilloscope() {
         ctx.beginPath(); ctx.moveTo(0, (j * h) / rows); ctx.lineTo(w, (j * h) / rows); ctx.stroke();
       }
       // centre axis slightly darker
-      ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
       ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
     };
 
@@ -172,23 +172,23 @@ export function Oscilloscope() {
         const cy = h / 2, x = sweepXRef.current;
 
         // erase column
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = '#000';
         ctx.fillRect(x, 0, 2, h);
         // redraw grid segment
-        ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
         for (let i = 0; i <= 12; i++) {
           const gx = (i * w) / 12;
           if (Math.abs(gx - x) < 2) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke(); }
         }
-        ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.14)';
         ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + 2, cy); ctx.stroke();
 
         // trace — black line
-        ctx.strokeStyle = 'rgba(0,0,0,0.82)'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(255,255,255,0.82)'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(x + 0.5, cy - amp); ctx.lineTo(x + 0.5, cy + amp); ctx.stroke();
 
         // sweep cursor
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.fillRect(x + 1, 0, 1, h);
 
         sweepXRef.current = (x + 1) % w;
@@ -197,7 +197,7 @@ export function Oscilloscope() {
       if (rec.state === 'review' && reviewPeaks) {
         drawGrid(ctx, w, h);
         const cy = h / 2;
-        ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
         for (let i = 0; i < reviewPeaks.length; i++) {
           const x = (i / reviewPeaks.length) * w;
           const amp = reviewPeaks[i] * (h / 2) * 0.92;
@@ -205,7 +205,7 @@ export function Oscilloscope() {
         }
         if (reviewDuration > 0) {
           const px = (playPosRef.current / reviewDuration) * w;
-          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
           ctx.fillRect(Math.floor(px), 0, 1, h);
         }
       }
@@ -260,7 +260,7 @@ export function Oscilloscope() {
   ];
 
   const FG = 'var(--vlg-fg, #000)';
-  const statusColor = status === 'REC' ? '#c00' : FG;
+  const statusColor = status === 'REC' ? '#ff4a4a' : FG;
 
   return (
     <div style={{ fontFamily: MONO, maxWidth: 720 }}>
@@ -286,7 +286,7 @@ export function Oscilloscope() {
           fontFamily: SANS,
         }}>
           <span style={{ fontSize: 13, color: CHROME_TX, fontWeight: 400 }}>Waveform Monitor</span>
-          <span style={{ fontSize: 9, color: '#666', fontFamily: MONO, letterSpacing: '0.08em' }}>CH-A</span>
+          <span style={{ fontSize: 9, color: '#999', fontFamily: MONO, letterSpacing: '0.08em' }}>CH-A</span>
         </div>
 
         {/* toolbar strip */}
@@ -296,12 +296,12 @@ export function Oscilloscope() {
           borderBottom: `1px solid ${CHROME_BD}`,
           display: 'flex', alignItems: 'center',
           padding: '0 10px', gap: 16,
-          fontFamily: MONO, fontSize: 8, letterSpacing: '0.06em', color: '#000',
+          fontFamily: MONO, fontSize: 8, letterSpacing: '0.06em', color: CHROME_TX,
         }}>
           <span>INPUT: MIC</span>
           <span>RATE: 48kHz</span>
           <span>BITS: 16</span>
-          <span style={{ marginLeft: 'auto', color: status === 'REC' ? '#c00' : '#000' }}>
+          <span style={{ marginLeft: 'auto', color: status === 'REC' ? '#ff4a4a' : CHROME_TX }}>
             {`● ${status}`}
           </span>
         </div>
@@ -320,12 +320,12 @@ export function Oscilloscope() {
             <span style={{ color: label === 'STATUS' ? statusColor : FG }}>{value}</span>
           </div>
         ))}
-        {rec.error && <div style={{ marginTop: 4, color: '#c00' }}>{rec.error}</div>}
+        {rec.error && <div style={{ marginTop: 4, color: '#ff4a4a' }}>{rec.error}</div>}
         {sendError && (
-          <div style={{ marginTop: 4, color: '#c00', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ marginTop: 4, color: '#ff4a4a', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>TRANSMISSION FAILED — {sendError.toUpperCase()}</span>
             <button type="button" onClick={() => setSendError(null)}
-              style={{ fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: '#c00',
+              style={{ fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: '#ff4a4a',
                 background: 'none', border: '1px solid rgba(200,0,0,0.3)', padding: '1px 5px', cursor: 'pointer' }}>
               ×
             </button>
@@ -374,9 +374,9 @@ function ScopeButton({ onClick, children, active, disabled, red }: {
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{
         fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em',
-        color: disabled ? '#aaa' : red && active ? '#c00' : '#000',
-        background: hover && !disabled ? '#f0f0f0' : active ? '#e8e8e8' : '#fff',
-        border: `1px solid ${disabled ? '#ddd' : red ? '#c00' : '#999'}`,
+        color: disabled ? '#666' : red && active ? '#ff4a4a' : CHROME_TX,
+        background: hover && !disabled ? '#2a2a2a' : active ? '#222' : '#000',
+        border: `1px solid ${disabled ? '#333' : red ? '#ff4a4a' : '#777'}`,
         padding: '4px 14px', cursor: disabled ? 'default' : 'pointer',
         transition: 'background 0.1s',
       }}>

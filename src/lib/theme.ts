@@ -33,13 +33,14 @@ export type Theme = {
 
 export const THEMES: Record<string, Theme> = {
   default: {
-    bg:'#fafafa', ts:'#888888', uid_palette:['#008880','#208820','#8020a0','#1860c0','#a04000','#006090','#6a1a6a','#0a7a50','#8a3000','#2040a0'], uid_real:'#111111', col_host:'#b05870', col_data:'#666666',
-    bar_bg:'#f2f2f2', bar_border:'#d8d8d8', bar_dim:'#aaaaaa', bar_bright:'#111111',
-    filter_col:'#666666',
-    tab_bg:'#e8e8e8', tab_fg:'#888888', tab_active_bg:'#222222', tab_active_fg:'#ffffff',
-    cmd_bg:'#e0e0e0', cmd_fg:'#222222', cmd_cursor:'#222222',
-    hover_bg:'rgba(0,0,0,0.03)', sel_bg:'rgba(0,0,0,0.06)',
-    exp_comment:'#aaaaaa', exp_num:'#cccccc', exp_text:'#222222', exp_border:'#e0e0e0',
+    // white on black — the previous paper-white values, inverted
+    bg:'#000000', ts:'#888888', uid_palette:['#3cc8c0','#58c858','#c070e0','#5a9cf0','#e08040','#40a8d8','#c868c8','#40c090','#d87848','#7088e8'], uid_real:'#ffffff', col_host:'#e08aa0', col_data:'#aaaaaa',
+    bar_bg:'#0d0d0d', bar_border:'#2a2a2a', bar_dim:'#666666', bar_bright:'#ffffff',
+    filter_col:'#aaaaaa',
+    tab_bg:'#161616', tab_fg:'#888888', tab_active_bg:'#e0e0e0', tab_active_fg:'#000000',
+    cmd_bg:'#1c1c1c', cmd_fg:'#e0e0e0', cmd_cursor:'#e0e0e0',
+    hover_bg:'rgba(255,255,255,0.05)', sel_bg:'rgba(255,255,255,0.1)',
+    exp_comment:'#666666', exp_num:'#444444', exp_text:'#ffffff', exp_border:'#2a2a2a',
   },
   eldar: {
     bg:'#ffffff', ts:'#b58a00', uid_palette:['#2a8c78','#3a70c0','#8040b0','#1a9040'], uid_real:'#9010a0', col_host:'#b04060', col_data:'#555544',
@@ -97,7 +98,7 @@ export const THEME_NAMES = ['default', 'solarized-dark'];
 
 export const DEFAULT_THEME = 'default';
 
-export const LIGHT_THEMES = new Set(['default', 'eldar', 'monocai', 'solarized-light']);
+export const LIGHT_THEMES = new Set(['eldar', 'monocai', 'solarized-light']);
 
 export function isThemeName(name: string): boolean {
   return THEME_NAMES.includes(name);

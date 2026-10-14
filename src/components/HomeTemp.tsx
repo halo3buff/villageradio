@@ -2,13 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { ShannonDiagram } from '@/components/ShannonDiagram';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
 /**
- * Temporary homepage while the rest is rebuilt: nothing but the Shannon
- * diagram centred and README top-right. The command prompt is global — see
+ * Temporary homepage while the rest is rebuilt: nothing but the rotating
+ * station mark centred and README top-right. The command prompt is global — see
  * SiteFrame. The real composition still lives in HomeShell — swap it back in
  * src/app/page.tsx when it's ready.
  */
@@ -36,13 +35,20 @@ export function HomeTemp() {
         color: 'var(--vlg-fg, #000)', textDecoration: 'none',
       }}>README</Link>
 
-      {/* Information source — dead centre */}
-      <div style={{
-        position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-        width: 'min(880px, 88vw)', aspectRatio: '880 / 330', pointerEvents: 'none',
-      }}>
-        <ShannonDiagram />
-      </div>
+      {/* The rotating station mark — dead centre. The render is 1920x1080,
+          transparent (VP9 alpha), with the mark in its middle third, so the
+          frame is let run wider than a phone screen (the main clips it) to
+          keep the mark a fair size.
+          Swap <ShannonDiagram /> back in here to restore the diagram. */}
+      <video
+        src="/site_assets/logo_roto_8bit.webm"
+        autoPlay loop muted playsInline aria-hidden
+        style={{
+          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+          width: 'clamp(760px, 80vw, 1200px)', maxWidth: 'none', height: 'auto',
+          pointerEvents: 'none',
+        }}
+      />
     </main>
   );
 }

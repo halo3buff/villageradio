@@ -288,7 +288,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
             src="/images/tree_8bit.png"
             alt="Village Radio"
             fill
-            style={{ objectFit: 'contain' }}
+            style={{ objectFit: 'contain', filter: 'invert(var(--vlg-invert, 0))' }}
           />
         </div>
 

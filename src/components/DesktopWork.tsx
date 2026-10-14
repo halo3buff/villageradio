@@ -149,7 +149,7 @@ export function DesktopWork() {
           onClick={() => inputRef.current?.focus()}
           style={{
             position: 'absolute', left: 599, top: 457, width: 243, height: 28,
-            background: 'var(--vlg-bg, #fff)', border: '1px solid #000', boxSizing: 'border-box',
+            background: 'var(--vlg-bg, #fff)', border: '1px solid var(--vlg-fg, #000)', boxSizing: 'border-box',
             display: 'flex', alignItems: 'center', paddingLeft: 8, cursor: 'text',
             fontFamily: BODY, fontSize: 14, color: 'var(--vlg-fg, #000)',
             opacity: disabled ? 0.4 : 1,

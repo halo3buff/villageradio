@@ -215,8 +215,6 @@ export function NewsLogViewer({ posts }: { posts: NewsPost[] }) {
             width={arrowSize} height={arrowSize}
             style={{
               width:arrowSize, height:arrowSize, objectFit:'contain',
-              // invert on dark themes
-              filter: (theme === 'night-owl' || theme === 'solarized-dark') ? 'invert(1)' : 'none',
             }}
           />
         </Link>

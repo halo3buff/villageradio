@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import { AnalogueStrip } from '@/components/AnalogueStrip';
+import { plateDims } from '@/components/stationPlate';
+
+const TALL = plateDims(true);
 
 const SYS  = "'Geneva', Tahoma, 'MS Sans Serif', Verdana, sans-serif";
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
-const INK = '#111';
+const INK = 'var(--vlg-fg, #111)';
 // The command prompt is fixed at bottom-left (24px up, 40px tall). The station
 // scrolls INSIDE the space above it, so nothing ever slides underneath.
 const PROMPT_BAND = 72;
@@ -23,18 +26,26 @@ export function HomeDesktop() {
     <div
       style={{
         position: 'absolute', top: 0, left: 0, right: 0, bottom: PROMPT_BAND,
-        overflow: 'auto', overscrollBehavior: 'contain',
+        overflow: 'hidden', overscrollBehavior: 'contain',
         fontFamily: SYS, color: INK, background: DESKTOP,
       }}
     >
       {/* The radio itself — the analogue summary strip */}
-      {/* margin:auto centres the strip while it fits and lets it scroll once
-          the stacked mobile layout is taller than the screen */}
+      {/* The station's width. Below 716px it's the phone stack (see
+          stationPlate), sized so its whole height fits
+          between the top padding (36 + 12) and the prompt band: the page
+          never scrolls. margin:auto centres it. */}
+      <style>{`
+        .station-fit { width: min(1160px, calc(100% - 16px)); }
+        @media (max-width: 715px) {
+          .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + 48}px) * ${TALL.w} / ${TALL.h})); }
+        }
+      `}</style>
       <div style={{
         minHeight: '100%', display: 'flex',
         padding: '36px 0 12px', boxSizing: 'border-box',
       }}>
-        <div style={{ margin: 'auto', width: 'min(720px, 100%)' }}>
+        <div className="station-fit" style={{ margin: 'auto' }}>
           <AnalogueStrip />
         </div>
       </div>

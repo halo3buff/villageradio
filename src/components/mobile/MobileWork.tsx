@@ -152,7 +152,7 @@ export function MobileWork() {
           onClick={focusInput}
           style={{
             position: 'absolute', left: vw(79), top: dvh(274), width: vw(243), height: dvh(28),
-            background: 'var(--vlg-bg, #fff)', border: '1px solid #000', boxSizing: 'border-box',
+            background: 'var(--vlg-bg, #fff)', border: '1px solid var(--vlg-fg, #000)', boxSizing: 'border-box',
             display: 'flex', alignItems: 'center', paddingLeft: vw(8), cursor: 'text',
             fontFamily: BODY, fontSize: vw(14), color: 'var(--vlg-fg, #000)',
             opacity: disabled ? 0.4 : 1,

@@ -62,7 +62,7 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
             src="/images/tree_8bit.png"
             alt="Village Radio"
             fill
-            style={{ objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+            style={{ objectFit: 'contain', filter: 'brightness(0)' }}
           />
         </div>
 
