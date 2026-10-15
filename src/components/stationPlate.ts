@@ -24,33 +24,35 @@ const HDR = 50;                            // the header band above the row
 const HDR_STACK = 30;                      // the stack's: just the clock
 const ROW_DX = 168, ROW_DY = -386 + HDR;  // where the lower portion lands in the row
 
-// The lower portion's pieces for the stack: rows of source rects
-// [x0, y0, x1, y1] in full-plate units, each cut tight to its content. Every
-// row is scaled to span the screen's width, so nothing leaves dead space.
+// The lower portion's pieces for the stack: rows of [scale, source rects
+// [x0, y0, x1, y1]] in full-plate units, each rect cut tight to its content.
+// The readout rows share one scale so their text matches, and spread edge to
+// edge; the matrices (scale 0) are scaled up to span the width on their own.
 // LU-M, the peak-hold row and the true-peak overs box are left out.
-const STACK_ROWS: [number, number, number, number][][] = [
-  [[33, 406, 148, 449], [251, 405, 353, 453], [343, 533, 442, 566]],  // readouts | SPECT | RMS, on since
-  [[364, 405, 524, 453], [195, 501, 331, 569]],                        // MID/SIDE | uptime, L/R, corr
-  [[24, 468, 191, 568], [454, 470, 572, 568]],                         // spectrum | bit matrix
+const S_K = 0.77;
+const STACK_ROWS: [number, [number, number, number, number][]][] = [
+  [S_K, [[33, 406, 148, 449], [364, 405, 524, 453], [343, 533, 442, 566]]],  // readouts | MID/SIDE | RMS, on since
+  [S_K, [[251, 405, 353, 453], [195, 501, 355, 527], [195, 532, 331, 569]]], // SPECT | uptime | HDRM, L/R, corr
+  [0, [[24, 468, 191, 568], [454, 470, 572, 568]]],                          // spectrum | bit matrix
 ];
-const S_X0 = 22, S_X1 = 339;               // content edges
-const S_K = 0.8;                            // one scale for every piece, so all text matches
+const S_X0 = 22, S_X1 = 339, S_GAP = 16;   // content edges, the matrices' gap
 const S_TOP = HDR_STACK + 22;               // the screen's top edge
-// laid out once, from the screen's bottom edge down, each row spread edge to
-// edge: [x0, y0, x1, y1, dest x, dest y, scale]
+// laid out once, from the screen's bottom edge down:
+// [x0, y0, x1, y1, dest x, dest y, scale]
 const PIECES: number[][] = [];
 let STACK_RULE = 0;
 const STACK_REST = (() => {
   let y = 8;
-  STACK_ROWS.forEach((row, r) => {
+  STACK_ROWS.forEach(([rk, row], r) => {
     if (r === 2) { STACK_RULE = y; y += 7; }   // rule above the matrices
-    const used = row.reduce((a, [x0, , x1]) => a + (x1 - x0) * S_K, 0);
-    const gap = (S_X1 - S_X0 - used) / (row.length - 1);
-    const h = Math.max(...row.map(([, y0, , y1]) => (y1 - y0) * S_K));
+    const src = row.reduce((a, [x0, , x1]) => a + x1 - x0, 0);
+    const k = rk || (S_X1 - S_X0 - S_GAP * (row.length - 1)) / src;
+    const gap = (S_X1 - S_X0 - src * k) / (row.length - 1);
+    const h = Math.max(...row.map(([, y0, , y1]) => (y1 - y0) * k));
     let x = S_X0;
     for (const [x0, y0, x1, y1] of row) {
-      PIECES.push([x0, y0, x1, y1, x, y + (h - (y1 - y0) * S_K) / 2, S_K]);
-      x += (x1 - x0) * S_K + gap;
+      PIECES.push([x0, y0, x1, y1, x, y + (h - (y1 - y0) * k) / 2, k]);
+      x += (x1 - x0) * k + gap;
     }
     y += h + 8;
   });
