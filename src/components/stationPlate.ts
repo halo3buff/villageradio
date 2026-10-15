@@ -298,6 +298,8 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
 
   function lower() {
+  // the row's right-hand readouts sit 12 further right, up to the band levels
+  const R_DX = stack ? 0 : 12;
 
   // ── under the screen: the readout row ────────────────────────────────────
   const list: [string, boolean][] = [
@@ -319,7 +321,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     line(x, 415.5, x, 452);
     line(x - 7, 424, x + 7, 424);
   };
-  tag('LU-M', 176); tag('SPECT', 267); tag('MID/SIDE', 378);
+  tag('LU-M', 176); tag('SPECT', 267); tag('MID/SIDE', 378 + R_DX);
 
   ['MOMENTARY', f1(m.mom), 'LUFS'].forEach((l, i) => t(l, 221, 433 + i * 8, 6.5, INK, 'center'));
   [
@@ -328,11 +330,11 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     `SLOPE ${f1(m.slope)} /OCT`,
   ].forEach((l, i) => t(l, 281, 433 + i * 8, 6.5));
 
-  t(m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL', 390, 435, 8);
-  line(390, 446, 402, 446); line(402, 442, 402, 450);
-  dot(410, 446, 1.4);
+  t(m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL', 390 + R_DX, 435, 8);
+  line(390 + R_DX, 446, 402 + R_DX, 446); line(402 + R_DX, 442, 402 + R_DX, 450);
+  dot(410 + R_DX, 446, 1.4);
 
-  line(ROW ? 27 : 20, 462, stack ? 580 : 446, 462);   // stops short of the bit matrix
+  line(ROW ? 27 : 20, 462, stack ? 580 : 446 + R_DX, 462);   // stops short of the bit matrix
 
   // ── dot matrix: the third-octave spectrum, mirrored ──────────────────────
   const COLS = 18, X0 = 31, DX = 8.9;
@@ -374,9 +376,9 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   t(`BIN ${(m.sr / 8192).toFixed(1)} HZ  WINDOW 43 MS`, 198, 520, 6.5);
   line(198, 525, 352, 525);
 
-  box(360, 511, 86, 18, INK, 1);
-  t('TRUE-PEAK OVERS', 403, 518.5, 6.5, INK, 'center');
-  t(`${m.overs} COUNTED.`, 403, 526, 6.5, INK, 'center');
+  box(360 + R_DX, 511, 86, 18, INK, 1);
+  t('TRUE-PEAK OVERS', 403 + R_DX, 518.5, 6.5, INK, 'center');
+  t(`${m.overs} COUNTED.`, 403 + R_DX, 526, 6.5, INK, 'center');
 
   t(`HDRM ${f1(-1 - tp)}  TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`, 198, 539, 5.5);
   box(196, 545, 66, 22);
@@ -394,14 +396,14 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   line(319, 560, 319 + 9 * clamp(m.corr, -1, 1), 547, INK, 1);
   t('CORR', 319, 567, 4.5, INK, 'center');
 
-  t(`RMS ${f1(m.rms)}`, 344, 539, 5.5);
-  t(`PK ${f1(Math.max(m.pkL, m.pkR))}`, 344, 546, 5.5);
-  t(`SILENCE ${m.silence ? 'Y' : 'N'},`, 344, 556, 5.5);
-  t(`OVERS ${m.overs}.`, 344, 563, 5.5);
-  line(400, 535, 400, 570);
-  t('ON SINCE', 408, 546, 5);
-  t(`${f0(m.since)} S`, 408, 553, 5);
-  t(`> ${m.live ? 'LIVE' : 'TEST'} <`, 408, 562, 5.5);
+  t(`RMS ${f1(m.rms)}`, 344 + R_DX, 539, 5.5);
+  t(`PK ${f1(Math.max(m.pkL, m.pkR))}`, 344 + R_DX, 546, 5.5);
+  t(`SILENCE ${m.silence ? 'Y' : 'N'},`, 344 + R_DX, 556, 5.5);
+  t(`OVERS ${m.overs}.`, 344 + R_DX, 563, 5.5);
+  line(400 + R_DX, 535, 400 + R_DX, 570);
+  t('ON SINCE', 408 + R_DX, 546, 5);
+  t(`${f0(m.since)} S`, 408 + R_DX, 553, 5);
+  t(`> ${m.live ? 'LIVE' : 'TEST'} <`, 408 + R_DX, 562, 5.5);
 
   // ── bit matrix: a row of band-level parity every ROW_MS ──────────────────
   const now = performance.now();
@@ -412,14 +414,13 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     bitRows.unshift(row);
     bitRows.length = Math.min(bitRows.length, BIT_ROWS);
   }
-  // in the row it runs the full height, halved: a numbered list of band
-  // levels on the left, the newest 12 bands' bits on the right
+  // in the row it runs the full height, halved: a column of band levels on
+  // the left, the newest 12 bands' bits on the right
   const [bitX, bitY, bitN, bitC] = stack ? [456, 472, 16, BIT_COLS] : [515, 408, BIT_ROWS, 12];
   if (!stack) {
     for (let i = 0; i < 12; i++) {
-      const b = Math.round((i * (THIRD_OCTAVE.length - 1)) / 11), f = THIRD_OCTAVE[b];
-      const hz = f >= 1000 ? `${+(f / 1000).toFixed(1)}K` : `${Math.round(f)}`;
-      t(`${String(i + 1).padStart(2, '0')} ${hz.padEnd(4)} ${f1(m.bands[b])}`, 456, 412 + i * 12.4, 5.5);
+      const b = Math.round((i * (THIRD_OCTAVE.length - 1)) / 11);
+      t(f1(m.bands[b]), 505, 412 + i * 12.4, 5.5, INK, 'right');
     }
   }
   bitRows.slice(0, bitN).forEach((row, r) => {
