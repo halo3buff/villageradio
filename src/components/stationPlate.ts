@@ -80,7 +80,7 @@ const f0 = (v: number) => (Number.isFinite(v) ? Math.round(v).toString() : '--')
 const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
 
 // the right-hand matrix: one row of band-level bits pushed every ROW_MS
-const BIT_COLS = 24, BIT_ROWS = 16, ROW_MS = 200;
+const BIT_COLS = 24, BIT_ROWS = 29, ROW_MS = 200;   // the stack shows the newest 16
 const bitRows: number[] = [];
 let lastRow = 0;
 
@@ -192,7 +192,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     box(X, Y, D, DH, 'rgba(236,230,210,0.35)', 0.6);
     field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
     badge();
-    t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2, 5);
+    t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2.5, 6.5);
     t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5);
     t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, INK, 'right');
   } else {
@@ -319,7 +319,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     line(x, 415.5, x, 452);
     line(x - 7, 424, x + 7, 424);
   };
-  tag('LU-M', 176); tag('SPECT', 267); tag('MID/SIDE', 386);
+  tag('LU-M', 176); tag('SPECT', 267); tag('MID/SIDE', 378);
 
   ['MOMENTARY', f1(m.mom), 'LUFS'].forEach((l, i) => t(l, 221, 433 + i * 8, 6.5, INK, 'center'));
   [
@@ -328,16 +328,11 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     `SLOPE ${f1(m.slope)} /OCT`,
   ].forEach((l, i) => t(l, 281, 433 + i * 8, 6.5));
 
-  t(m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL', 398, 435, 8);
-  line(398, 446, 410, 446); line(410, 442, 410, 450);
-  dot(418, 446, 1.4);
-  const mid = m.rms + 20 * Math.log10(Math.max(0.05, (1 + m.corr) / 2));
-  const side = m.rms + 20 * Math.log10(Math.max(0.05, (1 - m.corr) / 2));
-  const midR = stack ? 522 : 563;   // the stack pulls them in beside the state
-  t(`MID ${f1(mid)}`, midR, 442, 6.5, INK, 'right');
-  t(`SIDE ${f1(side)} DB`, midR, 450, 6.5, INK, 'right');
+  t(m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL', 390, 435, 8);
+  line(390, 446, 402, 446); line(402, 442, 402, 450);
+  dot(410, 446, 1.4);
 
-  line(ROW ? 27 : 20, 462, 580, 462);
+  line(ROW ? 27 : 20, 462, stack ? 580 : 446, 462);   // stops short of the bit matrix
 
   // ── dot matrix: the third-octave spectrum, mirrored ──────────────────────
   const COLS = 18, X0 = 31, DX = 8.9;
@@ -417,9 +412,11 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     bitRows.unshift(row);
     bitRows.length = Math.min(bitRows.length, BIT_ROWS);
   }
-  bitRows.forEach((row, r) => {
+  // in the row it runs up the full height, where MID/SIDE used to sit
+  const [bitY, bitN] = stack ? [472, 16] : [408, BIT_ROWS];
+  bitRows.slice(0, bitN).forEach((row, r) => {
     for (let c = 0; c < BIT_COLS; c++) {
-      if ((row >> c) & 1) dot(456 + c * 4.9, 472 + r * 4.9, 1.3);
+      if ((row >> c) & 1) dot(456 + c * 4.9, bitY + r * 4.9, 1.3);
     }
   });
   t('LEVEL BITS, 24 BANDS.', 570, 558, 5.5, INK, 'right');
