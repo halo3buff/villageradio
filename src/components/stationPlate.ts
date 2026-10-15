@@ -33,26 +33,28 @@ const STACK_ROWS: [number, number, number, number][][] = [
   [[364, 405, 524, 453], [195, 501, 331, 569]],                        // MID/SIDE | uptime, L/R, corr
   [[24, 468, 191, 568], [454, 470, 572, 568]],                         // spectrum | bit matrix
 ];
-const S_X0 = 22, S_X1 = 339, S_GAP = 16;   // content edges, gap between pieces
+const S_X0 = 22, S_X1 = 339;               // content edges
+const S_K = 0.8;                            // one scale for every piece, so all text matches
 const S_TOP = HDR_STACK + 22;               // the screen's top edge
-// laid out once, from the screen's bottom edge down:
-// [x0, y0, x1, y1, dest x, dest y, scale]
+// laid out once, from the screen's bottom edge down, each row spread edge to
+// edge: [x0, y0, x1, y1, dest x, dest y, scale]
 const PIECES: number[][] = [];
 let STACK_RULE = 0;
 const STACK_REST = (() => {
-  let y = 14;
+  let y = 8;
   STACK_ROWS.forEach((row, r) => {
-    if (r === 2) { STACK_RULE = y; y += 10; }   // rule above the matrices
-    const k = (S_X1 - S_X0 - S_GAP * (row.length - 1)) / row.reduce((a, [x0, , x1]) => a + x1 - x0, 0);
-    const h = Math.max(...row.map(([, y0, , y1]) => (y1 - y0) * k));
+    if (r === 2) { STACK_RULE = y; y += 7; }   // rule above the matrices
+    const used = row.reduce((a, [x0, , x1]) => a + (x1 - x0) * S_K, 0);
+    const gap = (S_X1 - S_X0 - used) / (row.length - 1);
+    const h = Math.max(...row.map(([, y0, , y1]) => (y1 - y0) * S_K));
     let x = S_X0;
     for (const [x0, y0, x1, y1] of row) {
-      PIECES.push([x0, y0, x1, y1, x, y + (h - (y1 - y0) * k) / 2, k]);
-      x += (x1 - x0) * k + S_GAP;
+      PIECES.push([x0, y0, x1, y1, x, y + (h - (y1 - y0) * S_K) / 2, S_K]);
+      x += (x1 - x0) * S_K + gap;
     }
-    y += h + 12;
+    y += h + 8;
   });
-  return Math.round(y + 10);
+  return Math.round(y + 2);
 })();
 // The screen is as tall as the phone allows: fitStack sizes it so the whole
 // stack fills the space it's given exactly. The field inside stays round.

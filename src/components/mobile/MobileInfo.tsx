@@ -14,7 +14,6 @@ const dvh = (n: number) => `${(n / SH * 100).toFixed(2)}dvh`;
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
-const STRIPES = 'repeating-linear-gradient(90deg, var(--vlg-fg, #000) 0px, var(--vlg-fg, #000) 1px, var(--vlg-bg, #fff) 1px, var(--vlg-bg, #fff) 2px)';
 
 const BOTTOM_HEADER =
   '///////////// end_signal_not_end /////////////////\n' +
@@ -43,12 +42,6 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
             style={{ width: vw(50), height: vw(50), objectFit: 'contain' }} />
         </Link>
 
-        {/* Stripe background */}
-        <div style={{
-          position: 'absolute', left: vw(22), top: dvh(82), width: vw(354), height: dvh(640),
-          background: STRIPES,
-        }} />
-
         {/* 8-bit tree */}
         <div style={{
           position: 'absolute',
@@ -62,7 +55,7 @@ export function MobileInfo({ content, commands }: { content: string; commands: N
             src="/images/tree_8bit.png"
             alt="Village Radio"
             fill
-            style={{ objectFit: 'contain', filter: 'brightness(0)' }}
+            style={{ objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
           />
         </div>
 
