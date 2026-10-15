@@ -412,14 +412,22 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     bitRows.unshift(row);
     bitRows.length = Math.min(bitRows.length, BIT_ROWS);
   }
-  // in the row it runs up the full height, where MID/SIDE used to sit
-  const [bitY, bitN] = stack ? [472, 16] : [408, BIT_ROWS];
+  // in the row it runs the full height, halved: a numbered list of band
+  // levels on the left, the newest 12 bands' bits on the right
+  const [bitX, bitY, bitN, bitC] = stack ? [456, 472, 16, BIT_COLS] : [515, 408, BIT_ROWS, 12];
+  if (!stack) {
+    for (let i = 0; i < 12; i++) {
+      const b = Math.round((i * (THIRD_OCTAVE.length - 1)) / 11), f = THIRD_OCTAVE[b];
+      const hz = f >= 1000 ? `${+(f / 1000).toFixed(1)}K` : `${Math.round(f)}`;
+      t(`${String(i + 1).padStart(2, '0')} ${hz.padEnd(4)} ${f1(m.bands[b])}`, 456, 412 + i * 12.4, 5.5);
+    }
+  }
   bitRows.slice(0, bitN).forEach((row, r) => {
-    for (let c = 0; c < BIT_COLS; c++) {
-      if ((row >> c) & 1) dot(456 + c * 4.9, bitY + r * 4.9, 1.3);
+    for (let c = 0; c < bitC; c++) {
+      if ((row >> c) & 1) dot(bitX + c * 4.9, bitY + r * 4.9, 1.3);
     }
   });
-  t('LEVEL BITS, 24 BANDS.', 570, 558, 5.5, INK, 'right');
+  t(`LEVEL BITS, ${bitC} BANDS.`, 570, 558, 5.5, INK, 'right');
   t(`ONE ROW / ${ROW_MS} MS.`, 570, 566, 5.5, INK, 'right');
   }
 }
