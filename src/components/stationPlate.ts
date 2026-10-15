@@ -24,39 +24,28 @@ const HDR = 50;                            // the header band above the row
 const HDR_STACK = 30;                      // the stack's: just the clock
 const ROW_DX = 168, ROW_DY = -386 + HDR;  // where the lower portion lands in the row
 
-// The lower portion's pieces for the stack: rows of [scale, source rects
-// [x0, y0, x1, y1]] in full-plate units, each rect cut tight to its content.
-// The readout rows share one scale so their text matches, and spread edge to
-// edge; the matrices (scale 0) are scaled up to span the width on their own.
-// LU-M, the peak-hold row and the true-peak overs box are left out.
-const S_K = 0.77;
-const STACK_ROWS: [number, [number, number, number, number][]][] = [
-  [S_K, [[33, 406, 148, 449], [364, 405, 524, 453], [343, 533, 442, 566]]],  // readouts | MID/SIDE | RMS, on since
-  [S_K, [[251, 405, 353, 453], [195, 501, 355, 527], [195, 532, 331, 569]]], // SPECT | uptime | HDRM, L/R, corr
-  [0, [[24, 468, 191, 568], [454, 470, 572, 568]]],                          // spectrum | bit matrix
-];
+// The stack under the screen: a three-column readout table drawn for it
+// (see readouts in drawPlate), a rule, then the two dot matrices cut from the
+// lower portion as [x0, y0, x1, y1] in full-plate units and scaled together
+// to span the width.
 const S_X0 = 22, S_X1 = 339, S_GAP = 16;   // content edges, the matrices' gap
 const S_TOP = HDR_STACK + 22;               // the screen's top edge
+const READ_Y = 8, READ_H = 70;              // the readout table, below the screen
+const MATRICES: [number, number, number, number][] = [[24, 468, 191, 568], [454, 470, 572, 568]];
+const STACK_RULE = READ_Y + READ_H + 7;
 // laid out once, from the screen's bottom edge down:
 // [x0, y0, x1, y1, dest x, dest y, scale]
 const PIECES: number[][] = [];
-let STACK_RULE = 0;
 const STACK_REST = (() => {
-  let y = 8;
-  STACK_ROWS.forEach(([rk, row], r) => {
-    if (r === 2) { STACK_RULE = y; y += 7; }   // rule above the matrices
-    const src = row.reduce((a, [x0, , x1]) => a + x1 - x0, 0);
-    const k = rk || (S_X1 - S_X0 - S_GAP * (row.length - 1)) / src;
-    const gap = (S_X1 - S_X0 - src * k) / (row.length - 1);
-    const h = Math.max(...row.map(([, y0, , y1]) => (y1 - y0) * k));
-    let x = S_X0;
-    for (const [x0, y0, x1, y1] of row) {
-      PIECES.push([x0, y0, x1, y1, x, y + (h - (y1 - y0) * k) / 2, k]);
-      x += (x1 - x0) * k + gap;
-    }
-    y += h + 8;
-  });
-  return Math.round(y + 2);
+  const y = STACK_RULE + 9;
+  const k = (S_X1 - S_X0 - S_GAP) / MATRICES.reduce((a, [x0, , x1]) => a + x1 - x0, 0);
+  const h = Math.max(...MATRICES.map(([, y0, , y1]) => (y1 - y0) * k));
+  let x = S_X0;
+  for (const [x0, y0, x1, y1] of MATRICES) {
+    PIECES.push([x0, y0, x1, y1, x, y + (h - (y1 - y0) * k) / 2, k]);
+    x += (x1 - x0) * k + S_GAP;
+  }
+  return Math.round(y + h + 13);
 })();
 // The screen is as tall as the phone allows: fitStack sizes it so the whole
 // stack fills the space it's given exactly. The field inside stays round.
@@ -257,9 +246,41 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   // the lower portion is laid out in full-plate coordinates; in the row it
   // slides up and right, on the stack it's cut into pieces stacked under the
   // screen. Moves are by whole device pixels so the hairlines stay crisp.
+  // the stack's readout table: three columns under tags, rules between
+  function readouts(top: number) {
+    const mid = m.rms + 20 * Math.log10(Math.max(0.05, (1 + m.corr) / 2));
+    const side = m.rms + 20 * Math.log10(Math.max(0.05, (1 - m.corr) / 2));
+    const cols: [string, string[]][] = [
+      ['LOUDNESS', [
+        `PGM ${f1(m.mom)} LUFS`, `INT ${f1(m.integ)}`, `TPL ${f1(m.tpL)}`, `TPR ${f1(m.tpR)}`,
+        `PLR ${f1(m.plr)} PSR ${f1(m.psr)}`,
+        `HDRM ${f1(-1 - tp)} TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`,
+      ]],
+      ['SPECT', [
+        `CREST ${f1(m.crest)} DB`,
+        `CENTROID ${m.centroid >= 1000 ? `${(m.centroid / 1000).toFixed(2)}K` : f0(m.centroid)}`,
+        `SLOPE ${f1(m.slope)} /OCT`, 'FFT 8192', `BIN ${(m.sr / 8192).toFixed(1)} HZ`, 'WINDOW 43 MS',
+      ]],
+      ['MID/SIDE', [
+        `MID ${f1(mid)}`, `SIDE ${f1(side)} DB`, `RMS ${f1(m.rms)} PK ${f1(Math.max(m.pkL, m.pkR))}`,
+        `SILENCE ${m.silence ? 'Y' : 'N'}, OVERS ${m.overs}.`, `UPTIME ${f0(m.since)} S`,
+        `> ${m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL'} <`,
+      ]],
+    ];
+    const cw = (S_X1 - S_X0) / 3;
+    cols.forEach(([tag, rows], c) => {
+      const x = S_X0 + c * cw + (c ? 7 : 0);
+      if (c) line(x - 7, top, x - 7, top + READ_H);
+      const w = tag.length * 4 + 9;
+      box(x, top, w, 9.5);
+      t(tag, x + w / 2, top + 7, 5.5, INK, 'center');
+      rows.forEach((r, i) => t(r, x, top + 21 + i * 9.8, 6.5));
+    });
+  }
   const px = (v: number) => Math.round(v * s) / s;
   if (stack) {
     const base = S_TOP + lissH;
+    readouts(base + READ_Y);
     line(S_X0, base + STACK_RULE, S_X1, base + STACK_RULE);
     for (const [x0, y0, x1, y1, dx, dy, k] of PIECES) {
       ctx.save();
