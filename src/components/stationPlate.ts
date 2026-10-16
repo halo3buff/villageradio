@@ -462,7 +462,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     bitRows.length = Math.min(bitRows.length, BIT_ROWS);
     // now and then one lit dot in the first 12 (both layouts show them) glows
     const lit = [...Array(12).keys()].filter(c => (row >> c) & 1);
-    glowRows.unshift(lit.length && Math.random() < 0.35 ? 1 << lit[Math.floor(Math.random() * lit.length)] : 0);
+    glowRows.unshift(lit.length && Math.random() < 0.08 ? 1 << lit[Math.floor(Math.random() * lit.length)] : 0);
     glowCols.unshift(GLOWS[Math.floor(Math.random() * GLOWS.length)]);
     glowRows.length = glowCols.length = bitRows.length;
   }
@@ -485,9 +485,9 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     if (!g) return;
     const x = bitX + Math.log2(g) * 4.9, y = bitY + r * 4.9, c = glowCols[r];
     ctx.shadowColor = c;
-    ctx.shadowBlur = 22 * s; dot(x, y, 2.1, c); dot(x, y, 2.1, c);
-    ctx.shadowBlur = 6 * s; dot(x, y, 2.1, c);
-    ctx.shadowBlur = 0; dot(x, y, 0.8, 'rgba(255,255,255,0.75)');
+    ctx.shadowBlur = 22 * s; dot(x, y, 1.3, c); dot(x, y, 1.3, c);
+    ctx.shadowBlur = 6 * s; dot(x, y, 1.3, c);
+    ctx.shadowBlur = 0; dot(x, y, 0.6, 'rgba(255,255,255,0.75)');
   });
   t(`LEVEL BITS, ${bitC} BANDS.`, 570, 558, 5.5, INK, 'right');
   t(`ONE ROW / ${ROW_MS} MS.`, 570, 566, 5.5, INK, 'right');
