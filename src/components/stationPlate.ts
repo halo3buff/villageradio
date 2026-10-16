@@ -1,4 +1,6 @@
 import { THIRD_OCTAVE } from '@/lib/dsp';
+import { THEMES, paletteColor } from '@/lib/theme';
+import seedCommands from '@/lib/content/seed/commands.json';
 import type { Metrics } from './AnalogueStrip';
 
 /**
@@ -83,6 +85,8 @@ const INK = '#ece6d2';
 const SCREEN = '#131210';
 const YEL = '#f0c02c';
 const TRACE = '#3aa8ff';   // the Lissajous trace, scope blue
+// the waterfall's glowing dots: scope blue and the README's command colours
+const GLOWS = [TRACE, ...new Set(seedCommands.commands.map(c => paletteColor(THEMES.default, c.cmd)))];
 
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : '--.-');
@@ -92,7 +96,8 @@ const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
 // the right-hand matrix: one row of band-level bits pushed every ROW_MS
 const BIT_COLS = 24, BIT_ROWS = 29, ROW_MS = 200;   // the stack shows the newest 16
 const bitRows: number[] = [];
-const glowRows: number[] = [];   // per row, the one bit (if any) that glows scope blue
+const glowRows: number[] = [];   // per row, the one bit (if any) that glows
+const glowCols: string[] = [];   // and its colour
 const hold = [-Infinity, -Infinity];   // the row's L/R meters' peak holds, dB
 let lastRow = 0;
 
@@ -457,8 +462,9 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     bitRows.length = Math.min(bitRows.length, BIT_ROWS);
     // now and then one lit dot in the first 12 (both layouts show them) glows
     const lit = [...Array(12).keys()].filter(c => (row >> c) & 1);
-    glowRows.unshift(lit.length && Math.random() < 0.3 ? 1 << lit[Math.floor(Math.random() * lit.length)] : 0);
-    glowRows.length = bitRows.length;
+    glowRows.unshift(lit.length && Math.random() < 0.35 ? 1 << lit[Math.floor(Math.random() * lit.length)] : 0);
+    glowCols.unshift(GLOWS[Math.floor(Math.random() * GLOWS.length)]);
+    glowRows.length = glowCols.length = bitRows.length;
   }
   // in the row it runs the full height, halved: a column of band levels on
   // the left, the newest 12 bands' bits on the right
@@ -474,11 +480,15 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
       if ((row >> c) & 1 && !((glowRows[r] >> c) & 1)) dot(bitX + c * 4.9, bitY + r * 4.9, 1.3);
     }
   });
-  ctx.shadowColor = TRACE; ctx.shadowBlur = 5 * s;
+  // the glow: a wide halo, the dot twice over it, then a hot core
   glowRows.slice(0, bitN).forEach((g, r) => {
-    if (g) dot(bitX + Math.log2(g) * 4.9, bitY + r * 4.9, 1.5, TRACE);
+    if (!g) return;
+    const x = bitX + Math.log2(g) * 4.9, y = bitY + r * 4.9, c = glowCols[r];
+    ctx.shadowColor = c;
+    ctx.shadowBlur = 22 * s; dot(x, y, 2.1, c); dot(x, y, 2.1, c);
+    ctx.shadowBlur = 6 * s; dot(x, y, 2.1, c);
+    ctx.shadowBlur = 0; dot(x, y, 0.8, 'rgba(255,255,255,0.75)');
   });
-  ctx.shadowBlur = 0;
   t(`LEVEL BITS, ${bitC} BANDS.`, 570, 558, 5.5, INK, 'right');
   t(`ONE ROW / ${ROW_MS} MS.`, 570, 566, 5.5, INK, 'right');
   }
