@@ -92,6 +92,7 @@ const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
 // the right-hand matrix: one row of band-level bits pushed every ROW_MS
 const BIT_COLS = 24, BIT_ROWS = 29, ROW_MS = 200;   // the stack shows the newest 16
 const bitRows: number[] = [];
+const glowRows: number[] = [];   // per row, the one bit (if any) that glows scope blue
 const hold = [-Infinity, -Infinity];   // the row's L/R meters' peak holds, dB
 let lastRow = 0;
 
@@ -454,6 +455,10 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     for (let c = 0; c < BIT_COLS; c++) row |= (Math.floor(Math.abs(m.bands[c]) * 3) & 1) << c;
     bitRows.unshift(row);
     bitRows.length = Math.min(bitRows.length, BIT_ROWS);
+    // now and then one lit dot in the first 12 (both layouts show them) glows
+    const lit = [...Array(12).keys()].filter(c => (row >> c) & 1);
+    glowRows.unshift(lit.length && Math.random() < 0.3 ? 1 << lit[Math.floor(Math.random() * lit.length)] : 0);
+    glowRows.length = bitRows.length;
   }
   // in the row it runs the full height, halved: a column of band levels on
   // the left, the newest 12 bands' bits on the right
@@ -466,9 +471,14 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   }
   bitRows.slice(0, bitN).forEach((row, r) => {
     for (let c = 0; c < bitC; c++) {
-      if ((row >> c) & 1) dot(bitX + c * 4.9, bitY + r * 4.9, 1.3);
+      if ((row >> c) & 1 && !((glowRows[r] >> c) & 1)) dot(bitX + c * 4.9, bitY + r * 4.9, 1.3);
     }
   });
+  ctx.shadowColor = TRACE; ctx.shadowBlur = 5 * s;
+  glowRows.slice(0, bitN).forEach((g, r) => {
+    if (g) dot(bitX + Math.log2(g) * 4.9, bitY + r * 4.9, 1.5, TRACE);
+  });
+  ctx.shadowBlur = 0;
   t(`LEVEL BITS, ${bitC} BANDS.`, 570, 558, 5.5, INK, 'right');
   t(`ONE ROW / ${ROW_MS} MS.`, 570, 566, 5.5, INK, 'right');
   }
