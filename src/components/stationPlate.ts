@@ -25,8 +25,8 @@ const HDR_STACK = 30;                      // the stack's: just the clock
 const ROW_DX = 168, ROW_DY = -386 + HDR;  // where the lower portion lands in the row
 // what the row keeps of the lower portion, and where each piece moves to
 const ROW_PIECES = [
-  [30, 404, 150, 452, 0, 0],        // readouts
-  [367, 404, 460, 455, -197, 0],    // MID/SIDE, test signal
+  [367, 404, 460, 455, -337, 0],    // MID/SIDE, test signal
+  [30, 404, 150, 452, 103, 0],      // readouts
   [195, 500, 355, 528, -162, -26],  // uptime, FFT
   [370, 509, 460, 531, -165, -30],  // true-peak overs
   [193, 532, 335, 571, -160, -8],   // HDRM, L/R, corr
@@ -92,6 +92,7 @@ const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
 // the right-hand matrix: one row of band-level bits pushed every ROW_MS
 const BIT_COLS = 24, BIT_ROWS = 29, ROW_MS = 200;   // the stack shows the newest 16
 const bitRows: number[] = [];
+const hold = [-Infinity, -Infinity];   // the row's L/R meters' peak holds, dB
 let lastRow = 0;
 
 type Align = 'left' | 'right' | 'center';
@@ -313,10 +314,29 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
         lower();
         ctx.restore();
       }
+      meters();
     } else lower();
     ctx.restore();
   }
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
+
+  // the row's L/R peak meters, after the readouts: bars with a falling hold
+  function meters() {
+    const top = 408, h = 36;
+    [m.pkL, m.pkR].forEach((pk, i) => {
+      hold[i] = Math.max(Number.isFinite(pk) ? pk : -60, hold[i] - 0.25);
+      const x = 262 + i * 11, n = (v: number) => clamp((v + 60) / 60, 0, 1);
+      ctx.fillStyle = INK; ctx.fillRect(x, top + h * (1 - n(pk)), 5, h * n(pk));
+      box(x, top, 5, h);
+      line(x - 1, top + h * (1 - n(hold[i])), x + 6, top + h * (1 - n(hold[i])), INK, 1);
+      t(i ? 'R' : 'L', x + 2.5, top + h + 7, 4.5, INK, 'center');
+    });
+    [0, -20, -40, -60].forEach(db => {
+      const y = top + h * (-db / 60);
+      line(283, y, 286, y);
+      t(`${-db}`, 288, y + 1.6, 4.5);
+    });
+  }
 
   function lower() {
   // the row's right-hand readouts sit 12 further right, up to the band levels
