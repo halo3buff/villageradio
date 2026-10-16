@@ -49,7 +49,7 @@ export function HomeDesktop() {
           this cap only bites on phones too short for even its smallest
           screen. The page never scrolls. margin:auto centres it. */}
       <style>{`
-        .station-fit { width: min(1160px, calc(100% - 16px)); }
+        .station-fit { width: min(889px, calc(100% - 16px)); }
         @media (max-width: 715px) {
           .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + PAD_TOP + PAD_BOTTOM}px) * 372 / ${STACK_MIN_H})); }
         }

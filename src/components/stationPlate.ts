@@ -23,6 +23,16 @@ const ROW = true;
 const HDR = 50;                            // the header band above the row
 const HDR_STACK = 30;                      // the stack's: just the clock
 const ROW_DX = 168, ROW_DY = -386 + HDR;  // where the lower portion lands in the row
+// what the row keeps of the lower portion, and where each piece moves to
+const ROW_PIECES = [
+  [30, 404, 150, 452, 0, 0],        // readouts
+  [367, 404, 460, 455, -197, 0],    // MID/SIDE, test signal
+  [195, 500, 355, 528, -162, -26],  // uptime, FFT
+  [370, 509, 460, 531, -165, -30],  // true-peak overs
+  [193, 532, 335, 571, -160, -8],   // HDRM, L/R, corr
+  [352, 532, 462, 572, -167, -8],   // RMS, on since
+  [484, 402, 574, 571, -182, 0],    // band levels, bit matrix
+];
 
 // The stack under the screen: a three-column readout table drawn for it
 // (see readouts in drawPlate), a rule, then the two dot matrices cut from the
@@ -57,7 +67,7 @@ export const STACK_MIN_H = S_TOP + LISS_MIN + STACK_REST;
 // button on it.
 export type PlateDims = { w: number; h: number; btn: { x: number; y: number; w: number; h: number } };
 const FULL: PlateDims = { w: 600, h: 600, btn: { x: 198, y: 67, w: 49, h: 32 } };
-const WIDE: PlateDims = { w: 780, h: 200 + HDR, btn: { x: 27, y: 27 + HDR, w: 24, h: 15 } };
+const WIDE: PlateDims = { w: 598, h: 200 + HDR, btn: { x: 27, y: 27 + HDR, w: 24, h: 15 } };
 const TALL: PlateDims = { w: 372, h: S_TOP + lissH + STACK_REST, btn: { x: 27, y: 27 + HDR_STACK, w: 36, h: 22 } };
 export const plateDims = (stack: boolean) => (stack ? TALL : ROW ? WIDE : FULL);
 /** Size the stack to an available height / width ratio. */
@@ -186,7 +196,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   };
 
   if (!plate) {
-    if (stack) header(10, 180, 351); else header(10, 380, 750);
+    if (stack) header(10, 180, 351); else header(10, 291, 568);
     // ── the small screen: the stereo field, far left / on top, on the stock ──
     const X = 22, Y = 22 + hdr, D = stack ? LISS_MAX : 156, DH = stack ? lissH : D;
     box(X, Y, D, DH, 'rgba(236,230,210,0.35)', 0.6);
@@ -291,8 +301,19 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     }
   } else {
     ctx.save();
-    if (ROW) ctx.translate(px(ROW_DX), px(ROW_DY));
-    lower();
+    if (ROW) {
+      // the row keeps only some of the lower portion, closed up: pieces cut
+      // from it and moved [x0, y0, x1, y1, dx, dy]
+      ctx.translate(px(ROW_DX), px(ROW_DY));
+      line(27, 462, 296, 462);
+      for (const [x0, y0, x1, y1, dx, dy] of ROW_PIECES) {
+        ctx.save();
+        ctx.translate(dx, dy);
+        ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
+        lower();
+        ctx.restore();
+      }
+    } else lower();
     ctx.restore();
   }
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
