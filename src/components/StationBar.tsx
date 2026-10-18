@@ -75,7 +75,7 @@ export function StationBar() {
           level[c] = target > level[c] ? target : Math.max(target, level[c] - 0.08);
         }
       } else {
-        for (let c = 0; c < COLS; c++) level[c] = Math.max(0, level[c] - 0.08);
+        level.fill(0); // paused: straight to the even grey resting grid, no lingering lit rows
       }
 
       if (frame++ % 30 === 0 && left.current) ink = getComputedStyle(left.current).color;
@@ -87,8 +87,8 @@ export function StationBar() {
           const x = (side === 0 ? COLS - 1 - c : c) * DX + DX / 2; // low end next to the clock
           for (let r = 0; r < ROWS; r++) {
             const on = Math.min(Math.max(level[c] - r, 0), 1);
-            if (on <= 0.02) continue; // unlit dots aren't drawn: paused = empty, no resting rows
-            const rad = 0.5 + on * 2;
+            const rad = 0.75 + on * 1.75;
+            ctx.globalAlpha = 0.35 + on * 0.65; // unlit dots all one grey
             const dy = GAP + r * DY;
             ctx.beginPath(); ctx.arc(x, H / 2 - dy, rad, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(x, H / 2 + dy, rad, 0, Math.PI * 2); ctx.fill();
