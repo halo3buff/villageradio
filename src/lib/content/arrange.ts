@@ -23,6 +23,25 @@ export function removeEntry(entries: BroadcastEntry[], id: string): BroadcastEnt
 }
 
 /**
+ * Put entry `id` on air directly before/after entry `targetId` (unhiding it). With no target,
+ * it goes to the end. Returns a new array.
+ */
+export function placeEntry(
+  entries: BroadcastEntry[],
+  id: string,
+  targetId: string | null,
+  after: boolean,
+): BroadcastEntry[] {
+  const moving = entries.find((e) => e.id === id);
+  if (!moving || id === targetId) return entries.slice();
+  const rest = entries.filter((e) => e.id !== id);
+  const t = targetId === null ? -1 : rest.findIndex((e) => e.id === targetId);
+  const at = t < 0 ? rest.length : t + (after ? 1 : 0);
+  rest.splice(at, 0, { ...moving, hidden: false });
+  return rest;
+}
+
+/**
  * Derive a unique entry id from a filename. Interludes reuse the same file with distinct
  * ids, so collisions get a `b`, `c`, … suffix (matching the seed's `inter-1` → `inter-1b`).
  */

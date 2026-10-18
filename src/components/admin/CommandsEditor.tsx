@@ -10,7 +10,7 @@ function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; labe
     <button
       onClick={onClick}
       className={`text-left font-mono text-[9px] tracking-[0.12em] uppercase transition-colors ${
-        on ? 'text-black' : 'text-black/30 hover:text-black/60'
+        on ? 'text-white' : 'text-white/30 hover:text-white/60'
       }`}
     >
       {on ? '■' : '□'} {label}
@@ -75,17 +75,17 @@ export function CommandsEditor({ initialCommands, generation: initialGen }: Prop
   return (
     <div>
       <div className="flex items-baseline gap-4 mb-1">
-        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/80">
+        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80">
           information — navigation commands
         </h1>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/25">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/25">
           {commands.length} commands
         </span>
       </div>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-1">
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-1">
         these are the commands shown on the readme page and used by the mobile prompt · publish to update both
       </p>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-6">
         hide = drop from the readme (still works if typed) · block = dead at the prompt (for pages under construction)
       </p>
 
@@ -96,17 +96,17 @@ export function CommandsEditor({ initialCommands, generation: initialGen }: Prop
       {status === 'published' && <Banner tone="ok">published — readme and nav are live.</Banner>}
 
       {/* Preview of how it appears on the README */}
-      <div className="mb-6 border border-black/10 p-3">
+      <div className="mb-6 border border-white/10 p-3">
         <span className={FIELD_LABEL}>readme preview</span>
-        <pre className="font-mono text-[10px] text-black/70 leading-relaxed mt-1">{
+        <pre className="font-mono text-[10px] text-white/70 leading-relaxed mt-1">{
           'commands:\n' + commands.filter(c => !c.hidden).map(c => `  ${c.cmd.padEnd(12)} ${c.label}`).join('\n')
         }</pre>
       </div>
 
       {/* Command rows */}
-      <div className="border-t border-black/10">
+      <div className="border-t border-white/10">
         {commands.map((c, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-3 items-end border-b border-black/10 py-3">
+          <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-3 items-end border-b border-white/10 py-3">
             <label>
               <span className={FIELD_LABEL}>command</span>
               <input className={FIELD} value={c.cmd} onChange={e => patch(i, { cmd: e.target.value })} spellCheck={false} />
@@ -133,21 +133,21 @@ export function CommandsEditor({ initialCommands, generation: initialGen }: Prop
       <div className="mt-4">
         <button
           onClick={add}
-          className="font-mono text-[10px] tracking-[0.16em] uppercase text-black/45 hover:text-black border border-black/15 hover:border-black/40 px-3 py-2 transition-colors"
+          className="font-mono text-[10px] tracking-[0.16em] uppercase text-white/45 hover:text-white border border-white/15 hover:border-white/40 px-3 py-2 transition-colors"
         >
           + add command
         </button>
       </div>
 
-      <div className="mt-8 flex items-center gap-4 border-t border-black/10 pt-5">
+      <div className="mt-8 flex items-center gap-4 border-t border-white/10 pt-5">
         <button
           onClick={publish}
           disabled={!dirty || status === 'publishing'}
-          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-black border border-black/20 hover:border-black/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-black/20"
+          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-white border border-white/20 hover:border-white/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
         >
           {status === 'publishing' ? 'publishing..' : 'publish'}
         </button>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/30">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/30">
           {dirty ? 'staged changes' : 'no changes'}
         </span>
       </div>

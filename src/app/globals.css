@@ -97,3 +97,13 @@
 img[src*="left-arrow"] {
   filter: invert(var(--vlg-invert, 0));
 }
+
+/* Admin console: always dark, and the page scrolls with the wheel. The base rules above make
+   <body> its own (never-scrolling) scroll container with overscroll-behavior:none, which stops
+   wheel scrolling from reaching the page and breaks position:sticky — fatal on the admin's tall
+   pages. Letting body overflow normally hands scrolling back to the viewport. */
+body:has(.admin-shell) {
+  overflow: visible;
+  background-color: #000;
+  color-scheme: dark;
+}

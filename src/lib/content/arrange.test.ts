@@ -8,6 +8,7 @@ import {
   removeEntry,
   generateEntryId,
   validateManifest,
+  placeEntry,
 } from './arrange';
 
 function mix(id: string, file = `${id}.mp3`): BroadcastEntry {
@@ -134,5 +135,27 @@ describe('validateManifest', () => {
   it('rejects non-string tags', () => {
     const bad = { ...mix('a'), tags: [1, 2] };
     expect(validateManifest({ version: 1, entries: [bad] }).ok).toBe(false);
+  });
+});
+
+describe('placeEntry', () => {
+  const e = (id: string, hidden?: boolean) =>
+    ({ id, title: id, artist: '', date: '', durationSec: 60, file: 'a.mp3', kind: 'inter', tags: [], hidden }) as BroadcastEntry;
+  const ids = (list: BroadcastEntry[]) => list.map((x) => x.id).join(',');
+
+  it('drops before or after the target', () => {
+    const list = [e('a'), e('b'), e('c')];
+    expect(ids(placeEntry(list, 'c', 'a', false))).toBe('c,a,b');
+    expect(ids(placeEntry(list, 'a', 'c', true))).toBe('b,c,a');
+    expect(ids(placeEntry(list, 'a', 'b', true))).toBe('b,a,c');
+  });
+
+  it('unhides what it places, appends with no target, ignores self-drops', () => {
+    const list = [e('a'), e('b', true)];
+    const placed = placeEntry(list, 'b', 'a', false);
+    expect(ids(placed)).toBe('b,a');
+    expect(placed[0].hidden).toBe(false);
+    expect(ids(placeEntry([e('a', true), e('b')], 'a', null, false))).toBe('b,a');
+    expect(ids(placeEntry(list, 'a', 'a', true))).toBe('a,b');
   });
 });

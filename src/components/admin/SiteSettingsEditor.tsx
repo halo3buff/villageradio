@@ -42,8 +42,8 @@ export function SiteSettingsEditor({ initialTheme, generation: initialGen }: Pro
 
   return (
     <div>
-      <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/80 mb-1">settings — site theme</h1>
-      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
+      <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80 mb-1">settings — site theme</h1>
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-6">
         applies site-wide, every page · staged until you publish
       </p>
 
@@ -65,11 +65,11 @@ export function SiteSettingsEditor({ initialTheme, generation: initialGen }: Pro
                 if (status !== 'idle') setStatus('idle');
               }}
               className={`font-mono text-[10px] tracking-[0.14em] uppercase px-3 py-2 border transition-colors ${
-                active ? 'border-black text-black' : 'border-black/20 text-black/50 hover:border-black/50'
+                active ? 'border-white text-white' : 'border-white/20 text-white/50 hover:border-white/50'
               }`}
             >
               <span
-                className="inline-block w-2.5 h-2.5 mr-2 align-middle border border-black/20"
+                className="inline-block w-2.5 h-2.5 mr-2 align-middle border border-white/20"
                 style={{ background: T.bg }}
               />
               {name}
@@ -78,15 +78,15 @@ export function SiteSettingsEditor({ initialTheme, generation: initialGen }: Pro
         })}
       </div>
 
-      <div className="mt-8 flex items-center gap-4 border-t border-black/10 pt-5">
+      <div className="mt-8 flex items-center gap-4 border-t border-white/10 pt-5">
         <button
           onClick={publish}
           disabled={!dirty || status === 'publishing'}
-          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-black border border-black/20 hover:border-black/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-black/20"
+          className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-white border border-white/20 hover:border-white/60 px-4 py-2.5 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
         >
           {status === 'publishing' ? 'publishing..' : 'publish'}
         </button>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-black/30">
+        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/30">
           {dirty ? 'staged changes' : 'no changes'}
         </span>
       </div>
