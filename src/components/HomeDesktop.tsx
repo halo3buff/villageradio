@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { AnalogueStrip } from '@/components/AnalogueStrip';
 import { STACK_MIN_H } from '@/components/stationPlate';
+import { BAR_W } from '@/components/StationBar';
 import { useEffect, useRef } from 'react';
 
 const SYS  = "'Geneva', Tahoma, 'MS Sans Serif', Verdana, sans-serif";
@@ -49,16 +50,18 @@ export function HomeDesktop() {
           this cap only bites on phones too short for even its smallest
           screen. The page never scrolls. margin:auto centres it. */}
       <style>{`
-        .station-fit { width: min(889px, calc(100% - 16px)); }
-        @media (max-width: 715px) {
-          .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + PAD_TOP + PAD_BOTTOM}px) * 372 / ${STACK_MIN_H})); }
+        .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + PAD_TOP + PAD_BOTTOM}px) * 372 / ${STACK_MIN_H})); margin: auto; }
+        /* desktop: hung straight under the StationBar, the Lissajous (plate x 22..339 of 372)
+           exactly the bar's width and centred under it */
+        @media (min-width: 716px) {
+          .station-fit { width: ${(BAR_W * 372) / 317}px; margin: -${PAD_TOP}px auto 0; translate: ${(5.5 / 372) * 100}% 0; }
         }
       `}</style>
       <div style={{
         minHeight: '100%', display: 'flex',
         padding: `${PAD_TOP}px 0 ${PAD_BOTTOM}px`, boxSizing: 'border-box',
       }}>
-        <div className="station-fit" style={{ margin: 'auto' }}>
+        <div className="station-fit">
           <AnalogueStrip fitHeight={() => (outerRef.current?.clientHeight ?? 0) - PAD_TOP - PAD_BOTTOM} />
         </div>
       </div>

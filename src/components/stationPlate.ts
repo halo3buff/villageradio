@@ -184,8 +184,11 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   const header = (L: number, cx: number, R: number) => {
     // in the row the clock sits on the header line, level with SR and the date
     const cy = plate ? 17 : hdr - 14;
-    box(cx - 26, cy, 52, 13);
-    t(iso.slice(11, 19), cx, cy + 9.5, 7.5, INK, 'center');
+    // the stack's clock is the StationBar's, pinned above it
+    if (!stack) {
+      box(cx - 26, cy, 52, 13);
+      t(iso.slice(11, 19), cx, cy + 9.5, 7.5, INK, 'center');
+    }
     // ± and STEREO hang off the frame's top corner
     const o = plate ? 0 : hdr - HDR;
     t('±', R + 10, 53 + o, 9, INK, 'center');

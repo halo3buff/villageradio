@@ -298,7 +298,8 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
       if (now - lastDraw >= 1 / 60) {
         lastDraw = now;
         const cssW = wrap.clientWidth || GRID_W;
-        const stack = cssW < STACK_MAX_CSS;
+        // the plate is vertical everywhere now: Lissajous on top, readouts under it
+        const stack = PLATE || cssW < STACK_MAX_CSS;
         if (stack !== stackedRef.current) { stackedRef.current = stack; setStacked(stack); }
         if (PLATE && stack && fitRef.current) {
           fitStack(fitRef.current() / cssW);

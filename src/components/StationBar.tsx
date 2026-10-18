@@ -14,6 +14,9 @@ const COLS = 16, ROWS = 3;
 const DX = 7, DY = 5.5, GAP = 3.5; // column pitch, row pitch, half-gap at the centre line
 const W = COLS * DX, H = Math.ceil(2 * (GAP + (ROWS - 1) * DY) + 8);
 const BW = 2 ** (1 / 6); // half a third-octave
+const CLOCK_W = 88;
+/** The bar's full width (desktop); the station's Lissajous is sized to match it. */
+export const BAR_W = 2 * (22 + 12 + W + 12) + CLOCK_W;
 
 function utcClock() {
   return new Date().toISOString().slice(11, 19);
@@ -130,7 +133,7 @@ export function StationBar() {
         )}
       </button>
       {canvas(left)}
-      <span className="border border-current px-2 h-[22px] leading-[20px] text-[12px] tracking-[0.08em] tabular-nums">
+      <span className="border border-current h-[22px] leading-[20px] text-center text-[12px] tracking-[0.08em] tabular-nums" style={{ width: CLOCK_W }}>
         {clock ?? '--:--:--'}
       </span>
       {canvas(right)}
