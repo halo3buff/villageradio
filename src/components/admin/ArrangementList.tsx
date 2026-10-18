@@ -18,7 +18,7 @@ import {
   BROADCAST_TZ,
   type Slot,
 } from '@/lib/content/broadcast';
-import { Banner, FIELD, FIELD_LABEL } from './ui';
+import { Banner } from './ui';
 
 type Props = { initialEntries: BroadcastEntry[]; generation: string };
 type Status = 'idle' | 'publishing' | 'published' | 'conflict' | 'error';
@@ -51,7 +51,9 @@ function normalize(e: BroadcastEntry): BroadcastEntry {
   return e;
 }
 
-type DropTarget = { kind: 'day'; id: string | null; after: boolean; at: number } | { kind: 'library' };
+type DropTarget =
+  | { kind: 'day'; id: string | null; after: boolean; at: number; loop: number }
+  | { kind: 'library' };
 type Drag = {
   id: string;
   startX: number;
@@ -60,6 +62,7 @@ type Drag = {
   y: number;
   active: boolean;
   target: DropTarget | null;
+  loop?: number;
 };
 
 export function ArrangementList({ initialEntries, generation: initialGen }: Props) {
@@ -68,7 +71,9 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
   const [generation, setGeneration] = useState(initialGen);
   const [status, setStatus] = useState<Status>('idle');
   const [errors, setErrors] = useState<string[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // An entry can air many times a day; `loop` pins which airing was clicked.
+  const [sel, setSel] = useState<{ id: string; loop: number } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; key: number } | null>(null);
   const [adding, setAdding] = useState(false);
   const [past, setPast] = useState<BroadcastEntry[][]>([]);
   const [future, setFuture] = useState<BroadcastEntry[][]>([]);
@@ -95,7 +100,22 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
   const loopSec = onAir.reduce((s, e) => s + e.durationSec, 0);
   const cut = slots.find((s) => s.cut);
   const live = now === null ? undefined : slots.find((s) => now >= s.start && now < s.end);
+  const selectedId = sel?.id ?? null;
   const selected = entries.find((e) => e.id === selectedId) ?? null;
+  // The highlighted airing: the one clicked, or the entry's first if edits moved it.
+  const selSlot = useMemo(() => {
+    if (!sel) return undefined;
+    const mine = slots.filter((s) => onAir[s.idx].id === sel.id);
+    return mine.find((s) => s.loop === sel.loop) ?? mine[0];
+  }, [sel, slots, onAir]);
+  // Readable publish errors: "entry 3: …" → "“Title”: …".
+  const issues = useMemo(
+    () =>
+      validateManifest({ version: 1, entries }).errors.map((m) =>
+        m.replace(/^entry (\d+)/, (_, i) => `“${entries[+i]?.title || 'untitled'}”`),
+      ),
+    [entries],
+  );
 
   const dirty = useMemo(
     () => JSON.stringify(entries) !== JSON.stringify(baseline),
@@ -117,17 +137,37 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
       e.preventDefault();
       e.returnValue = '';
     };
+    // In-app links (sidebar, nav) don't fire beforeunload, so catch them before Next routes.
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || a.target === '_blank' || e.metaKey || e.ctrlKey) return;
+      if (!confirm('You have unpublished broadcast changes. Leave and lose them?')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
     window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+    document.addEventListener('click', onClick, true);
+    return () => {
+      window.removeEventListener('beforeunload', handler);
+      document.removeEventListener('click', onClick, true);
+    };
   }, [dirty]);
 
-  // Clock for the now-line / now-playing.
+  // Clock for the now-line / now-playing countdown.
   useEffect(() => {
     const tick = () => setNow(secondsIntoDay(Date.now()));
     tick();
-    const t = setInterval(tick, 15_000);
+    const t = setInterval(tick, 1000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
+  const notify = (msg: string) => setToast({ msg, key: Date.now() });
 
   // Open on the current hour.
   useEffect(() => {
@@ -178,6 +218,7 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
     setEntries(past[past.length - 1]);
     setPast((p) => p.slice(0, -1));
     lastEdit.current = null;
+    setToast(null);
   }
 
   function redo() {
@@ -186,14 +227,39 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
     setEntries(future[0]);
     setFuture((f) => f.slice(1));
     lastEdit.current = null;
+    setToast(null);
   }
+
+  /** Scroll the page only if that airing is off screen. */
+  function reveal(s: Slot | undefined) {
+    const el = dayRef.current;
+    if (!s || !el) return;
+    const top = el.getBoundingClientRect().top + y(s.start);
+    if (top < 80 || top + Math.min(y(s.end - s.start), 120) > window.innerHeight - 20) scrollToSec(s.start, 'smooth');
+  }
+
+  /** Select an entry. Without a loop, pick its next airing from now (or its first). */
+  function select(id: string | null, loop?: number, scroll = false) {
+    if (id === null) return setSel(null);
+    const mine = slots.filter((s) => onAir[s.idx].id === id);
+    const s =
+      loop !== undefined
+        ? mine.find((t) => t.loop === loop)
+        : mine.find((t) => now !== null && t.end > now) ?? mine[0];
+    setSel({ id, loop: s?.loop ?? 0 });
+    if (scroll) reveal(s);
+  }
+
+  // Play-order position among on-air entries (Earlier/Later only make sense on air).
+  const airIdx = selected && !selected.hidden ? onAir.findIndex((e) => e.id === selected.id) : -1;
 
   /** Move the selected entry one slot earlier/later in the day, stepping over hidden entries. */
   function step(dir: -1 | 1) {
     const i = indexOf(selectedId ?? '');
-    if (i < 0) return;
+    if (i < 0 || entries[i].hidden) return;
     let j = i + dir;
-    while (!entries[i].hidden && entries[j]?.hidden) j += dir;
+    while (entries[j]?.hidden) j += dir;
+    if (j < 0 || j >= entries.length) return;
     update(moveTo(entries, i, j));
   }
 
@@ -203,28 +269,63 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
     const next = entries.slice();
     next.splice(i + 1, 0, copy);
     update(next);
-    setSelectedId(copy.id);
+    setSel({ id: copy.id, loop: sel?.loop ?? 0 });
+    notify(`Duplicated ${copy.title || 'untitled'}`);
   }
 
-  // Keyboard: undo/redo, Alt+↑↓ to move the selection, Esc to deselect.
+  function remove(id: string) {
+    const e = entries.find((x) => x.id === id);
+    update(removeEntry(entries, id));
+    if (selectedId === id) setSel(null);
+    notify(`Removed ${e?.title || 'untitled'}`);
+  }
+
+  function setOnAir(id: string, on: boolean) {
+    const e = entries.find((x) => x.id === id);
+    patch(id, { hidden: !on });
+    notify(`${e?.title || 'untitled'} ${on ? 'is back on air' : 'taken off air'}`);
+  }
+
+  // Keyboard: undo/redo, publish, ↑↓ to walk the day, Alt+↑↓ to move, Delete, Esc.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (adding) return;
-      const typing = (e.target as HTMLElement).closest('input, textarea, select');
+      if (adding) {
+        if (e.key === 'Escape') setAdding(false);
+        return;
+      }
+      const typing = (e.target as HTMLElement).closest('input, textarea, select, [contenteditable]');
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === 'z' && !typing) {
+      const key = e.key.toLowerCase();
+      if (mod && key === 's') {
+        e.preventDefault();
+        if (dirty && status !== 'publishing') publish();
+      } else if (typing) {
+        if (e.key === 'Escape') (e.target as HTMLElement).blur();
+      } else if (mod && key === 'z') {
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
-      } else if (mod && e.key.toLowerCase() === 'y' && !typing) {
+      } else if (mod && key === 'y') {
         e.preventDefault();
         redo();
       } else if (e.key === 'Escape') {
-        if (typing) (e.target as HTMLElement).blur();
-        else setSelectedId(null);
-      } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && selectedId && !typing) {
+        setSel(null);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        const dir = e.key === 'ArrowUp' ? -1 : 1;
+        if (e.altKey) {
+          if (!selected) return;
+          e.preventDefault();
+          step(dir);
+          return;
+        }
+        if (!slots.length) return;
         e.preventDefault();
-        step(e.key === 'ArrowUp' ? -1 : 1);
+        const k = selSlot ? slots.indexOf(selSlot) + dir : live ? slots.indexOf(live) : 0;
+        const s = slots[Math.min(Math.max(k, 0), slots.length - 1)];
+        select(onAir[s.idx].id, s.loop, true);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
+        e.preventDefault();
+        remove(selected.id);
       }
     }
     window.addEventListener('keydown', onKey);
@@ -242,19 +343,20 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
     }
     const day = dayRef.current?.getBoundingClientRect();
     if (!day || x < day.left || x > day.right) return null;
-    if (!slots.length) return { kind: 'day', id: null, after: false, at: 0 };
+    if (!slots.length) return { kind: 'day', id: null, after: false, at: 0, loop: 0 };
     const sec = Math.min(Math.max(((yPx - day.top) / ppm) * 60, 0), DAY - 1);
     const s = slots.find((t) => sec >= t.start && sec < t.end) ?? slots[slots.length - 1];
     const after = sec > (s.start + s.end) / 2;
     const id = onAir[s.idx].id;
     if (id === draggingId) return null;
-    return { kind: 'day', id, after, at: after ? s.end : s.start };
+    return { kind: 'day', id, after, at: after ? s.end : s.start, loop: s.loop };
   }
 
-  function startDrag(id: string, e: React.PointerEvent) {
+  function startDrag(id: string, e: React.PointerEvent, loop?: number) {
     if (e.button !== 0) return;
-    e.preventDefault();
-    setDrag({ id, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, active: false, target: null });
+    e.preventDefault(); // no text selection / native drag
+    (document.activeElement as HTMLElement | null)?.blur?.(); // let keyboard shortcuts work right after
+    setDrag({ id, loop, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, active: false, target: null });
   }
 
   // Layout effect: listeners must be live before the browser can deliver the pointerup.
@@ -273,11 +375,11 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
       dragRef.current = null;
       setDrag(null);
       if (!d) return;
-      if (!d.active) setSelectedId(d.id);
-      else if (d.target?.kind === 'library') patch(d.id, { hidden: true });
+      if (!d.active) select(d.id, d.loop, d.loop === undefined);
+      else if (d.target?.kind === 'library') setOnAir(d.id, false);
       else if (d.target?.kind === 'day') {
         update(placeEntry(entries, d.id, d.target.id, d.target.after));
-        setSelectedId(d.id);
+        setSel({ id: d.id, loop: d.target.loop });
       }
     }
     // Auto-scroll near the top/bottom edge while dragging.
@@ -307,10 +409,9 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag !== null]);
 
-  async function publish() {
-    const check = validateManifest({ version: 1, entries });
-    if (!check.ok) {
-      setErrors(check.errors);
+  async function publish(gen = generation) {
+    if (issues.length) {
+      setErrors(issues);
       setStatus('error');
       return;
     }
@@ -320,7 +421,7 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
       const res = await fetch('/api/admin/broadcast', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ manifest: { version: 1, entries }, generation }),
+        body: JSON.stringify({ manifest: { version: 1, entries }, generation: gen }),
       });
       if (res.status === 409) {
         setStatus('conflict');
@@ -328,7 +429,13 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
       }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setErrors(body.details ?? [body.error ?? 'publish failed']);
+        // The admin API 404s when the session is gone (it hides itself from strangers).
+        const expired = res.status === 401 || res.status === 404;
+        setErrors(
+          expired
+            ? ['Your login expired, so nothing was published. Log in again in another tab, then press Publish — your edits stay here.']
+            : (body.details ?? [`publish failed (${body.error ?? res.status})`]),
+        );
         setStatus('error');
         return;
       }
@@ -336,10 +443,39 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
       setGeneration(body.generation);
       setBaseline(entries);
       setStatus('published');
+      notify('Published — the station is playing this lineup now');
     } catch {
-      setErrors(['network error — try again']);
+      setErrors(['network error — nothing was published, try again']);
       setStatus('error');
     }
+  }
+
+  /** Someone published from elsewhere: fetch the live lineup and its generation. */
+  async function fetchLive(): Promise<{ manifest: { entries: BroadcastEntry[] }; generation: string } | null> {
+    try {
+      const res = await fetch('/api/admin/broadcast', { cache: 'no-store' });
+      return res.ok ? await res.json() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function loadLive() {
+    const live = await fetchLive();
+    if (!live) return notify('Could not reach the server');
+    update(live.manifest.entries); // undoable: Ctrl+Z brings your version back
+    setBaseline(live.manifest.entries);
+    setGeneration(live.generation);
+    setStatus('idle');
+    setSel(null);
+    notify('Loaded the live lineup — Ctrl+Z restores yours');
+  }
+
+  async function overwriteLive() {
+    const live = await fetchLive();
+    if (!live) return notify('Could not reach the server');
+    setGeneration(live.generation);
+    publish(live.generation);
   }
 
   const q = query.trim().toLowerCase();
@@ -400,11 +536,21 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
           <button onClick={redo} disabled={!future.length} className={BTN} title="Redo (Ctrl+Shift+Z)">
             ↷
           </button>
-          <span className="w-28 text-right font-mono text-[10.5px] text-white/40">
-            {status === 'published' ? 'published' : dirty ? 'unpublished changes' : 'up to date'}
+          <span
+            className={`w-36 text-right font-mono text-[10.5px] ${issues.length && dirty ? 'text-[#ff8a7d]' : 'text-white/40'}`}
+            title={issues.join('\n')}
+          >
+            {status === 'published' && !dirty
+              ? 'published ✓'
+              : issues.length && dirty
+                ? `${issues.length} problem${issues.length > 1 ? 's' : ''} to fix`
+                : dirty
+                  ? 'unpublished changes'
+                  : 'no changes'}
           </span>
           <button
-            onClick={publish}
+            onClick={() => publish()}
+            title="Publish (Ctrl+S)"
             disabled={!dirty || status === 'publishing'}
             className="h-8 rounded-md bg-white px-4 font-sans text-[12.5px] font-medium text-black hover:bg-white/90 active:scale-[0.97] transition-[transform,background-color] duration-150 disabled:bg-white/10 disabled:text-white/30 disabled:pointer-events-none"
           >
@@ -415,7 +561,11 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
 
       {status === 'conflict' && (
         <Banner tone="warn">
-          the live lineup changed elsewhere — reload the page to get the latest, then redo your edits.
+          <span className="flex flex-wrap items-center gap-3">
+            Someone published a different lineup since you opened this page.
+            <button onClick={loadLive} className={BTN}>Load theirs</button>
+            <button onClick={overwriteLive} className={BTN}>Publish mine over it</button>
+          </span>
         </Banner>
       )}
       {status === 'error' && errors.length > 0 && (
@@ -474,7 +624,13 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
 
         {/* The day */}
         <div className="min-w-0">
-          <div ref={dayRef} className="relative" style={{ height: y(DAY) }}>
+          <div
+            ref={dayRef}
+            className="relative"
+            style={{ height: y(DAY) }}
+            // Clicking empty space on the day clears the selection.
+            onPointerDown={(e) => !(e.target as HTMLElement).closest('[data-block]') && setSel(null)}
+          >
             {Array.from({ length: 24 }, (_, h) => (
               <div key={h} className="absolute left-0 right-0" style={{ top: y(h * 3600) }}>
                 <div className="ml-14 border-t border-white/[0.07]" />
@@ -498,10 +654,12 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
                 entry={onAir[s.idx]}
                 top={y(s.start)}
                 height={y(s.end - s.start)}
-                selected={selectedId === onAir[s.idx].id}
+                selected={s === selSlot}
+                sibling={s !== selSlot && selectedId === onAir[s.idx].id}
+                live={s === live}
                 ghosted={drag?.active === true && drag.id === onAir[s.idx].id}
                 showLoop={s.loop > 0 && s.idx === 0 && y(loopSec) >= 40}
-                onPointerDown={startDrag}
+                onPointerDown={(id, e) => startDrag(id, e, s.loop)}
               />
             ))}
 
@@ -550,16 +708,21 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
             <Inspector
               entry={selected}
               airs={airTimes.get(selected.id) ?? []}
-              isFirst={indexOf(selected.id) === 0}
-              isLast={indexOf(selected.id) === entries.length - 1}
+              current={selSlot?.start}
+              now={now}
+              problems={validateManifest({ version: 1, entries: [selected] }).errors.map((m) => m.replace(/^entry 0: /, ''))}
+              canEarlier={airIdx > 0}
+              canLater={airIdx >= 0 && airIdx < onAir.length - 1}
               onPatch={(f, key) => patch(selected.id, f, key)}
               onStep={step}
-              onDuplicate={() => duplicate(selected.id)}
-              onRemove={() => {
-                update(removeEntry(entries, selected.id));
-                setSelectedId(null);
+              onJump={(i) => {
+                const s = slots.filter((t) => onAir[t.idx].id === selected.id)[i];
+                if (s) select(selected.id, s.loop, true);
               }}
-              onClose={() => setSelectedId(null)}
+              onDuplicate={() => duplicate(selected.id)}
+              onToggleAir={() => setOnAir(selected.id, !!selected.hidden)}
+              onRemove={() => remove(selected.id)}
+              onClose={() => setSel(null)}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-white/12 p-5 font-sans text-[12.5px] leading-relaxed text-white/45">
@@ -567,8 +730,10 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
               <p>Click a block or a library item to edit it.</p>
               <p className="mt-2">Drag from the library onto the day to put something on air. Drag a block back to the library to take it off.</p>
               <div className="mt-4 space-y-1 font-mono text-[10.5px] text-white/35">
+                <p><Kbd>↑ ↓</Kbd> walk the day · <Kbd>Alt ↑↓</Kbd> move it</p>
+                <p><Kbd>Del</Kbd> remove · <Kbd>Esc</Kbd> deselect</p>
                 <p><Kbd>Ctrl Z</Kbd> undo · <Kbd>Ctrl ⇧ Z</Kbd> redo</p>
-                <p><Kbd>Alt ↑↓</Kbd> move selected · <Kbd>Esc</Kbd> deselect</p>
+                <p><Kbd>Ctrl S</Kbd> publish</p>
               </div>
             </div>
           )}
@@ -594,18 +759,39 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
           className="fixed inset-0 z-[60] flex items-start justify-center bg-black/70 backdrop-blur-sm px-6 pt-[12vh]"
           onPointerDown={(e) => e.target === e.currentTarget && setAdding(false)}
         >
-          <div className="w-full max-w-2xl rounded-lg bg-[#0d0d0d] shadow-2xl">
+          <div className="w-full max-w-xl rounded-xl border border-white/10 bg-[#0d0d0d] shadow-2xl">
             <AddPanel
               knownFiles={knownFiles}
               existingIds={entries.map((e) => e.id)}
               onAdd={(entry) => {
                 update(addEntry(entries, entry));
                 setAdding(false);
-                setSelectedId(entry.id);
+                setSel({ id: entry.id, loop: 0 });
+                notify(`Added ${entry.title || 'untitled'} to the end of the loop — drag it where you want it`);
               }}
               onCancel={() => setAdding(false)}
             />
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div
+          key={toast.key}
+          className="toast-in fixed bottom-24 left-1/2 z-[70] -translate-x-1/2 flex items-center gap-4 rounded-lg border border-white/12 bg-[#151515] pl-4 pr-2 h-10 shadow-[0_10px_40px_rgba(0,0,0,0.7)]"
+        >
+          <span className="font-sans text-[12.5px] text-white/85">{toast.msg}</span>
+          {past.length > 0 && !toast.msg.startsWith('Published') && (
+            <button
+              onClick={() => {
+                undo();
+                setToast(null);
+              }}
+              className="h-7 rounded-md px-2.5 font-sans text-[12px] font-medium text-white hover:bg-white/10"
+            >
+              Undo
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -675,6 +861,8 @@ function Block({
   top,
   height: h,
   selected,
+  sibling,
+  live,
   ghosted,
   showLoop,
   onPointerDown,
@@ -684,6 +872,8 @@ function Block({
   top: number;
   height: number;
   selected: boolean;
+  sibling: boolean;
+  live: boolean;
   ghosted: boolean;
   showLoop: boolean;
   onPointerDown: (id: string, e: React.PointerEvent) => void;
@@ -701,17 +891,21 @@ function Block({
         </span>
       )}
       <div
+        data-block
         onPointerDown={(ev) => onPointerDown(e.id, ev)}
+        title={`${e.title || 'untitled'} · ${clockTime(s.start)}–${clockTime(s.end)} · ${formatDuration(e.durationSec)}${s.loop ? ` · play ${s.loop + 1} of the day` : ''}${s.cut ? ' · cut at midnight' : ''}`}
         className={`absolute left-14 right-0 cursor-grab select-none overflow-visible transition-[filter,opacity] duration-150 hover:brightness-125 ${
           h >= 8 ? 'rounded-[6px]' : 'rounded-[2px]'
         }`}
         style={{
           top: top + 1,
           height: Math.max(h - 2, 2),
-          background: `color-mix(in oklab, ${ink} ${selected ? 36 : 22}%, #0c0c0c)`,
-          boxShadow: `inset 3px 0 0 ${ink}${selected ? ', 0 0 0 1.5px rgba(255,255,255,0.85)' : ''}`,
-          opacity: ghosted ? 0.3 : selected || s.loop === 0 ? 1 : 0.55,
-          zIndex: selected ? 2 : 1,
+          background: `color-mix(in oklab, ${ink} ${selected ? 40 : sibling ? 30 : 22}%, #0c0c0c)`,
+          boxShadow: `inset 3px 0 0 ${ink}${
+            selected ? ', 0 0 0 2px #fff' : sibling ? ', inset 0 0 0 1px rgba(255,255,255,0.22)' : ''
+          }${live ? `, inset -3px 0 0 ${NOW_RED}` : ''}`,
+          opacity: ghosted ? 0.3 : selected || live || s.loop === 0 ? 1 : 0.55,
+          zIndex: selected ? 3 : live ? 2 : 1,
         }}
       >
         {/* thin interludes get a taller invisible grab area */}
@@ -721,6 +915,11 @@ function Block({
             <span className="font-sans text-[12.5px] font-medium text-white/90 truncate">
               {e.title || 'untitled'}
             </span>
+            {live && (
+              <span className="shrink-0 rounded px-1 font-mono text-[9px] tracking-[0.12em] text-white" style={{ background: NOW_RED }}>
+                ON AIR
+              </span>
+            )}
             <span className="ml-auto shrink-0 font-mono text-[10px] text-white/40 tabular-nums">
               {clockTime(s.start)} – {clockTime(s.end)}
             </span>
@@ -738,29 +937,55 @@ function Block({
   );
 }
 
+// The manifest stores 'MM-DD-YYYY'; <input type="date"> speaks 'YYYY-MM-DD'.
+const toIso = (mdy: string) => {
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(mdy);
+  return m ? `${m[3]}-${m[1]}-${m[2]}` : '';
+};
+const fromIso = (iso: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `${m[2]}-${m[3]}-${m[1]}` : '';
+};
+const inTime = (sec: number) => {
+  const m = Math.max(1, Math.round(sec / 60));
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
+};
+
 function Inspector({
   entry,
   airs,
-  isFirst,
-  isLast,
+  current,
+  now,
+  problems,
+  canEarlier,
+  canLater,
   onPatch,
   onStep,
+  onJump,
   onDuplicate,
+  onToggleAir,
   onRemove,
   onClose,
 }: {
   entry: BroadcastEntry;
   airs: number[];
-  isFirst: boolean;
-  isLast: boolean;
+  current: number | undefined;
+  now: number | null;
+  problems: string[];
+  canEarlier: boolean;
+  canLater: boolean;
   onPatch: (fields: Partial<BroadcastEntry>, editKey?: string) => void;
   onStep: (dir: -1 | 1) => void;
+  onJump: (i: number) => void;
   onDuplicate: () => void;
+  onToggleAir: () => void;
   onRemove: () => void;
   onClose: () => void;
 }) {
   const [allTimes, setAllTimes] = useState(false);
   const shown = allTimes ? airs : airs.slice(0, 12);
+  const playing = now !== null && airs.some((t) => now >= t && now < t + entry.durationSec);
+  const next = now === null ? undefined : airs.find((t) => t > now);
   return (
     <div className="rounded-lg border border-white/10 bg-white/[0.025] p-4">
       <div className="flex items-start gap-3">
@@ -772,19 +997,47 @@ function Inspector({
             {entry.hidden ? 'off air' : `${airs.length}× a day`}
           </p>
         </div>
-        <button onClick={onClose} className="text-white/35 hover:text-white text-[16px] leading-none" title="Close (Esc)">
+        <button onClick={onClose} className="text-white/35 hover:text-white text-[18px] leading-none px-1" title="Close (Esc)">
           ×
         </button>
       </div>
 
+      {!entry.hidden && now !== null && (playing || next !== undefined) && (
+        <p className="mt-3 flex items-center gap-2 font-sans text-[12px] text-white/70">
+          {playing ? (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: NOW_RED }} /> On air right now
+            </>
+          ) : (
+            <>
+              Next airs at {clockTime(next!)} · in {inTime(next! - now)}
+            </>
+          )}
+        </p>
+      )}
+
+      {problems.length > 0 && (
+        <div className="mt-3 rounded-md border border-[#ff6b5b]/30 bg-[#ff6b5b]/[0.06] px-3 py-2 font-sans text-[11.5px] text-[#ff8a7d]">
+          {problems.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+        </div>
+      )}
+
       {airs.length > 0 && (
         <div className="mt-4">
-          <span className={LABEL}>Airs at</span>
+          <span className={LABEL}>Airs at · click to jump</span>
           <div className="flex flex-wrap gap-1">
             {shown.map((t, i) => (
-              <span key={i} className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10.5px] text-white/70 tabular-nums">
+              <button
+                key={i}
+                onClick={() => onJump(i)}
+                className={`rounded px-1.5 py-0.5 font-mono text-[10.5px] tabular-nums transition-colors ${
+                  t === current ? 'bg-white text-black' : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.12] hover:text-white'
+                }`}
+              >
                 {clockTime(t)}
-              </span>
+              </button>
             ))}
             {airs.length > 12 && (
               <button
@@ -799,10 +1052,16 @@ function Inspector({
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <button onClick={() => onStep(-1)} disabled={isFirst} className={BTN}>↑ Earlier</button>
-        <button onClick={() => onStep(1)} disabled={isLast} className={BTN}>↓ Later</button>
-        <button onClick={onDuplicate} className={BTN}>Duplicate</button>
-        <button onClick={() => onPatch({ hidden: !entry.hidden })} className={BTN}>
+        <button onClick={() => onStep(-1)} disabled={!canEarlier} className={BTN} title="Alt+↑">
+          ↑ Earlier
+        </button>
+        <button onClick={() => onStep(1)} disabled={!canLater} className={BTN} title="Alt+↓">
+          ↓ Later
+        </button>
+        <button onClick={onDuplicate} className={BTN}>
+          Duplicate
+        </button>
+        <button onClick={onToggleAir} className={BTN}>
           {entry.hidden ? 'Put on air' : 'Take off air'}
         </button>
       </div>
@@ -818,59 +1077,35 @@ function Inspector({
         </label>
         <div>
           <span className={LABEL}>Type</span>
-          <div className="flex rounded-md border border-white/12 p-0.5">
-            {(['mix', 'inter'] as BroadcastKind[]).map((k) => (
-              <button
-                key={k}
-                onClick={() => onPatch({ kind: k })}
-                className={`flex-1 h-7 rounded font-sans text-[12px] transition-colors ${
-                  entry.kind === k ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white'
-                }`}
-              >
-                {k === 'mix' ? 'Mix' : 'Interlude'}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            value={entry.kind}
+            options={[
+              ['mix', 'Mix'],
+              ['inter', 'Interlude'],
+            ]}
+            onChange={(k) => onPatch({ kind: k as BroadcastKind })}
+          />
         </div>
         {entry.kind === 'mix' && (
           <>
             <div>
               <span className={LABEL}>Series</span>
-              <div className="flex items-center gap-2">
-                {([undefined, 'red', 'green', 'yellow'] as (BroadcastSeries | undefined)[]).map((sr) => (
-                  <button
-                    key={sr ?? 'none'}
-                    onClick={() => onPatch({ series: sr })}
-                    title={sr ?? 'none'}
-                    className={`w-6 h-6 rounded-full border transition-[box-shadow] ${
-                      entry.series === sr ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''
-                    } ${sr ? 'border-transparent' : 'border-white/25'}`}
-                    style={{ background: sr ? SERIES_INK[sr] : 'transparent' }}
-                  />
-                ))}
-              </div>
+              <SeriesPicker value={entry.series} onChange={(sr) => onPatch({ series: sr })} />
             </div>
             <label className="block">
-              <span className={LABEL}>Date (MM-DD-YYYY)</span>
+              <span className={LABEL}>Date</span>
               <input
-                className={INPUT}
-                value={entry.date}
-                placeholder="05-20-2026"
-                onChange={(e) => onPatch({ date: e.target.value }, 'date')}
+                type="date"
+                className={`${INPUT} [color-scheme:dark]`}
+                value={toIso(entry.date)}
+                onChange={(e) => onPatch({ date: fromIso(e.target.value) }, 'date')}
               />
             </label>
           </>
         )}
         <label className="block">
           <span className={LABEL}>Tags</span>
-          <input
-            className={INPUT}
-            value={entry.tags.join(', ')}
-            placeholder="comma, separated"
-            onChange={(e) =>
-              onPatch({ tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) }, 'tags')
-            }
-          />
+          <TagsInput key={entry.id} value={entry.tags} onChange={(tags) => onPatch({ tags }, 'tags')} />
         </label>
         <p className="font-mono text-[10px] text-white/30 break-all">{entry.file}</p>
       </div>
@@ -878,6 +1113,7 @@ function Inspector({
       <button
         onClick={onRemove}
         className="mt-5 w-full h-8 rounded-md border border-[#ff6b5b]/30 font-sans text-[12px] text-[#ff8a7d] hover:bg-[#ff6b5b]/10 active:scale-[0.97] transition-[transform,background-color] duration-150"
+        title="Delete"
       >
         Remove from lineup
       </button>
@@ -885,7 +1121,110 @@ function Inspector({
   );
 }
 
+/** Comma-separated tags. Keeps the raw text while typing so "a, " doesn't eat the comma. */
+function TagsInput({ value, onChange }: { value: string[]; onChange: (tags: string[]) => void }) {
+  const parse = (t: string) => t.split(',').map((x) => x.trim()).filter(Boolean);
+  const [text, setText] = useState(value.join(', '));
+  // Resync when the tags change from outside (undo/redo).
+  if (parse(text).join(',') !== value.join(',')) setText(value.join(', '));
+  return (
+    <input
+      className={INPUT}
+      value={text}
+      placeholder="comma, separated"
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(parse(e.target.value));
+      }}
+    />
+  );
+}
+
+function Segmented({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: [string, string][];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex rounded-md border border-white/12 p-0.5">
+      {options.map(([v, label]) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          className={`flex-1 h-7 rounded font-sans text-[12px] transition-colors ${
+            value === v ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SeriesPicker({
+  value,
+  onChange,
+}: {
+  value: BroadcastSeries | undefined;
+  onChange: (s: BroadcastSeries | undefined) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      {([undefined, 'red', 'green', 'yellow'] as (BroadcastSeries | undefined)[]).map((sr) => (
+        <button
+          key={sr ?? 'none'}
+          type="button"
+          onClick={() => onChange(sr)}
+          title={sr ?? 'no series'}
+          className={`w-6 h-6 rounded-full border transition-[box-shadow] ${
+            value === sr ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''
+          } ${sr ? 'border-transparent' : 'border-white/25'}`}
+          style={{ background: sr ? SERIES_INK[sr] : 'transparent' }}
+        />
+      ))}
+    </div>
+  );
+}
+
 type AddMode = 'existing' | 'upload';
+
+/** Read an audio file's length locally, before spending time uploading it. */
+function probeDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      if (Number.isFinite(audio.duration) && audio.duration > 0) resolve(Math.round(audio.duration));
+      else reject(new Error('no duration'));
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('decode failed'));
+    };
+    audio.src = url;
+  });
+}
+
+/** PUT with upload progress (fetch can't report it). */
+function putWithProgress(url: string, file: File, onProgress: (f: number) => void): Promise<boolean> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    xhr.setRequestHeader('content-type', 'audio/mpeg');
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
+    xhr.onerror = () => resolve(false);
+    xhr.send(file);
+  });
+}
 
 function AddPanel({
   knownFiles,
@@ -898,198 +1237,213 @@ function AddPanel({
   onAdd: (entry: BroadcastEntry) => void;
   onCancel: () => void;
 }) {
-  const [mode, setMode] = useState<AddMode>(knownFiles.length ? 'existing' : 'upload');
+  const [mode, setMode] = useState<AddMode>('upload');
   const [existingFile, setExistingFile] = useState(knownFiles[0]?.file ?? '');
   const [upload, setUpload] = useState<{ file: string; durationSec: number } | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('Village Radio');
   const [kind, setKind] = useState<BroadcastKind>('mix');
   const [date, setDate] = useState('');
-  const [series, setSeries] = useState<BroadcastSeries | ''>('');
+  const [series, setSeries] = useState<BroadcastSeries | undefined>(undefined);
+  const uploading = progress !== null;
 
-  const selected =
-    mode === 'upload'
-      ? upload
-      : knownFiles.find((f) => f.file === existingFile) ?? null;
+  const selected = mode === 'upload' ? upload : (knownFiles.find((f) => f.file === existingFile) ?? null);
 
   async function uploadAudio(picked: File) {
-    setUploading(true);
     setUploadError('');
     setUpload(null);
+    if (!/\.mp3$/i.test(picked.name)) return setUploadError('Only .mp3 files can be added.');
+    let durationSec: number;
     try {
-      // Step 1: get a presigned R2 URL (avoids Cloud Run's 32 MB body limit).
+      durationSec = await probeDuration(picked);
+    } catch {
+      return setUploadError('Could not read that file — is it a valid mp3?');
+    }
+    setProgress(0);
+    try {
+      // Presigned R2 URL: avoids Cloud Run's 32 MB body limit.
       const presignRes = await fetch('/api/admin/broadcast/presign', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ filename: picked.name }),
       });
-      const presignJson = await presignRes.json().catch(() => ({}));
-      if (!presignRes.ok || !presignJson.ok) {
-        setUploadError(presignJson.error ?? 'presign failed');
-        return;
-      }
-
-      // Step 2: PUT the file directly to R2.
-      const putRes = await fetch(presignJson.url, {
-        method: 'PUT',
-        headers: { 'content-type': 'audio/mpeg' },
-        body: picked,
-      });
-      if (!putRes.ok) {
-        setUploadError('r2 upload failed');
-        return;
-      }
-
-      // Step 3: probe duration from the local file via the browser audio element.
-      const durationSec = await new Promise<number>((resolve, reject) => {
-        const url = URL.createObjectURL(picked);
-        const audio = new Audio(url);
-        audio.addEventListener('loadedmetadata', () => {
-          URL.revokeObjectURL(url);
-          resolve(Math.round(audio.duration));
-        });
-        audio.addEventListener('error', () => {
-          URL.revokeObjectURL(url);
-          reject(new Error('audio decode failed'));
-        });
-      });
-
-      setUpload({ file: presignJson.key, durationSec });
+      const presign = await presignRes.json().catch(() => ({}));
+      if (!presignRes.ok || !presign.ok) return setUploadError(presign.error ?? 'Upload could not start.');
+      if (!(await putWithProgress(presign.url, picked, setProgress)))
+        return setUploadError('Upload failed — check your connection and try again.');
+      setUpload({ file: presign.key, durationSec });
       if (!title) setTitle(picked.name.replace(/\.[^.]+$/, ''));
     } catch {
-      setUploadError('network error');
+      setUploadError('Network error — try again.');
     } finally {
-      setUploading(false);
+      setProgress(null);
     }
   }
 
   function submit() {
-    if (!selected) return;
-    const id = generateEntryId(selected.file, existingIds);
-    const entry: BroadcastEntry = normalize({
-      id,
-      title,
-      artist,
-      date,
-      durationSec: selected.durationSec,
-      file: selected.file,
-      kind,
-      ...(kind === 'mix' && series ? { series } : {}),
-      tags: [],
-    });
-    onAdd(entry);
+    if (!selected || uploading) return;
+    onAdd(
+      normalize({
+        id: generateEntryId(selected.file, existingIds),
+        title: title.trim(),
+        artist: artist.trim(),
+        date,
+        durationSec: selected.durationSec,
+        file: selected.file,
+        kind,
+        ...(kind === 'mix' && series ? { series } : {}),
+        tags: [],
+      }),
+    );
   }
 
   return (
-    <div className="border border-white/15 p-4">
-      <div className="flex gap-4 mb-4">
-        {(['upload', 'existing'] as AddMode[]).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            disabled={m === 'existing' && knownFiles.length === 0}
-            className={`font-mono text-[8.5px] tracking-[0.18em] uppercase transition-colors disabled:opacity-20 ${
-              mode === m ? 'text-white' : 'text-white/30 hover:text-white'
-            }`}
-          >
-            {m === 'upload' ? 'upload new audio' : 'existing file'}
-          </button>
-        ))}
+    <form
+      className="p-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="font-sans text-[15px] font-medium text-white">Add to the lineup</h2>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-white/35 hover:text-white text-[18px] leading-none px-1"
+          title="Close (Esc)"
+        >
+          ×
+        </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-5 gap-y-4">
-        {mode === 'existing' ? (
-          <label>
-            <span className={FIELD_LABEL}>file</span>
-            <select className={FIELD} value={existingFile} onChange={(e) => setExistingFile(e.target.value)}>
-              {knownFiles.map((f) => (
-                <option key={f.file} value={f.file}>
-                  {f.file}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label className="col-span-2">
-            <span className={FIELD_LABEL}>audio file (.mp3)</span>
-            <input
-              type="file"
-              accept="audio/mpeg"
-              disabled={uploading}
-              onChange={(e) => e.target.files?.[0] && uploadAudio(e.target.files[0])}
-              className="block w-full font-mono text-[10px] text-white/50 file:mr-3 file:border file:border-white/20 file:bg-transparent file:px-2 file:py-1 file:font-mono file:text-[9px] file:uppercase file:tracking-[0.16em] file:text-white/70 hover:file:border-white/50"
-            />
-            <span className="block mt-1 font-mono text-[8px] tracking-[0.14em] uppercase text-white/30">
-              {uploading
-                ? 'uploading + probing..'
-                : uploadError
-                  ? uploadError
-                  : upload
-                    ? `${upload.file} · ${formatDuration(upload.durationSec)}`
-                    : 'no file uploaded'}
-            </span>
-          </label>
-        )}
+      {knownFiles.length > 0 && (
+        <div className="mb-4 w-64">
+          <Segmented
+            value={mode}
+            options={[
+              ['upload', 'Upload new audio'],
+              ['existing', 'Reuse a file'],
+            ]}
+            onChange={(m) => setMode(m as AddMode)}
+          />
+        </div>
+      )}
 
-        <label>
-          <span className={FIELD_LABEL}>kind</span>
-          <select className={FIELD} value={kind} onChange={(e) => setKind(e.target.value as BroadcastKind)}>
-            <option value="mix">mix</option>
-            <option value="inter">inter</option>
+      {mode === 'existing' ? (
+        <label className="block mb-4">
+          <span className={LABEL}>File</span>
+          <select
+            className={`${INPUT} [color-scheme:dark]`}
+            value={existingFile}
+            onChange={(e) => setExistingFile(e.target.value)}
+          >
+            {knownFiles.map((f) => (
+              <option key={f.file} value={f.file}>
+                {f.file} · {formatDuration(f.durationSec)}
+              </option>
+            ))}
           </select>
         </label>
-        <label className="col-span-2 md:col-span-1">
-          <span className={FIELD_LABEL}>title</span>
-          <input className={FIELD} value={title} onChange={(e) => setTitle(e.target.value)} />
+      ) : (
+        <label
+          className={`mb-4 flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/20 px-4 py-6 text-center transition-colors ${
+            uploading ? '' : 'hover:border-white/45 cursor-pointer'
+          }`}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const f = e.dataTransfer.files[0];
+            if (f && !uploading) uploadAudio(f);
+          }}
+        >
+          <input
+            type="file"
+            accept=".mp3,audio/mpeg"
+            disabled={uploading}
+            className="sr-only"
+            onChange={(e) => e.target.files?.[0] && uploadAudio(e.target.files[0])}
+          />
+          {progress !== null ? (
+            <>
+              <span className="font-sans text-[12.5px] text-white/80">Uploading… {Math.round(progress * 100)}%</span>
+              <span className="mt-2 h-1 w-56 overflow-hidden rounded-full bg-white/10">
+                <span className="block h-full bg-white transition-[width] duration-200" style={{ width: `${progress * 100}%` }} />
+              </span>
+            </>
+          ) : upload ? (
+            <>
+              <span className="font-sans text-[12.5px] text-white/85">✓ {upload.file}</span>
+              <span className="font-mono text-[10.5px] text-white/40">
+                {formatDuration(upload.durationSec)} · click to replace
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="font-sans text-[12.5px] text-white/80">Drop an .mp3 here, or click to choose</span>
+              <span className="font-mono text-[10.5px] text-white/35">uploads straight to storage</span>
+            </>
+          )}
+          {uploadError && <span className="mt-1 font-sans text-[11.5px] text-[#ff8a7d]">{uploadError}</span>}
         </label>
-        <label>
-          <span className={FIELD_LABEL}>artist</span>
-          <input className={FIELD} value={artist} onChange={(e) => setArtist(e.target.value)} />
+      )}
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3.5">
+        <label className="block col-span-2">
+          <span className={LABEL}>Title</span>
+          <input className={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="RED 05.20.2026" />
         </label>
+        <label className="block">
+          <span className={LABEL}>Artist</span>
+          <input className={INPUT} value={artist} onChange={(e) => setArtist(e.target.value)} />
+        </label>
+        <div>
+          <span className={LABEL}>Type</span>
+          <Segmented
+            value={kind}
+            options={[
+              ['mix', 'Mix'],
+              ['inter', 'Interlude'],
+            ]}
+            onChange={(k) => setKind(k as BroadcastKind)}
+          />
+        </div>
         {kind === 'mix' && (
           <>
-            <label>
-              <span className={FIELD_LABEL}>date (MM-DD-YYYY)</span>
+            <label className="block">
+              <span className={LABEL}>Date</span>
               <input
-                className={FIELD}
-                value={date}
-                placeholder="05-20-2026"
-                onChange={(e) => setDate(e.target.value)}
+                type="date"
+                className={`${INPUT} [color-scheme:dark]`}
+                value={toIso(date)}
+                onChange={(e) => setDate(fromIso(e.target.value))}
               />
             </label>
-            <label>
-              <span className={FIELD_LABEL}>series</span>
-              <select className={FIELD} value={series} onChange={(e) => setSeries(e.target.value as BroadcastSeries | '')}>
-                <option value="">none</option>
-                <option value="red">red</option>
-                <option value="green">green</option>
-                <option value="yellow">yellow</option>
-              </select>
-            </label>
+            <div>
+              <span className={LABEL}>Series</span>
+              <SeriesPicker value={series} onChange={setSeries} />
+            </div>
           </>
         )}
       </div>
 
-      <div className="flex items-center gap-3 mt-5">
-        <button
-          onClick={submit}
-          disabled={!selected || uploading}
-          className="font-mono text-[9.5px] tracking-[0.16em] uppercase text-white border border-white/20 hover:border-white/60 px-3 py-2 transition-colors disabled:opacity-30 disabled:hover:border-white/20"
-        >
-          add ▸
-        </button>
-        <button
-          onClick={onCancel}
-          className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/30 hover:text-white transition-colors"
-        >
-          cancel
-        </button>
-        <span className="font-mono text-[8px] tracking-[0.16em] uppercase text-white/25 ml-auto">
-          {selected ? formatDuration(selected.durationSec) : 'no file'}
+      <div className="mt-6 flex items-center justify-end gap-2">
+        <span className="mr-auto font-mono text-[10.5px] text-white/35">
+          {selected ? `${formatDuration(selected.durationSec)} · goes on the end of the loop` : 'no audio yet'}
         </span>
+        <button type="button" onClick={onCancel} className={BTN}>
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={!selected || uploading}
+          className="h-8 rounded-md bg-white px-4 font-sans text-[12.5px] font-medium text-black hover:bg-white/90 active:scale-[0.97] transition-[transform,background-color] duration-150 disabled:bg-white/10 disabled:text-white/30 disabled:pointer-events-none"
+        >
+          Add
+        </button>
       </div>
-    </div>
+    </form>
   );
 }
