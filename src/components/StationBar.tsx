@@ -75,7 +75,7 @@ export function StationBar() {
           level[c] = target > level[c] ? target : Math.max(target, level[c] - 0.08);
         }
       } else {
-        level.fill(0); // paused: straight to the even grey resting grid, no lingering lit rows
+        for (let c = 0; c < COLS; c++) level[c] = Math.max(0, level[c] - 0.08);
       }
 
       if (frame++ % 30 === 0 && left.current) ink = getComputedStyle(left.current).color;
@@ -88,10 +88,11 @@ export function StationBar() {
           for (let r = 0; r < ROWS; r++) {
             const on = Math.min(Math.max(level[c] - r, 0), 1);
             const rad = 0.75 + on * 1.75;
-            ctx.globalAlpha = 0.35 + on * 0.65; // unlit dots all one grey
             const dy = GAP + r * DY;
-            ctx.beginPath(); ctx.arc(x, H / 2 - dy, rad, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x, H / 2 + dy, rad, 0, Math.PI * 2); ctx.fill();
+            // Every centre on a pixel centre: rows on half-pixels drew crisp and brighter than the rest.
+            const snap = (v: number) => (Math.floor(v * dpr) + 0.5) / dpr;
+            ctx.beginPath(); ctx.arc(snap(x), snap(H / 2 - dy), rad, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(snap(x), snap(H / 2 + dy), rad, 0, Math.PI * 2); ctx.fill();
           }
         }
       });
