@@ -33,7 +33,8 @@ export function SiteFrame({
   const prompt = NO_PROMPT(pathname) ? null : <CommandPrompt commands={commands} />;
 
   if (CHROMELESS.has(pathname)) {
-    return <>{children}<StationBar />{prompt}</>;
+    // Not on the landing page: the rotating logo has the screen to itself.
+    return <>{children}{pathname !== '/' && <StationBar />}{prompt}</>;
   }
 
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {

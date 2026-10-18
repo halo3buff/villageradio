@@ -185,6 +185,14 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
       a.addEventListener('error', () => {
         if (modeRef.current === 'broadcast') setCarrierLost(true);
       });
+      // Pauses we didn't make (media keys, headphones unplugged, the OS taking audio focus):
+      // follow them so the transport never shows "playing" over silence. Deferred, and only
+      // with data buffered, because track switches and re-tunes pause the element briefly.
+      a.addEventListener('pause', () => {
+        setTimeout(() => {
+          if (a.paused && !a.ended && a.readyState >= 3) pause();
+        }, 1500);
+      });
       audioRef.current = a;
     }
     return audioRef.current;
@@ -197,6 +205,11 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     }
     const ctx = new AudioContext();
     webCtxRef.current = ctx;
+    // The audio runs through this context, so if the OS suspends it the station is silent:
+    // pause the element, which the listener above turns into a proper pause.
+    ctx.onstatechange = () => {
+      if (ctx.state !== 'running' && !audio.paused) audio.pause();
+    };
 
     const source   = ctx.createMediaElementSource(audio);
     const splitter = ctx.createChannelSplitter(2);

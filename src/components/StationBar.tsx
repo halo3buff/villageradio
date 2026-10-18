@@ -50,13 +50,20 @@ export function StationBar() {
       ctx?.scale(dpr, dpr);
       return ctx;
     });
-    let ink = '#fff', frame = 0;
+    let ink = '#fff', frame = 0, lastSum = NaN, still = 0;
 
     const loop = () => {
       const a = freqRef.current;
       if (liveRef.current && a) {
         if (buf.length !== a.frequencyBinCount) buf = new Float32Array(a.frequencyBinCount);
         a.getFloatFrequencyData(buf);
+        // A frozen spectrum means no audio is actually flowing (e.g. a suspended context):
+        // let the dots fall instead of holding a stale frame.
+        let sum = 0;
+        for (let i = 0; i < buf.length; i += 16) sum += buf[i];
+        still = sum === lastSum ? still + 1 : 0;
+        lastSum = sum;
+        if (still > 10) buf.fill(-Infinity);
         const hz = a.context.sampleRate / 2 / buf.length;
         for (let c = 0; c < COLS; c++) {
           const f = 20 * Math.pow(1000, c / (COLS - 1));
