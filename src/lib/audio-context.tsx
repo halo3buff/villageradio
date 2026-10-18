@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useRef, useState, useEffect, useMemo } from 'react';
 import type { Mix } from '@/lib/types';
+import { broadcastPosition, secondsIntoDay } from '@/lib/content/broadcast';
 
 type AudioMode = 'idle' | 'broadcast' | 'individual';
 
@@ -27,8 +28,8 @@ interface AudioCtx {
 const PlayerContext = createContext<AudioCtx | null>(null);
 
 // --- Drift correction tuning -------------------------------------------------
-// The broadcast position is derived from the UTC epoch clock (Date.now()), so it
-// is identical for every listener at a given instant — timezone never matters.
+// The broadcast position is derived from the clock (Date.now()), anchored to midnight in
+// BROADCAST_TZ, so it is identical for every listener at a given instant.
 // The only per-user variance is a *wrong* device clock, corrected by the server
 // offset. These constants govern how we gently re-converge during a session.
 const NUDGE_THRESHOLD_SEC = 0.25;       // ignore drift smaller than this
@@ -66,15 +67,7 @@ async function fetchServerOffsetMs(): Promise<number> {
 // Returns which track is currently "on air" and how many seconds into it.
 // offsetMs corrects for a skewed local clock (from fetchServerOffsetMs).
 function getBroadcastPosition(durations: number[], offsetMs: number): { trackIdx: number; offsetSec: number } {
-  const total = durations.reduce((a, b) => a + b, 0);
-  if (total === 0) return { trackIdx: 0, offsetSec: 0 };
-
-  let elapsed = ((Date.now() + offsetMs) / 1000) % total;
-  for (let i = 0; i < durations.length; i++) {
-    if (elapsed < durations[i]) return { trackIdx: i, offsetSec: elapsed };
-    elapsed -= durations[i];
-  }
-  return { trackIdx: 0, offsetSec: 0 };
+  return broadcastPosition(durations, Date.now() + offsetMs);
 }
 
 export function AudioProvider({ children, playlist }: { children: React.ReactNode; playlist: Mix[] }) {
@@ -293,7 +286,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
       trackTitle: broadcast[trackIdx].title,
       seek: Math.round(offsetSec),
       totalDuration: Math.round(totalDuration),
-      elapsed: Math.round(((Date.now() + serverOffsetRef.current) / 1000) % totalDuration),
+      elapsed: Math.round(secondsIntoDay(Date.now() + serverOffsetRef.current) % totalDuration),
       serverOffsetMs: Math.round(serverOffsetRef.current),
     });
 

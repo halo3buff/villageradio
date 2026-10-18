@@ -11,7 +11,14 @@ import {
   generateEntryId,
   validateManifest,
 } from '@/lib/content/arrange';
-import { formatDuration } from '@/lib/content/broadcast';
+import {
+  formatDuration,
+  daySchedule,
+  clockTime,
+  secondsIntoDay,
+  BROADCAST_TZ,
+  type Slot,
+} from '@/lib/content/broadcast';
 import { Banner, RowBtn, FIELD, FIELD_LABEL } from './ui';
 
 type Props = { initialEntries: BroadcastEntry[]; generation: string };
@@ -41,7 +48,20 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
   const [errors, setErrors] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [hoverId, setHoverId] = useState<string | null>(null);
   const dragIndex = useRef<number | null>(null);
+
+  // The day as it will actually air: hidden entries drop out, the loop restarts at midnight.
+  const onAir = useMemo(() => entries.filter((e) => !e.hidden), [entries]);
+  const slots = useMemo(() => daySchedule(onAir.map((e) => e.durationSec)), [onAir]);
+  const airTimes = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const s of slots) {
+      const id = onAir[s.idx].id;
+      map.set(id, [...(map.get(id) ?? []), s.start]);
+    }
+    return map;
+  }, [slots, onAir]);
 
   const dirty = useMemo(
     () => JSON.stringify(entries) !== JSON.stringify(baseline),
@@ -128,7 +148,7 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
         </span>
       </div>
       <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/25 mb-6">
-        play order is top → bottom · drag or use ↑↓ · hide skips an entry from rotation without
+        play order is top → bottom, starting at midnight · drag or use ↑↓ · hide skips an entry from rotation without
         removing it · changes are staged until you publish
       </p>
 
@@ -150,6 +170,8 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
       )}
       {status === 'published' && <Banner tone="ok">published — changes are live.</Banner>}
 
+      <DayTimeline slots={slots} onAir={onAir} hoverId={hoverId} onHover={setHoverId} />
+
       {/* List */}
       <ul className="border-t border-black/10">
         {entries.map((entry, i) => (
@@ -159,7 +181,9 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
             onDragStart={() => (dragIndex.current = i)}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => onDrop(i)}
-            className="border-b border-black/10"
+            onMouseEnter={() => setHoverId(entry.id)}
+            onMouseLeave={() => setHoverId(null)}
+            className={`border-b border-black/10 transition-colors ${hoverId === entry.id ? 'bg-black/[0.04]' : ''}`}
           >
             <div className={`flex items-center gap-3 py-2.5 ${entry.hidden ? 'opacity-40' : ''}`}>
               <span className="font-mono text-[9px] text-black/20 w-6 shrink-0 text-right">
@@ -181,6 +205,19 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
                 {entry.title || <span className="text-black/30">untitled</span>}
                 <span className="text-black/25"> · {entry.kind}</span>
                 {entry.hidden && <span className="text-black/25"> · hidden</span>}
+              </span>
+              <span
+                className="font-mono text-[9px] text-black/60 w-24 shrink-0 tabular-nums"
+                title={airTimes.get(entry.id)?.map(clockTime).join(' · ')}
+              >
+                {airTimes.has(entry.id) ? (
+                  <>
+                    {clockTime(airTimes.get(entry.id)![0])}
+                    <span className="text-black/25"> ×{airTimes.get(entry.id)!.length}</span>
+                  </>
+                ) : (
+                  <span className="text-black/20">off air</span>
+                )}
               </span>
               <span className="font-mono text-[9px] text-black/30 w-20 shrink-0 truncate">
                 {entry.date}
@@ -249,6 +286,90 @@ export function ArrangementList({ initialEntries, generation: initialGen }: Prop
           {dirty ? 'staged changes' : 'no changes'}
         </span>
       </div>
+    </div>
+  );
+}
+
+const TICKS = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+
+/** 24h strip of the day as it airs — first loop solid, repeats faded, now-line in red. */
+function DayTimeline({
+  slots,
+  onAir,
+  hoverId,
+  onHover,
+}: {
+  slots: Slot[];
+  onAir: BroadcastEntry[];
+  hoverId: string | null;
+  onHover: (id: string | null) => void;
+}) {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const tick = () => setNow(secondsIntoDay(Date.now()));
+    tick();
+    const t = setInterval(tick, 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const loopSec = onAir.reduce((s, e) => s + e.durationSec, 0);
+  const cut = slots.find((s) => s.cut);
+  const pct = (sec: number) => `${(sec / 864).toFixed(4)}%`;
+
+  if (!slots.length) {
+    return (
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/30 mb-6">
+        nothing on air — every entry is hidden
+      </p>
+    );
+  }
+
+  return (
+    <div className="mb-6">
+      <div className="relative h-9 border border-black/15 bg-black/[0.02]">
+        {slots.map((s, k) => {
+          const e = onAir[s.idx];
+          const ink = e.kind === 'mix' && e.series ? SERIES_INK[e.series] : 'rgba(0,0,0,0.18)';
+          const hot = hoverId === e.id;
+          return (
+            <div
+              key={k}
+              onMouseEnter={() => onHover(e.id)}
+              onMouseLeave={() => onHover(null)}
+              title={`${clockTime(s.start)}–${clockTime(s.end)} · ${e.title || 'untitled'}${s.cut ? ' (cut at midnight)' : ''}`}
+              className="absolute top-0 bottom-0 border-r border-white/70"
+              style={{
+                left: pct(s.start),
+                width: pct(s.end - s.start),
+                backgroundColor: ink,
+                opacity: hot ? 1 : s.loop === 0 ? 0.85 : 0.35,
+                boxShadow: hot ? 'inset 0 0 0 2px #000' : undefined,
+              }}
+            />
+          );
+        })}
+        {now !== null && (
+          <div className="absolute -top-1 -bottom-1 w-px bg-[#c0392b]" style={{ left: pct(now) }} title={`now ${clockTime(now)}`} />
+        )}
+      </div>
+      <div className="relative h-4 mt-1">
+        {TICKS.map((h) => (
+          <span
+            key={h}
+            className="absolute font-mono text-[8px] text-black/30 -translate-x-1/2 first:translate-x-0 last:-translate-x-full"
+            style={{ left: pct(h * 3600) }}
+          >
+            {String(h % 24).padStart(2, '0')}:00
+          </span>
+        ))}
+      </div>
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-black/35 mt-2">
+        loop {formatDuration(loopSec)} · plays {(86_400 / loopSec).toFixed(1)}× a day ·{' '}
+        {cut
+          ? `midnight cuts "${onAir[cut.idx].title || 'untitled'}" at ${formatDuration(cut.end - cut.start)} of ${formatDuration(onAir[cut.idx].durationSec)}`
+          : 'fits the day exactly'}{' '}
+        · {BROADCAST_TZ.replace('_', ' ')}
+      </p>
     </div>
   );
 }
