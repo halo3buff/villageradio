@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { CommandPrompt } from '@/components/CommandPrompt';
+import { StationBar } from '@/components/StationBar';
 import type { NavCommand } from '@/lib/types';
 
 /**
@@ -32,7 +33,7 @@ export function SiteFrame({
   const prompt = NO_PROMPT(pathname) ? null : <CommandPrompt commands={commands} />;
 
   if (CHROMELESS.has(pathname)) {
-    return <>{children}{prompt}</>;
+    return <>{children}<StationBar />{prompt}</>;
   }
 
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
@@ -49,6 +50,7 @@ export function SiteFrame({
     <>
       {nav}
       {children}
+      <StationBar />
       {prompt}
     </>
   );
