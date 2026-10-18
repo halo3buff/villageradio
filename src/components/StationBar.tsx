@@ -87,7 +87,8 @@ export function StationBar() {
           const x = (side === 0 ? COLS - 1 - c : c) * DX + DX / 2; // low end next to the clock
           for (let r = 0; r < ROWS; r++) {
             const on = Math.min(Math.max(level[c] - r, 0), 1);
-            const rad = 0.75 + on * 1.75;
+            if (on <= 0.02) continue; // unlit dots aren't drawn: paused = empty, no resting rows
+            const rad = 0.5 + on * 2;
             const dy = GAP + r * DY;
             ctx.beginPath(); ctx.arc(x, H / 2 - dy, rad, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(x, H / 2 + dy, rad, 0, Math.PI * 2); ctx.fill();
