@@ -88,6 +88,7 @@ export function StationBar() {
           for (let r = 0; r < ROWS; r++) {
             const on = Math.min(Math.max(level[c] - r, 0), 1);
             const rad = 0.75 + on * 1.75;
+            ctx.globalAlpha = 0.7 + on * 0.3; // resting dots a touch darker; lit dots still reach full ink
             const dy = GAP + r * DY;
             // Every centre on a pixel centre: rows on half-pixels drew crisp and brighter than the rest.
             const snap = (v: number) => (Math.floor(v * dpr) + 0.5) / dpr;
