@@ -101,10 +101,10 @@ const glowCols: string[] = [];   // and its colour
 const hold = [-Infinity, -Infinity];   // the row's L/R meters' peak holds, dB
 let lastRow = 0;
 
-// the stack's ridgeline: third-octave spectra, one pushed every RIDGE_MS
-const RIDGES = 14, RIDGE_MS = 110;
-const ridgeRows: Float32Array[] = [];
-let lastRidge = 0;
+// the stack's scope: the last SWEEPS traces, and its auto gain
+const SWEEPS = 6;
+const sweeps: Float32Array[] = [];
+let scopeGain = 1;
 
 type Align = 'left' | 'right' | 'center';
 
@@ -195,7 +195,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
       t(iso.slice(11, 19), cx, cy + 9.5, 7.5, INK, 'center');
     }
     // ± and STEREO hang off the frame's top corner
-    const o = plate ? 0 : hdr - HDR;
+    const o = plate ? 0 : hdr - HDR + (stack ? 26 : 0);   // the stack's sits beside the screen
     t('±', R + 10, 53 + o, 9, INK, 'center');
     line(R + 10, 58 + o, R + 10, 66 + o);
     ctx.save();
@@ -312,8 +312,8 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     readouts(base + READ_Y);
     line(S_X0, base + STACK_RULE, S_X1, base + STACK_RULE);
     for (const [i, [x0, y0, x1, y1, dx, dy, k]] of PIECES.entries()) {
-      // the spectrum dots are the StationBar's now; this slot gets the ridgeline
-      if (i === 0) { ridges(px(dx), px(base + dy), (x1 - x0) * k, (y1 - y0) * k); continue; }
+      // the spectrum dots are the StationBar's now; this slot gets the scope
+      if (i === 0) { scope(px(dx), px(base + dy), (x1 - x0) * k, (y1 - y0) * k); continue; }
       ctx.save();
       ctx.translate(px(dx), px(base + dy)); ctx.scale(k, k); ctx.translate(-x0, -y0);
       ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
@@ -340,36 +340,57 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   }
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
 
-  // A ridgeline of the spectrum's recent past: the newest spectrum at the front,
-  // older ones stacked behind it, each painted over the last so the front hides them.
-  function ridges(x: number, y: number, w: number, h: number) {
-    const now = performance.now();
-    if (now - lastRidge >= RIDGE_MS) {
-      lastRidge = now;
-      ridgeRows.unshift(Float32Array.from(m.bands, db => clamp((db + 84) / 70, 0, 1) ** 1.6));
-      ridgeRows.length = Math.min(ridgeRows.length, RIDGES);
+  // An oscilloscope on the mid signal: triggered on a rising zero crossing so the
+  // wave stands still, auto-gained, with the last few sweeps fading behind it.
+  function scope(x: number, y: number, w: number, h: number) {
+    // low-passed (~450 Hz, one pole, run twice) so it draws the music's body, not its hiss
+    const n = m.lHead, span = n >> 1, a = 0.06;
+    const mid = new Float32Array(n);
+    for (let pass = 0, v = 0; pass < 2; pass++, v = 0) {
+      for (let k = 0; k < n; k++) mid[k] = v += ((pass ? mid[k] : (m.lx[k] + m.ly[k]) / 2) - v) * a;
     }
-    // the back ridge's tallest peak still clears the caption
-    const amp = 24, foot = y + h - 14, pitch = (foot - y - 12 - amp) / (RIDGES - 1);
-    const NB = THIRD_OCTAVE.length;
-    for (let r = ridgeRows.length - 1; r >= 0; r--) {
-      const row = ridgeRows[r], base = foot - r * pitch;
+    let trig = n - span;
+    for (let k = 64; k < n - span; k++) if (mid[k - 1] < 0 && mid[k] >= 0) { trig = k; break; }
+    const sweep = mid.slice(trig, trig + span);
+    let peak = 0;
+    for (const v of sweep) peak = Math.max(peak, Math.abs(v));
+    scopeGain += (0.85 / Math.max(peak, 0.02) - scopeGain) * 0.08;
+    sweeps.unshift(sweep);
+    sweeps.length = Math.min(sweeps.length, SWEEPS);
+
+    const top = y + 11, bot = y + h - 11, cy = (top + bot) / 2, hh = (bot - top) / 2;
+    const dim = 'rgba(236,230,210,0.22)';
+    box(x, top, w, bot - top, 'rgba(236,230,210,0.35)', 0.6);
+    for (let i = 1; i < 8; i++) {
+      const gx = x + (i * w) / 8;
+      ctx.setLineDash([1, 2.5]); line(gx, top, gx, bot, dim, 0.5); ctx.setLineDash([]);
+    }
+    for (const f of [-0.5, 0.5]) { ctx.setLineDash([1, 2.5]); line(x, cy + f * hh, x + w, cy + f * hh, dim, 0.5); ctx.setLineDash([]); }
+    line(x, cy, x + w, cy, dim, 0.6);
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, top, w, bot - top); ctx.clip();
+    for (let r = sweeps.length - 1; r >= 0; r--) {
+      const sw = sweeps[r];
       ctx.beginPath();
-      ctx.moveTo(x, base);
-      for (let b = 0; b < NB; b++) {
-        // tapered at the ends, so every ridge rises out of a flat line
-        const taper = Math.sin((Math.PI * (b + 0.5)) / NB) ** 0.6;
-        ctx.lineTo(x + (b / (NB - 1)) * w, base - row[b] * amp * taper);
+      for (let k = 0; k < sw.length; k++) {
+        const px2 = x + (k / (sw.length - 1)) * w, py = cy - clamp(sw[k] * scopeGain, -1.1, 1.1) * hh;
+        if (k) ctx.lineTo(px2, py); else ctx.moveTo(px2, py);
       }
-      ctx.lineTo(x + w, base);
-      ctx.fillStyle = PAPER; ctx.fill();
-      ctx.globalAlpha = 1 - (r / RIDGES) * 0.75;
-      ctx.strokeStyle = INK; ctx.lineWidth = 0.8; ctx.stroke();
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = r ? 0.5 * (1 - r / SWEEPS) : 1;
+      ctx.strokeStyle = r ? TRACE : INK; ctx.lineWidth = r ? 0.7 : 0.9;
+      if (!r) { ctx.shadowColor = TRACE; ctx.shadowBlur = 5 * s; }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
     }
-    ([['20', 20], ['320', 320], ['5K', 5000], ['20K', 20000]] as [string, number][])
-      .forEach(([l, f], i) => t(l, x + (Math.log(f / 20) / Math.log(1000)) * w, y + h - 3, 6.5, INK, i ? i === 3 ? 'right' : 'center' : 'left'));
-    t(`1/3 OCT, LAST ${((RIDGES * RIDGE_MS) / 1000).toFixed(1)} S`, x, y + 6, 5.5);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
+    const ms = (span / m.sr) * 1000;   // the pairs are consecutive samples
+    t('SCOPE  MID  TRIG +', x, y + 7, 5.5);
+    t(`AUTO X${f1(scopeGain)}`, x + w, y + 7, 5.5, INK, 'right');
+    t('0', x, y + h - 2, 6);
+    t(`${f0(ms)} MS`, x + w, y + h - 2, 6, INK, 'right');
   }
 
   // the row's L/R peak meters, after the readouts: bars with a falling hold

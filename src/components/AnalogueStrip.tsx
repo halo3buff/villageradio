@@ -312,6 +312,12 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
           el.width = Math.round(cw * s); el.height = Math.round(ch * s);
           el.style.height = `${(ch * cssW) / cw}px`;
         }
+        // land the backing pixels on device pixels: a canvas at a fractional x is
+        // resampled, which softens all the small type
+        const dpr = window.devicePixelRatio || 1;
+        const fx = (wrap.getBoundingClientRect().left * dpr) % 1;
+        const want = `${-fx / dpr}px 0`;
+        if (el.style.translate !== want) el.style.translate = want;
         ctx.setTransform(s, 0, 0, s, 0, 0);
         if (PLATE) drawPlate(ctx, s, m, NUM_FONT, stack); else draw(ctx, s, m, stack);
       }

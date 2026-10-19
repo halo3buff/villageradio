@@ -54,7 +54,7 @@ export function HomeDesktop() {
         /* desktop: hung straight under the StationBar, the Lissajous (plate x 22..339 of 372)
            spanning the bar from its play button to its far dots */
         @media (min-width: 716px) {
-          .station-fit { width: ${(BAR_SPAN * 372) / 317}px; margin: -${PAD_TOP}px auto 0; translate: calc(${(BAR_SPAN - BAR_W) / 2}px + ${(5.5 / 372) * 100}%) 0; }
+          .station-fit { width: ${Math.round((BAR_SPAN * 372) / 317)}px; margin: -${PAD_TOP}px auto 0; translate: calc(${(BAR_SPAN - BAR_W) / 2}px + ${(5.5 / 372) * 100}%) 0; }
         }
       `}</style>
       <div style={{
