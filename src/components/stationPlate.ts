@@ -4,7 +4,7 @@ import seedCommands from '@/lib/content/seed/commands.json';
 import type { Metrics } from './AnalogueStrip';
 
 /**
- * stationPlate — the station drawn as a printed instrument plate: black
+ * stationPlate â€” the station drawn as a printed instrument plate: black
  * stock, cream ink, one dark screen carrying yellow annotations. The layout
  * follows the reference plate position for position; what fills it is this
  * station's own measurements (see AnalogueStrip, which computes them and
@@ -101,10 +101,9 @@ const glowCols: string[] = [];   // and its colour
 const hold = [-Infinity, -Infinity];   // the row's L/R meters' peak holds, dB
 let lastRow = 0;
 
-// the stack's scope: the last SWEEPS traces, and its auto gain
-const SWEEPS = 6;
+// the stack's scope: the last SWEEPS traces' min/max envelopes, newest first
+const SWEEPS = 4;
 const sweeps: Float32Array[] = [];
-let scopeGain = 1;
 
 type Align = 'left' | 'right' | 'center';
 
@@ -174,17 +173,17 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     ctx.restore();
   };
   const badge = () => {
-    // transport badge — the play button sits over this
+    // transport badge â€” the play button sits over this
     ctx.fillStyle = INK; ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
   };
 
-  // ── stock and frame ──────────────────────────────────────────────────────
+  // â”€â”€ stock and frame â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
   // in the row the frame holds only the row; header and STEREO sit outside it
   if (plate) box(8, 8, W - 16, H - 16, INK, 0.6);
   else if (!stack) box(8, hdr + 8, W - 36, H - hdr - 16, INK, 0.6);   // the stack goes frameless
 
-  // ── header: clock, sample rate, date, and STEREO down the side ──────────
+  // â”€â”€ header: clock, sample rate, date, and STEREO down the side â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // L / R = left and right edges of the content, cx = the clock's centre
   const header = (L: number, cx: number, R: number) => {
     // in the row the clock sits on the header line, level with SR and the date
@@ -194,9 +193,9 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
       box(cx - 26, cy, 52, 13);
       t(iso.slice(11, 19), cx, cy + 9.5, 7.5, INK, 'center');
     }
-    // ± and STEREO hang off the frame's top corner
+    // Â± and STEREO hang off the frame's top corner
     const o = plate ? 0 : hdr - HDR + (stack ? 26 : 0);   // the stack's sits beside the screen
-    t('±', R + 10, 53 + o, 9, INK, 'center');
+    t('Â±', R + 10, 53 + o, 9, INK, 'center');
     line(R + 10, 58 + o, R + 10, 66 + o);
     ctx.save();
     ctx.translate(R + 7, 72 + o); ctx.rotate(Math.PI / 2);
@@ -212,7 +211,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
 
   if (!plate) {
     if (stack) header(10, 180, 351); else header(10, 291, 568);
-    // ── the small screen: the stereo field, far left / on top, on the stock ──
+    // â”€â”€ the small screen: the stereo field, far left / on top, on the stock â”€â”€
     const X = 22, Y = 22 + hdr, D = stack ? LISS_MAX : 156, DH = stack ? lissH : D;
     box(X, Y, D, DH, 'rgba(236,230,210,0.35)', 0.6);
     field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
@@ -227,7 +226,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   } else {
     header(35, 298, 563);
 
-    // ── the screen ───────────────────────────────────────────────────────────
+    // â”€â”€ the screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const SX = 33, SY = 57, SW = 530, SH = 341;
     ctx.fillStyle = SCREEN; ctx.fillRect(SX, SY, SW, SH);
     // the weave of the print
@@ -340,57 +339,73 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   }
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
 
-  // An oscilloscope on the mid signal: triggered on a rising zero crossing so the
-  // wave stands still, auto-gained, with the last few sweeps fading behind it.
+  // A triggered oscilloscope on the true mid signal, (L+R)/2 at full scale: no
+  // filtering and no auto gain on what's drawn. The trigger alone looks through a
+  // low-pass (a scope's HF reject) so the wave locks still on a rising zero crossing.
+  // Each device-pixel column draws its samples' min to max, as a DAW does, so nothing
+  // between the pixels is lost. Paused, it is a flat trace with a dim beam crossing it.
   function scope(x: number, y: number, w: number, h: number) {
-    // low-passed (~450 Hz, one pole, run twice) so it draws the music's body, not its hiss
-    const n = m.lHead, span = n >> 1, a = 0.06;
-    const mid = new Float32Array(n);
-    for (let pass = 0, v = 0; pass < 2; pass++, v = 0) {
-      for (let k = 0; k < n; k++) mid[k] = v += ((pass ? mid[k] : (m.lx[k] + m.ly[k]) / 2) - v) * a;
-    }
-    let trig = n - span;
-    for (let k = 64; k < n - span; k++) if (mid[k - 1] < 0 && mid[k] >= 0) { trig = k; break; }
-    const sweep = mid.slice(trig, trig + span);
-    let peak = 0;
-    for (const v of sweep) peak = Math.max(peak, Math.abs(v));
-    scopeGain += (0.85 / Math.max(peak, 0.02) - scopeGain) * 0.08;
-    sweeps.unshift(sweep);
-    sweeps.length = Math.min(sweeps.length, SWEEPS);
-
     const top = y + 11, bot = y + h - 11, cy = (top + bot) / 2, hh = (bot - top) / 2;
     const dim = 'rgba(236,230,210,0.22)';
     box(x, top, w, bot - top, 'rgba(236,230,210,0.35)', 0.6);
-    for (let i = 1; i < 8; i++) {
-      const gx = x + (i * w) / 8;
-      ctx.setLineDash([1, 2.5]); line(gx, top, gx, bot, dim, 0.5); ctx.setLineDash([]);
-    }
-    for (const f of [-0.5, 0.5]) { ctx.setLineDash([1, 2.5]); line(x, cy + f * hh, x + w, cy + f * hh, dim, 0.5); ctx.setLineDash([]); }
+    ctx.setLineDash([1, 2.5]);
+    for (let i = 1; i < 8; i++) line(x + (i * w) / 8, top, x + (i * w) / 8, bot, dim, 0.5);
+    for (const f of [-0.5, 0.5]) line(x, cy + f * hh, x + w, cy + f * hh, dim, 0.5);   // -6 dBFS
+    ctx.setLineDash([]);
     line(x, cy, x + w, cy, dim, 0.6);
 
-    ctx.save();
-    ctx.beginPath(); ctx.rect(x, top, w, bot - top); ctx.clip();
-    for (let r = sweeps.length - 1; r >= 0; r--) {
-      const sw = sweeps[r];
-      ctx.beginPath();
-      for (let k = 0; k < sw.length; k++) {
-        const px2 = x + (k / (sw.length - 1)) * w, py = cy - clamp(sw[k] * scopeGain, -1.1, 1.1) * hh;
-        if (k) ctx.lineTo(px2, py); else ctx.moveTo(px2, py);
+    const wave = m.wave, span = wave.length >> 1;
+    const cols = Math.max(1, Math.round(w * s));
+    if (!m.live) {
+      sweeps.length = 0;
+      const beam = x + ((performance.now() % 2400) / 2400) * w;
+      line(x, cy, x + w, cy, 'rgba(236,230,210,0.5)', 1 / s);
+      ctx.save();
+      ctx.shadowColor = TRACE; ctx.shadowBlur = 4 * s;
+      dot(beam, cy, 0.9, 'rgba(160,210,255,0.7)');
+      ctx.restore();
+    } else {
+      let trig = span, armed = false;
+      for (let k = 0, lp = 0; k < span; k++) {
+        lp += (wave[k] - lp) * 0.06;
+        if (lp < -0.004) armed = true;
+        else if (armed && lp >= 0) { trig = Math.max(0, k - 8); break; }   // the filter's lag
       }
-      ctx.globalAlpha = r ? 0.5 * (1 - r / SWEEPS) : 1;
-      ctx.strokeStyle = r ? TRACE : INK; ctx.lineWidth = r ? 0.7 : 0.9;
-      if (!r) { ctx.shadowColor = TRACE; ctx.shadowBlur = 5 * s; }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-    ctx.restore();
-    ctx.globalAlpha = 1;
+      const env = new Float32Array(cols * 2);
+      for (let c = 0; c < cols; c++) {
+        const a = trig + Math.floor((c * span) / cols), b = trig + Math.floor(((c + 1) * span) / cols);
+        let lo = wave[a], hi = wave[a];
+        for (let k = a + 1; k < b; k++) { const v = wave[k]; if (v < lo) lo = v; else if (v > hi) hi = v; }
+        env[c * 2] = lo; env[c * 2 + 1] = hi;
+      }
+      sweeps.unshift(env);
+      sweeps.length = Math.min(sweeps.length, SWEEPS);
 
-    const ms = (span / m.sr) * 1000;   // the pairs are consecutive samples
-    t('SCOPE  MID  TRIG +', x, y + 7, 5.5);
-    t(`AUTO X${f1(scopeGain)}`, x + w, y + 7, 5.5, INK, 'right');
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, top, w, bot - top); ctx.clip();
+      for (let r = sweeps.length - 1; r >= 0; r--) {
+        const e = sweeps[r];
+        ctx.beginPath();
+        for (let c = 0; c < cols; c++) {
+          const px2 = x + ((c + 0.5) / cols) * w;
+          const y0 = cy - clamp(e[c * 2 + 1], -1, 1) * hh, y1 = cy - clamp(e[c * 2], -1, 1) * hh;
+          if (c) ctx.lineTo(px2, y0); else ctx.moveTo(px2, y0);
+          ctx.lineTo(px2, Math.max(y1, y0 + 1 / s));
+        }
+        ctx.globalAlpha = r ? 0.3 * (1 - r / SWEEPS) : 1;
+        ctx.strokeStyle = r ? TRACE : INK; ctx.lineWidth = 1 / s;
+        if (!r) { ctx.shadowColor = TRACE; ctx.shadowBlur = 3 * s; }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    t(`SCOPE  L+R  ${m.live ? 'TRIG +' : 'NO SIGNAL'}`, x, y + 7, 5.5);
+    t('1.0 FS / DIV 6 DB', x + w, y + 7, 5.5, INK, 'right');
     t('0', x, y + h - 2, 6);
-    t(`${f0(ms)} MS`, x + w, y + h - 2, 6, INK, 'right');
+    t(`${f0((span / m.sr) * 1000)} MS`, x + w, y + h - 2, 6, INK, 'right');
   }
 
   // the row's L/R peak meters, after the readouts: bars with a falling hold
@@ -415,7 +430,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   // the row's right-hand readouts sit 12 further right, up to the band levels
   const R_DX = stack ? 0 : 12;
 
-  // ── under the screen: the readout row ────────────────────────────────────
+  // â”€â”€ under the screen: the readout row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const list: [string, boolean][] = [
     [`PGM ${f1(m.mom)} LUFS`, true],
     [`INT ${f1(m.integ)}`, false],
@@ -450,7 +465,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
 
   line(ROW ? 27 : 20, 462, stack ? 580 : 446 + R_DX, 462);   // stops short of the bit matrix
 
-  // ── dot matrix: the third-octave spectrum, mirrored ──────────────────────
+  // â”€â”€ dot matrix: the third-octave spectrum, mirrored â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const COLS = 18, X0 = 31, DX = 8.9;
   const colX = (c: number) => X0 + c * DX;
   ([['20', 20], ['80', 80], ['320', 320], ['1K2', 1250], ['5K', 5000], ['20K', 20000]] as [string, number][])
@@ -474,7 +489,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   'OCT'.split('').forEach((ch, i) => t(ch, colX(4.25 + i * 4.25), 566, 6.5, INK, 'center'));
   t('BAND', 189, 566, 6.5, INK, 'right');
 
-  // ── middle column ────────────────────────────────────────────────────────
+  // â”€â”€ middle column â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   line(195, 484, 425, 484);
   line(195, 480, 195, 488); line(425, 480, 425, 488);
   for (let i = 0; i < 5; i++) {
@@ -519,7 +534,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   t(`${f0(m.since)} S`, 408 + R_DX, 553, 5);
   t(`> ${m.live ? 'LIVE' : 'TEST'} <`, 408 + R_DX, 562, 5.5);
 
-  // ── bit matrix: a row of band-level parity every ROW_MS ──────────────────
+  // â”€â”€ bit matrix: a row of band-level parity every ROW_MS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const now = performance.now();
   if (now - lastRow >= ROW_MS) {
     lastRow = now;

@@ -106,6 +106,7 @@ const FFT_SIZE = 8192;
 // audio immediately, so there is no persistence to drag the shape behind it.
 const LISS = 1100;          // sample pairs plotted, newest window only
 const LISS_SPAN = 2048;     // samples back from the head (~43 ms at 48k)
+const WAVE = 4096;          // scope: trigger search in the first half, the second half drawn
 const HOLD_DECAY = 12;      // dB per second
 const BTN_PX = 10;          // transport button type size
 const GRADIENT = true;      // whisper of a wash behind the strip
@@ -135,6 +136,7 @@ export type Metrics = {
   gLevel: number[]; gPeak: number[]; gCoh: number[];
   bands: Float32Array;                 // third-octave levels, dBFS
   lx: Float32Array; ly: Float32Array; lHead: number;
+  wave: Float32Array;                  // the newest WAVE samples of (L+R)/2, raw, for the scope
   since: number;
 };
 
@@ -209,6 +211,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
       since: 0,
       bands: bandDb,
       lx: new Float32Array(LISS), ly: new Float32Array(LISS), lHead: 0,
+      wave: new Float32Array(WAVE),
     };
 
     let raf = 0, prev = performance.now() / 1000, lastDraw = 0;
@@ -276,6 +279,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
         m.ly[lp] = bufL[i];
       }
       m.lHead = lp;
+      for (let i = 0, o = FFT_SIZE - WAVE; i < WAVE; i++) m.wave[i] = (bufL[o + i] + bufR[o + i]) / 2;
 
       m.pkL = peakDb(bufL); m.pkR = peakDb(bufR);
       m.tpL = truePeakDb(bufL); m.tpR = truePeakDb(bufR);
