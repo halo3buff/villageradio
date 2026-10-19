@@ -101,6 +101,11 @@ const glowCols: string[] = [];   // and its colour
 const hold = [-Infinity, -Infinity];   // the row's L/R meters' peak holds, dB
 let lastRow = 0;
 
+// the stack's ridgeline: third-octave spectra, one pushed every RIDGE_MS
+const RIDGES = 14, RIDGE_MS = 110;
+const ridgeRows: Float32Array[] = [];
+let lastRidge = 0;
+
 type Align = 'left' | 'right' | 'center';
 
 export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, mono: string, stack = false) {
@@ -177,7 +182,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
   // in the row the frame holds only the row; header and STEREO sit outside it
   if (plate) box(8, 8, W - 16, H - 16, INK, 0.6);
-  else box(8, hdr + 8, W - (stack ? 27 : 36), H - hdr - 16, INK, 0.6);
+  else if (!stack) box(8, hdr + 8, W - 36, H - hdr - 16, INK, 0.6);   // the stack goes frameless
 
   // ── header: clock, sample rate, date, and STEREO down the side ──────────
   // L / R = left and right edges of the content, cx = the clock's centre
@@ -211,8 +216,12 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     const X = 22, Y = 22 + hdr, D = stack ? LISS_MAX : 156, DH = stack ? lissH : D;
     box(X, Y, D, DH, 'rgba(236,230,210,0.35)', 0.6);
     field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
-    badge();
-    t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2.5, 6.5);
+    // the stack's transport is the StationBar's: no badge, just the state in the corner
+    if (stack) t(m.live ? '[ ON AIR ]' : '[ PLAY ]', X + 6, Y + 13, 8.5);
+    else {
+      badge();
+      t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2.5, 6.5);
+    }
     t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5);
     t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, INK, 'right');
   } else {
@@ -302,7 +311,9 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     const base = S_TOP + lissH;
     readouts(base + READ_Y);
     line(S_X0, base + STACK_RULE, S_X1, base + STACK_RULE);
-    for (const [x0, y0, x1, y1, dx, dy, k] of PIECES) {
+    for (const [i, [x0, y0, x1, y1, dx, dy, k]] of PIECES.entries()) {
+      // the spectrum dots are the StationBar's now; this slot gets the ridgeline
+      if (i === 0) { ridges(px(dx), px(base + dy), (x1 - x0) * k, (y1 - y0) * k); continue; }
       ctx.save();
       ctx.translate(px(dx), px(base + dy)); ctx.scale(k, k); ctx.translate(-x0, -y0);
       ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
@@ -328,6 +339,38 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     ctx.restore();
   }
   (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
+
+  // A ridgeline of the spectrum's recent past: the newest spectrum at the front,
+  // older ones stacked behind it, each painted over the last so the front hides them.
+  function ridges(x: number, y: number, w: number, h: number) {
+    const now = performance.now();
+    if (now - lastRidge >= RIDGE_MS) {
+      lastRidge = now;
+      ridgeRows.unshift(Float32Array.from(m.bands, db => clamp((db + 84) / 70, 0, 1) ** 1.6));
+      ridgeRows.length = Math.min(ridgeRows.length, RIDGES);
+    }
+    // the back ridge's tallest peak still clears the caption
+    const amp = 24, foot = y + h - 14, pitch = (foot - y - 12 - amp) / (RIDGES - 1);
+    const NB = THIRD_OCTAVE.length;
+    for (let r = ridgeRows.length - 1; r >= 0; r--) {
+      const row = ridgeRows[r], base = foot - r * pitch;
+      ctx.beginPath();
+      ctx.moveTo(x, base);
+      for (let b = 0; b < NB; b++) {
+        // tapered at the ends, so every ridge rises out of a flat line
+        const taper = Math.sin((Math.PI * (b + 0.5)) / NB) ** 0.6;
+        ctx.lineTo(x + (b / (NB - 1)) * w, base - row[b] * amp * taper);
+      }
+      ctx.lineTo(x + w, base);
+      ctx.fillStyle = PAPER; ctx.fill();
+      ctx.globalAlpha = 1 - (r / RIDGES) * 0.75;
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ([['20', 20], ['320', 320], ['5K', 5000], ['20K', 20000]] as [string, number][])
+      .forEach(([l, f], i) => t(l, x + (Math.log(f / 20) / Math.log(1000)) * w, y + h - 3, 6.5, INK, i ? i === 3 ? 'right' : 'center' : 'left'));
+    t(`1/3 OCT, LAST ${((RIDGES * RIDGE_MS) / 1000).toFixed(1)} S`, x, y + 6, 5.5);
+  }
 
   // the row's L/R peak meters, after the readouts: bars with a falling hold
   function meters() {

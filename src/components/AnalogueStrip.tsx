@@ -325,7 +325,8 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
   return (
     <div ref={wrapRef} style={{ width: '100%', position: 'relative' }}>
       <canvas ref={canvasRef} style={{ display: 'block', width: '100%', background: BG }} />
-      <button
+      {/* the plate's transport is the StationBar's play button */}
+      {!PLATE && <button
         type="button"
         onClick={() => (isPlaying ? pause() : broadcastPlay())}
         aria-label={isPlaying ? 'Stop broadcast' : 'Play broadcast'}
@@ -364,7 +365,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
             ? <rect x="1" y="1" width="8" height="8" fill="currentColor" />
             : <path d="M2 1 L9 5 L2 9 Z" fill="currentColor" />}
         </svg>
-      </button>
+      </button>}
     </div>
   );
 }
