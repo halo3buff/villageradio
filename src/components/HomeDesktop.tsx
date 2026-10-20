@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { AnalogueStrip } from '@/components/AnalogueStrip';
 import { STACK_MIN_H } from '@/components/stationPlate';
-import { BAR_SPAN, BAR_W } from '@/components/StationBar';
+import { DOTS_SPAN } from '@/components/StationBar';
 import { useEffect, useRef } from 'react';
 
 const SYS  = "'Geneva', Tahoma, 'MS Sans Serif', Verdana, sans-serif";
@@ -52,9 +52,9 @@ export function HomeDesktop() {
       <style>{`
         .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + PAD_TOP + PAD_BOTTOM}px) * 372 / ${STACK_MIN_H})); margin: auto; }
         /* desktop: hung straight under the StationBar, the Lissajous (plate x 22..339 of 372)
-           spanning the bar from its play button to its far dots */
+           spanning the bar from its far-left dots to its far-right ones */
         @media (min-width: 716px) {
-          .station-fit { width: ${Math.round((BAR_SPAN * 372) / 317)}px; margin: -${PAD_TOP}px auto 0; translate: calc(${(BAR_SPAN - BAR_W) / 2}px + ${(5.5 / 372) * 100}%) 0; }
+          .station-fit { width: ${Math.round((DOTS_SPAN * 372) / 317)}px; margin: -${PAD_TOP}px auto 0; translate: ${(5.5 / 372) * 100}% 0; }
         }
       `}</style>
       <div style={{

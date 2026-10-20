@@ -15,9 +15,8 @@ const DX = 7, DY = 5.5, GAP = 3.5; // column pitch, row pitch, half-gap at the c
 const W = COLS * DX, H = Math.ceil(2 * (GAP + (ROWS - 1) * DY) + 8);
 const BW = 2 ** (1 / 6); // half a third-octave
 const CLOCK_W = 88;
-/** The bar's full width (desktop), and its visible span: play button to the far dots. */
-export const BAR_W = 2 * (22 + 12 + W + 12) + CLOCK_W;
-export const BAR_SPAN = BAR_W - 22 - 12;
+/** Desktop: outer edge of the far-left dots to the far-right ones, centred on the clock. */
+export const DOTS_SPAN = 2 * (W + 12) + CLOCK_W - 2 * (DX / 2 - 0.75);
 
 function utcClock() {
   return new Date().toISOString().slice(11, 19);
