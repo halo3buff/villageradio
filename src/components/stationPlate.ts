@@ -41,7 +41,7 @@ const ROW_PIECES = [
 const S_X0 = 22, S_X1 = 339;                // content edges
 const S_TOP = HDR_STACK + 22;               // the screen's top edge
 const READ_Y = 8, READ_H = 70;              // the readout table, below the screen
-const STACK_REST = READ_Y + READ_H + 6;
+const STACK_REST = READ_Y + READ_H + 7;
 // The screen is as tall as the phone allows: fitStack sizes it so the whole
 // stack fills the space it's given exactly. The field inside stays round.
 const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0;
@@ -274,9 +274,10 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
         `> ${m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL'} <`,
       ]],
     ];
-    const cw = (S_X1 - S_X0) / 3;
+    const PAD = 7;   // inside the box that encloses the table
+    const cw = (S_X1 - S_X0 - 2 * PAD) / 3;
     cols.forEach(([tag, rows], c) => {
-      const x = S_X0 + c * cw + (c ? 7 : 0);
+      const x = S_X0 + PAD + c * cw + (c ? 7 : 0);
       if (c) line(x - 7, top, x - 7, top + READ_H);
       const w = tag.length * 4 + 9;
       box(x, top, w, 9.5);
@@ -287,6 +288,8 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   const px = (v: number) => Math.round(v * s) / s;
   if (stack) {
     const base = S_TOP + lissH;
+    // enclosed in the screen's own border, its bottom edge doubling as this box's top
+    box(S_X0, base, S_X1 - S_X0, READ_Y + READ_H + 4, 'rgba(236,230,210,0.35)', 0.6);
     readouts(base + READ_Y);
   } else {
     ctx.save();
