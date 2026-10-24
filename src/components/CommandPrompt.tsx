@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { NavCommand } from '@/lib/types';
 import { grantClearance } from '@/lib/clearance';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-const PS1 = 'MAIN:/vlg/stn/broadcast > ';
+// The prompt's "file" is the page you're on; anything unlisted shows its own last segment.
+const FILES: Record<string, string> = {
+  '/': 'landing', '/station': 'broadcast', '/information': 'README_0', '/station/readme': 'README_1',
+};
+const ps1 = (path: string) => `MAIN:/vlg/stn/${FILES[path] ?? path.split('/').pop()} > `;
 
 /**
  * The station's command line — one instance, mounted by SiteFrame, fixed at the
@@ -25,6 +29,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     ...PASSPHRASE,
   };
   const router = useRouter();
+  const PS1 = ps1(usePathname());
   const inputRef = useRef<HTMLInputElement>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [cmd, setCmd] = useState('');

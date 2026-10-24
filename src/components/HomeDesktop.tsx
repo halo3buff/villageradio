@@ -74,7 +74,7 @@ export function HomeDesktop() {
 
       {/* README — top-right corner */}
       <Link
-        href="/information"
+        href="/station/readme"
         style={{
           position: 'absolute', top: 24, right: 24, zIndex: 5,
           fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',

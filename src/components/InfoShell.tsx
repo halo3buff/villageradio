@@ -8,10 +8,11 @@ import { DesktopInfo } from '@/components/DesktopInfo';
 interface InfoShellProps {
   content: string;
   commands: NavCommand[];
+  back?: string;
 }
 
-export function InfoShell({ content, commands }: InfoShellProps) {
+export function InfoShell({ content, commands, back = '/' }: InfoShellProps) {
   const isMobile = useIsMobile();
-  if (isMobile) return <MobileInfo content={content} commands={commands} />;
-  return <DesktopInfo content={content} commands={commands} />;
+  if (isMobile) return <MobileInfo content={content} commands={commands} back={back} />;
+  return <DesktopInfo content={content} commands={commands} back={back} />;
 }

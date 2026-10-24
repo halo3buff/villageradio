@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { GATED_PATHS, revokeClearance } from '@/lib/clearance';
+import { gateOf, revokeClearance } from '@/lib/clearance';
 
 /**
  * Armed-on-leave clearance policy. Mounted once in the root layout.
@@ -23,7 +23,9 @@ export function ClearanceWarden() {
   useEffect(() => {
     const prev = prevRef.current;
     if (prev !== pathname) {
-      if (GATED_PATHS.has(prev)) revokeClearance(prev);
+      // leaving a gated section burns its pass; moving within it (station ⇄ README_1) doesn't
+      const gate = gateOf(prev);
+      if (gate && gate !== gateOf(pathname)) revokeClearance(gate);
       prevRef.current = pathname;
     }
   }, [pathname]);

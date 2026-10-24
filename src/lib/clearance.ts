@@ -21,6 +21,13 @@ const KEY_PREFIX = 'vr-clearance:';
  *  terminal and the manual must always be reachable. */
 export const GATED_PATHS = new Set(['/listen', '/news', '/photography', '/work', '/transmit', '/station']);
 
+/** The gate a path sits under: '/station/readme' → '/station'. A pass covers its whole
+ *  section, so moving within one (station ⇄ its README) never burns it. */
+export function gateOf(path: string): string | null {
+  const root = '/' + (path.split('/')[1] ?? '');
+  return GATED_PATHS.has(root) ? root : null;
+}
+
 export function grantClearance(path: string): void {
   if (!GATED_PATHS.has(path)) return;
   try {

@@ -124,7 +124,7 @@ const reducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function DesktopInfo({ content, commands }: { content: string; commands: NavCommand[] }) {
+export function DesktopInfo({ content, commands, back = '/' }: { content: string; commands: NavCommand[]; back?: string }) {
   const { T } = useTheme();
   const [scale, setScale] = useState(1);
 
@@ -301,7 +301,7 @@ export function DesktopInfo({ content, commands }: { content: string; commands: 
         </div>
 
         {/* Back arrow — centered on email midpoint */}
-        <Link href="/" style={{
+        <Link href={back} style={{
           position: 'absolute', right: 95, top: 942,
           display: 'block', width: 50, height: 50,
           pointerEvents: 'auto',

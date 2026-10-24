@@ -27,14 +27,14 @@ const BOTTOM_SUFFIX =
   '0000000000000000000000000000000000000000000000000000000000';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function MobileInfo({ content, commands }: { content: string; commands: NavCommand[] }) {
+export function MobileInfo({ content, commands, back = '/' }: { content: string; commands: NavCommand[]; back?: string }) {
   const { T } = useTheme();
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'var(--vlg-bg, #fff)', overflow: 'hidden' }}>
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
-        <Link href="/" style={{
+        <Link href={back} style={{
           position: 'absolute', left: vw(17), top: dvh(16), display: 'block',
           width: vw(50), height: vw(50),
         }}>
