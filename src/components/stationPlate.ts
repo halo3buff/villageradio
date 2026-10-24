@@ -61,13 +61,34 @@ export function fitStack(ratio: number) {
   TALL.h = S_TOP + lissH + STACK_REST;
 }
 
-// Inverted from the reference: black stock, cream ink. Swap PAPER and INK
-// (and drop the screen's outline) to print it on cream again.
-const PAPER = '#000000';
-const INK = '#ece6d2';
-const SCREEN = '#131210';
+// The mint report-cover stock: dark olive ink on mint, and the screen a dark
+// olive print window with the trace glowing through in the stock's own mint.
+// Colours sampled from the reference cover.
+const PAPER = '#3fd89e';
+const INK = '#2b3626';
+const SCREEN = '#36442e';
 const YEL = '#f0c02c';
-const TRACE = '#3aa8ff';   // the Lissajous trace, scope blue
+const TRACE = '#62f2b6';   // the Lissajous trace, mint light through the print
+const SCREEN_INK = 'rgba(98,242,182,0.8)';   // type on the screen
+const SCREEN_DIM = 'rgba(98,242,182,0.3)';   // the screen's graticule
+
+// film grain over the screen: one random tile, drawn at a fresh offset each frame
+let grain: CanvasPattern | null = null;
+function grainPattern(ctx: CanvasRenderingContext2D) {
+  if (grain) return grain;
+  const c = document.createElement('canvas');
+  c.width = c.height = 160;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(160, 160);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = Math.random();
+    const light = v > 0.5;
+    img.data[i] = light ? 120 : 10; img.data[i + 1] = light ? 255 : 18; img.data[i + 2] = light ? 190 : 12;
+    img.data[i + 3] = Math.abs(v - 0.5) ** 2 * 4 * 255 * 0.22;
+  }
+  g.putImageData(img, 0, 0);
+  return (grain = ctx.createPattern(c, 'repeat'));
+}
 // the waterfall's glowing dots: scope blue and the README's command colours
 const GLOWS = [TRACE, ...new Set(seedCommands.commands.map(c => paletteColor(THEMES.default, c.cmd)))];
 
@@ -126,7 +147,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   // the stereo field: x = right, y = left; the diagonals are mono / anti-phase
   // R / Ry = horizontal / vertical radius
   const field = (cx: number, cy: number, R: number, Ry = R) => {
-    const dim = 'rgba(236,230,210,0.28)';
+    const dim = SCREEN_DIM;
     line(cx - R, cy, cx + R, cy, dim, 0.6);
     line(cx, cy - Ry, cx, cy + Ry, dim, 0.6);
     ctx.setLineDash([3, 4]);
@@ -137,18 +158,18 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
       line(cx + v * R, cy - 2.5, cx + v * R, cy + 2.5, dim, 0.6);
       line(cx - 2.5, cy - v * Ry, cx + 2.5, cy - v * Ry, dim, 0.6);
     }
-    t('XL', cx + 4, cy - Ry + 5, 5);
-    t('XR', cx + R - 9, cy - 4, 5);
-    // blue phosphor: one path, one fill, so the glow is drawn once not per dot
+    t('XL', cx + 4, cy - Ry + 5, 5, SCREEN_INK);
+    t('XR', cx + R - 9, cy - 4, 5, SCREEN_INK);
+    // mint light through the print: one path, filled as a wide haze, a glow, then a soft core
     ctx.beginPath();
     for (let k = 0; k < m.lHead; k++) {
-      ctx.rect(cx + clamp(m.lx[k], -1, 1) * R - 0.6, cy - clamp(m.ly[k], -1, 1) * Ry - 0.6, 1.2, 1.2);
+      ctx.rect(cx + clamp(m.lx[k], -1, 1) * R - 0.7, cy - clamp(m.ly[k], -1, 1) * Ry - 0.7, 1.4, 1.4);
     }
     ctx.save();
-    ctx.fillStyle = TRACE; ctx.shadowColor = TRACE; ctx.shadowBlur = 6 * s;
-    ctx.fill();
-    ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(220,240,255,0.55)';   // hot core
-    ctx.fill();
+    ctx.fillStyle = TRACE; ctx.shadowColor = TRACE;
+    ctx.globalAlpha = 0.35; ctx.shadowBlur = 18 * s; ctx.fill();
+    ctx.globalAlpha = 0.8; ctx.shadowBlur = 6 * s; ctx.fill();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = '#c8ffe6'; ctx.fill();
     ctx.restore();
   };
   const badge = () => {
@@ -192,16 +213,26 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     if (stack) header(10, 180, 351); else header(10, 291, 568);
     // ── the small screen: the stereo field, far left / on top, on the stock ──
     const X = 22, Y = 22 + hdr, D = stack ? LISS_MAX : 156, DH = stack ? lissH : D;
-    box(X, Y, D, DH, 'rgba(236,230,210,0.35)', 0.6);
+    // the print window: dark olive, a soft vignette, the field, then grain over all of it
+    ctx.fillStyle = SCREEN; ctx.fillRect(X, Y, D, DH);
+    const vig = ctx.createRadialGradient(X + D / 2, Y + DH / 2, Math.min(D, DH) * 0.2, X + D / 2, Y + DH / 2, Math.max(D, DH) * 0.75);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(10,16,8,0.45)');
+    ctx.fillStyle = vig; ctx.fillRect(X, Y, D, DH);
     field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
     // the stack's transport is the StationBar's: no badge, just the state in the corner
-    if (stack) t(m.live ? '[ ON AIR ]' : '[ PLAY ]', X + 6, Y + 13, 8.5);
+    if (stack) t(m.live ? '[ ON AIR ]' : '[ PLAY ]', X + 6, Y + 13, 8.5, SCREEN_INK);
     else {
       badge();
-      t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2.5, 6.5);
+      t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2.5, 6.5, SCREEN_INK);
     }
-    t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5);
-    t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, INK, 'right');
+    t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5, SCREEN_INK);
+    t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, SCREEN_INK, 'right');
+    const gp = grainPattern(ctx);
+    if (gp) {
+      const k = 1.6 / s;   // a grain is ~1.6 device pixels
+      gp.setTransform(new DOMMatrix([k, 0, 0, k, Math.random() * 160 * k, Math.random() * 160 * k]));
+      ctx.fillStyle = gp; ctx.fillRect(X, Y, D, DH);
+    }
   } else {
     header(35, 298, 563);
 
@@ -289,7 +320,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   if (stack) {
     const base = S_TOP + lissH;
     // enclosed in the screen's own border, its bottom edge doubling as this box's top
-    box(S_X0, base, S_X1 - S_X0, READ_Y + READ_H + 4, 'rgba(236,230,210,0.35)', 0.6);
+    box(S_X0, base, S_X1 - S_X0, READ_Y + READ_H + 4, INK, 0.6);
     readouts(base + READ_Y);
   } else {
     ctx.save();

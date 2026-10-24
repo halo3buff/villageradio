@@ -31,7 +31,12 @@ export function HomeDesktop() {
     const body = document.body;
     const prev = body.style.minHeight;
     body.style.minHeight = '0';
-    return () => { body.style.minHeight = prev; };
+    // the station wears the mint cover stock; the rest of the site keeps its theme
+    document.documentElement.classList.add('station-mint');
+    return () => {
+      body.style.minHeight = prev;
+      document.documentElement.classList.remove('station-mint');
+    };
   }, []);
 
   return (
@@ -50,6 +55,12 @@ export function HomeDesktop() {
           this cap only bites on phones too short for even its smallest
           screen. The page never scrolls. margin:auto centres it. */}
       <style>{`
+        /* !important: ThemeProvider writes the theme's vars inline on :root */
+        html.station-mint {
+          --vlg-bg: #3fd89e !important; --vlg-fg: #2b3626 !important;
+          --vlg-fg-dim: rgba(43,54,38,0.6) !important; --vlg-cmd-cursor: #2b3626 !important;
+          --vlg-border: rgba(43,54,38,0.35) !important; --vlg-strong: #2b3626 !important;
+        }
         .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + PAD_TOP + PAD_BOTTOM}px) * 372 / ${STACK_MIN_H})); margin: auto; }
         /* desktop: hung straight under the StationBar, the Lissajous (plate x 22..339 of 372)
            spanning the bar from its far-left dots to its far-right ones */
