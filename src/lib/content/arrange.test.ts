@@ -9,6 +9,7 @@ import {
   generateEntryId,
   validateManifest,
   placeEntry,
+  placeAt,
 } from './arrange';
 
 function mix(id: string, file = `${id}.mp3`): BroadcastEntry {
@@ -157,5 +158,37 @@ describe('placeEntry', () => {
     expect(placed[0].hidden).toBe(false);
     expect(ids(placeEntry([e('a', true), e('b')], 'a', null, false))).toBe('b,a');
     expect(ids(placeEntry(list, 'a', 'a', true))).toBe('a,b');
+  });
+});
+
+describe('placeAt', () => {
+  const len = (id: string) => ({ a: 600, b: 300 })[id] ?? 0;
+  const day = [
+    { id: '1', entry: 'a', start: 0, plays: 1 },     // 0–600
+    { id: '2', entry: 'b', start: 600, plays: 1 },   // 600–900
+    { id: '3', entry: 'a', start: 2000, plays: 1 },  // 2000–2600
+  ];
+
+  it('places at any second and ripples blocks it overlaps', () => {
+    const r = placeAt(day, len, { id: 'n', entry: 'b', start: 1800, plays: 1 });
+    expect(r.schedule.map((b) => [b.id, b.start])).toEqual([['1', 0], ['2', 600], ['n', 1800], ['3', 2100]]);
+  });
+
+  it('lands on the nearer edge when dropped inside a block', () => {
+    expect(placeAt(day, len, { id: 'n', entry: 'b', start: 100, plays: 1 }).schedule.find((b) => b.id === 'n')!.start).toBe(0);
+    expect(placeAt(day, len, { id: 'n', entry: 'b', start: 2500, plays: 1 }).schedule.find((b) => b.id === 'n')!.start).toBe(2600);
+  });
+
+  it('merges a copy dropped against the same mix into one longer block', () => {
+    const r = placeAt(day, len, { id: 'n', entry: 'a', start: 2600, plays: 1 });
+    expect(r.id).toBe('3');
+    expect(r.schedule.find((b) => b.id === '3')!.plays).toBe(2);
+  });
+
+  it('drops blocks rippled past midnight', () => {
+    const r = placeAt([{ id: '1', entry: 'a', start: 86_000, plays: 1 }], len, { id: 'n', entry: 'a', start: 85_000, plays: 2 });
+    expect(r.dropped).toBe(0); // merged, not dropped
+    const r2 = placeAt([{ id: '1', entry: 'b', start: 86_000, plays: 1 }], len, { id: 'n', entry: 'a', start: 85_900, plays: 1 });
+    expect(r2.dropped).toBe(1);
   });
 });

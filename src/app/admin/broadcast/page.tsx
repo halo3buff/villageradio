@@ -14,5 +14,5 @@ export default async function AdminBroadcast() {
   const manifest = res?.data ?? SEED_BROADCAST;
   const generation = res?.generation ?? '0';
 
-  return <ArrangementList initialEntries={manifest.entries} generation={generation} />;
+  return <ArrangementList initial={manifest} generation={generation} />;
 }

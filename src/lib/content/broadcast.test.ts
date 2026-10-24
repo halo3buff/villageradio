@@ -6,7 +6,9 @@ import {
   manifestToMixes,
   broadcastFilesFrom,
   secondsIntoDay,
-  broadcastPosition,
+  daySegments,
+  positionAt,
+  toPlacements,
   daySchedule,
   clockTime,
 } from './broadcast';
@@ -64,9 +66,10 @@ describe('day clock', () => {
   it('restarts the rotation at midnight', () => {
     const midnight = Date.parse('2026-03-01T00:00:00-05:00'); // EST midnight
     expect(secondsIntoDay(midnight)).toBe(0);
-    expect(broadcastPosition([100, 200], midnight)).toEqual({ trackIdx: 0, offsetSec: 0 });
-    expect(broadcastPosition([100, 200], midnight + 150_000)).toEqual({ trackIdx: 1, offsetSec: 50 });
-    expect(broadcastPosition([100, 200], midnight + 350_000)).toEqual({ trackIdx: 0, offsetSec: 50 });
+    const segs = daySegments(manifest); // legacy loop: 22 + 498 + 22
+    expect(positionAt(segs, 0)).toEqual({ idx: 0, offset: 0, until: 22 });
+    expect(positionAt(segs, 100)).toEqual({ idx: 1, offset: 78, until: 520 });
+    expect(positionAt(segs, 542 + 30)).toEqual({ idx: 1, offset: 8, until: 1062 });
   });
 
   it('fills the day with loops and cuts the last one at midnight', () => {
@@ -80,5 +83,31 @@ describe('day clock', () => {
     ]);
     expect(daySchedule([0, 0])).toEqual([]);
     expect(clockTime(75_660)).toBe('21:01');
+  });
+});
+
+describe('placed schedule', () => {
+  const placed = (extra: Partial<BroadcastManifest>): BroadcastManifest => ({ ...manifest, ...extra });
+
+  it('airs blocks at their times, repeats them, and is silent in between', () => {
+    const segs = daySegments(placed({ schedule: [{ id: 'a', entry: 'red-1', start: 3600, plays: 2 }] }));
+    expect(segs).toEqual([{ start: 3600, end: 3600 + 996, idx: 1, loop: 498, pid: 'a' }]);
+    expect(positionAt(segs, 10)).toEqual({ idx: -1, offset: 0, until: 3600 });
+    expect(positionAt(segs, 3600 + 500)).toEqual({ idx: 1, offset: 2, until: 3600 + 996 });
+    expect(positionAt(segs, 5000)).toEqual({ idx: -1, offset: 0, until: 86_400 });
+  });
+
+  it('loops the filler through empty time', () => {
+    const segs = daySegments(placed({ schedule: [{ id: 'a', entry: 'red-1', start: 100, plays: 1 }], filler: 'inter-1' }));
+    expect(segs[0]).toEqual({ start: 0, end: 100, idx: 0, loop: 22, filler: true });
+    expect(segs[2]).toEqual({ start: 598, end: 86_400, idx: 0, loop: 22, filler: true });
+    expect(positionAt(segs, 50)).toEqual({ idx: 0, offset: 6, until: 66 });
+  });
+
+  it('converts a legacy loop into merged blocks covering the same day', () => {
+    const legacy = { version: 1 as const, entries: [manifest.entries[1]] };
+    const blocks = toPlacements(legacy);
+    expect(blocks).toEqual([{ id: 'p1', entry: 'red-1', start: 0, plays: Math.ceil(86_400 / 498) }]);
+    expect(positionAt(daySegments({ ...legacy, schedule: blocks }), 1000)).toEqual(positionAt(daySegments(legacy), 1000));
   });
 });

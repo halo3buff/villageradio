@@ -1,4 +1,4 @@
-import type { BroadcastEntry, BroadcastManifest } from '@/lib/types';
+import type { BroadcastEntry, BroadcastManifest, Placement } from '@/lib/types';
 import { uniqueSuffix } from './ids';
 
 // Pure, importable arrangement helpers. The client editor is a thin shell over these so the
@@ -39,6 +39,48 @@ export function placeEntry(
   const at = t < 0 ? rest.length : t + (after ? 1 : 0);
   rest.splice(at, 0, { ...moving, hidden: false });
   return rest;
+}
+
+const DAY = 86_400;
+
+/**
+ * Put `block` on the day at `block.start` (new or moved — matched by id). Dropped inside another
+ * block, it lands on that block's nearer edge. Blocks it would overlap ripple later; any pushed
+ * to or past midnight fall off (counted in `dropped`). Touching blocks of the same entry merge
+ * into one longer block; `id` is the block that now holds the placed one.
+ */
+export function placeAt(
+  schedule: Placement[],
+  lenOf: (entryId: string) => number,
+  block: Placement,
+): { schedule: Placement[]; id: string; dropped: number } {
+  const end = (b: Placement) => b.start + lenOf(b.entry) * b.plays;
+  const rest = schedule.filter((b) => b.id !== block.id).map((b) => ({ ...b })).sort((a, b) => a.start - b.start);
+  let start = Math.min(Math.max(Math.round(block.start), 0), DAY - 1);
+  const inside = rest.find((b) => start > b.start && start < end(b));
+  if (inside) start = start - inside.start < end(inside) - start ? inside.start : end(inside);
+  const placed = { ...block, start };
+  // ripple: everything from here on that the new block (or a pushed one) now overlaps
+  let cursor = end(placed);
+  for (const b of rest) {
+    if (b.start < start) continue;
+    if (b.start >= cursor) break;
+    b.start = cursor;
+    cursor = end(b);
+  }
+  const all = [...rest, placed].sort((a, b) => a.start - b.start);
+  const kept = all.filter((b) => b.start < DAY);
+  // merge touching same-entry neighbours
+  const out: Placement[] = [];
+  let id = placed.id;
+  for (const b of kept) {
+    const prev = out[out.length - 1];
+    if (prev && prev.entry === b.entry && end(prev) === b.start) {
+      prev.plays += b.plays;
+      if (b.id === id) id = prev.id;
+    } else out.push(b);
+  }
+  return { schedule: out, id, dropped: all.length - kept.length };
 }
 
 /**
@@ -97,6 +139,25 @@ export function validateManifest(data: unknown): { ok: boolean; errors: string[]
     if (!isStringArray(e.tags)) errors.push(`${at}: tags must be an array of strings`);
     if (e.hidden !== undefined && typeof e.hidden !== 'boolean') errors.push(`${at}: hidden must be a boolean`);
   });
+
+  if (m.schedule !== undefined) {
+    if (!Array.isArray(m.schedule)) errors.push('schedule must be an array');
+    else {
+      const ids = new Set<string>();
+      m.schedule.forEach((raw, i) => {
+        const p = raw as Partial<Placement>;
+        const at = `block ${i}`;
+        if (!p || typeof p !== 'object') return void errors.push(`${at}: must be an object`);
+        if (typeof p.id !== 'string' || !p.id || ids.has(p.id)) errors.push(`${at}: id must be unique`);
+        else ids.add(p.id);
+        if (typeof p.entry !== 'string' || !seen.has(p.entry)) errors.push(`${at}: plays an entry that isn't in the library`);
+        if (typeof p.start !== 'number' || !(p.start >= 0 && p.start < DAY)) errors.push(`${at}: start must be within the day`);
+        if (!Number.isInteger(p.plays) || (p.plays as number) < 1) errors.push(`${at}: plays must be a whole number ≥ 1`);
+      });
+    }
+  }
+  if (m.filler !== undefined && (typeof m.filler !== 'string' || !seen.has(m.filler)))
+    errors.push('the empty-time mix is not in the library');
 
   return { ok: errors.length === 0, errors };
 }

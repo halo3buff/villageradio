@@ -32,9 +32,23 @@ export interface BroadcastEntry {
   hidden?: boolean;
 }
 
+/** A block on the day: entry `entry` starts at `start` (seconds after midnight, Eastern) and
+ *  plays `plays` times back to back. */
+export interface Placement {
+  id: string;
+  entry: string;
+  start: number;
+  plays: number;
+}
+
 export interface BroadcastManifest {
   version: 1;
-  entries: BroadcastEntry[]; // play order IS the array order
+  /** The library. Without a `schedule` it is also the play order, looped from midnight (legacy). */
+  entries: BroadcastEntry[];
+  /** The day as placed blocks. Unscheduled time is silence, or `filler` looping. */
+  schedule?: Placement[];
+  /** Entry id that loops through unscheduled time; absent → silence. */
+  filler?: string;
 }
 
 export interface Photo {

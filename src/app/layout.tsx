@@ -3,7 +3,8 @@ import { Space_Mono, DM_Sans, IBM_Plex_Mono, VT323 } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
-import { getBroadcast, getCommands, getTheme } from '@/lib/content/loaders';
+import { getBroadcastManifest, getCommands, getTheme } from '@/lib/content/loaders';
+import { daySegments, manifestToMixes } from '@/lib/content/broadcast';
 import { DEFAULT_THEME, isThemeName, siteCssVars } from '@/lib/theme';
 import { Nav } from '@/components/Nav';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -99,7 +100,8 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [playlist, rawTheme, commands] = await Promise.all([getBroadcast(), getTheme(), getCommands()]);
+  const [manifest, rawTheme, commands] = await Promise.all([getBroadcastManifest(), getTheme(), getCommands()]);
+  const playlist = manifestToMixes(manifest);
   const theme = isThemeName(rawTheme) ? rawTheme : DEFAULT_THEME;
   return (
     <html
@@ -113,7 +115,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="bg-[var(--vlg-bg)] text-[var(--vlg-fg)] min-h-screen font-sans">
         <ThemeProvider name={theme}>
-          <AudioProvider playlist={playlist}>
+          <AudioProvider playlist={playlist} segments={daySegments(manifest)}>
             {/* Burns a gated page's clearance the moment the visitor leaves it */}
             <ClearanceWarden />
             <SiteFrame nav={<Nav />} audioPlayer={<AudioPlayer />} commands={commands}>
