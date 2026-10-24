@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useRef, useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Mix } from '@/lib/types';
 import { broadcastPosition, secondsIntoDay } from '@/lib/content/broadcast';
 
@@ -74,6 +75,11 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
   // Hidden tracks stay in the archive/sidebar (full `playlist`) but drop out of the live
   // rotation's order and timing — `broadcast` is what tuneIntoBroadcast/correctDrift walk.
   const broadcast = useMemo(() => playlist.filter(t => !t.hidden), [playlist]);
+  // Timers and callbacks outlive renders, so they read the lineup through this ref — a
+  // refreshed lineup (see below) reaches a broadcast that's already playing.
+  const broadcastRef = useRef(broadcast);
+  broadcastRef.current = broadcast;
+  const router = useRouter();
   const audioRef        = useRef<HTMLAudioElement | null>(null);
   const webCtxRef       = useRef<AudioContext | null>(null);
   const gainNodeRef     = useRef<GainNode | null>(null);
@@ -98,6 +104,20 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
   const [analyserR,     setAnalyserR]     = useState<AnalyserNode | null>(null);
   const [analyserFreq,  setAnalyserFreq]  = useState<AnalyserNode | null>(null);
   const [volume,        setVolumeState]   = useState(0.8);
+
+  // A new lineup (published from the admin, pulled in by router.refresh): adopt its timings
+  // and, if the broadcast is on, re-tune to wherever the new day says we should be.
+  const lineupKey = broadcast.map(t => `${t.src}|${t.durationSec}`).join(',');
+  const lineupRef = useRef(lineupKey);
+  useEffect(() => {
+    if (lineupRef.current === lineupKey) return;
+    lineupRef.current = lineupKey;
+    durationsRef.current = null;
+    if (modeRef.current === 'broadcast' && audioRef.current && !audioRef.current.paused) {
+      fadeOutThen(() => { tuneIntoBroadcast(); fadeIn(); });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineupKey]);
 
   // Pre-fetch server clock offset on mount so the first broadcastPlay() tap
   // has no network round-trip delay — it can compute broadcast position instantly.
@@ -243,7 +263,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
   function wireBroadcastTrack(idx: number) {
     const audio = audioRef.current!;
-    const track = broadcast[idx];
+    const track = broadcastRef.current[idx];
     if (!track) return;
 
     broadcastIdxRef.current = idx;
@@ -258,8 +278,8 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
     audio.onended = () => {
       if (modeRef.current !== 'broadcast') return;
-      const nextIdx = (broadcastIdxRef.current + 1) % broadcast.length;
-      const next = broadcast[nextIdx];
+      const nextIdx = (broadcastIdxRef.current + 1) % broadcastRef.current.length;
+      const next = broadcastRef.current[nextIdx];
       broadcastIdxRef.current = nextIdx;
       setBroadcastIndex(nextIdx);
       setCurrentTrack(next);
@@ -284,7 +304,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
 
     // All tracks have durationSec hardcoded — resolves instantly, no network requests
     if (!durationsRef.current) {
-      durationsRef.current = await Promise.all(broadcast.map(getDuration));
+      durationsRef.current = await Promise.all(broadcastRef.current.map(getDuration));
     }
 
     // Fetch server time once per session to correct for skewed device clocks
@@ -296,7 +316,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     const totalDuration = durationsRef.current.reduce((a, b) => a + b, 0);
 
     console.log('[VR broadcast]', {
-      trackTitle: broadcast[trackIdx].title,
+      trackTitle: broadcastRef.current[trackIdx].title,
       seek: Math.round(offsetSec),
       totalDuration: Math.round(totalDuration),
       elapsed: Math.round(secondsIntoDay(Date.now() + serverOffsetRef.current) % totalDuration),
@@ -309,7 +329,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     // track and (on preload-friendly browsers) buffered around the broadcast
     // position. If metadata is in, a direct seek lands in/near that buffer —
     // do NOT reset src, that would discard the primed data.
-    const trackHref = new URL(broadcast[trackIdx].src, window.location.href).href;
+    const trackHref = new URL(broadcastRef.current[trackIdx].src, window.location.href).href;
     const sameTrack = audio.src.split('#')[0] === trackHref;
     if (sameTrack && audio.readyState >= 1 /* HAVE_METADATA */) {
       safeSeek(audio, offsetSec);
@@ -416,6 +436,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     correctTimerRef.current = setInterval(correctDrift, CORRECT_INTERVAL_MS);
     timeRefreshRef.current  = setInterval(async () => {
       try { serverOffsetRef.current = await fetchServerOffsetMs(); } catch { /* keep last offset */ }
+      router.refresh(); // long listens pick up newly published lineups too
     }, TIME_REFRESH_MS);
   }
 
@@ -439,6 +460,7 @@ export function AudioProvider({ children, playlist }: { children: React.ReactNod
     initWebAudio(audio);
     tuneIntoBroadcast();
     startBroadcastTimers();
+    router.refresh(); // pick up a lineup published since this page loaded
   }
 
   function play(track: Mix) {

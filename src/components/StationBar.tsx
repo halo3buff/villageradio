@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useAudio } from '@/lib/audio-context';
+import { secondsIntoDay } from '@/lib/content/broadcast';
 
 /**
  * The universal transport, pinned top-centre on every public page: the station clock (the
- * plate's UTC readout) flanked by the plate's growing-dot third-octave matrix, mirrored so low
+ * broadcast day's Eastern time, as the admin timeline uses) flanked by the plate's growing-dot third-octave matrix, mirrored so low
  * frequencies hug the clock, and a play/pause so the broadcast can be stopped from anywhere.
  */
 
@@ -18,8 +19,10 @@ const CLOCK_W = 88;
 /** Desktop: outer edge of the far-left dots to the far-right ones, centred on the clock. */
 export const DOTS_SPAN = 2 * (W + 12) + CLOCK_W - 2 * (DX / 2 - 0.75);
 
-function utcClock() {
-  return new Date().toISOString().slice(11, 19);
+/** The broadcast day's clock (Eastern) — the same time the admin timeline schedules against. */
+function stationClock() {
+  const s = Math.floor(secondsIntoDay(Date.now()));
+  return [s / 3600, (s / 60) % 60, s % 60].map((v) => String(Math.floor(v)).padStart(2, '0')).join(':');
 }
 
 export function StationBar() {
@@ -34,7 +37,7 @@ export function StationBar() {
   freqRef.current = analyserFreq;
 
   useEffect(() => {
-    const tick = () => setClock(utcClock());
+    const tick = () => setClock(stationClock());
     tick();
     const t = setInterval(tick, 250);
     return () => clearInterval(t);
