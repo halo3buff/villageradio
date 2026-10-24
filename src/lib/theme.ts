@@ -33,6 +33,16 @@ export type Theme = {
 
 export const THEMES: Record<string, Theme> = {
   default: {
+    // the mint report-cover stock: dark olive ink on mint (sampled from the reference cover)
+    bg:'#3fd89e', ts:'#1f5c43', uid_palette:['#0f5e5a','#1d5a1d','#5a2a7a','#1a3f80','#7a3a10','#0e4f6e','#6a2068','#0d5a40','#7a3418','#2a3a8a'], uid_real:'#1a2418', col_host:'#7a2040', col_data:'#2b3626',
+    bar_bg:'#38c98f', bar_border:'#2c9e70', bar_dim:'#2a6b4f', bar_bright:'#1a2418',
+    filter_col:'#0f5e5a',
+    tab_bg:'#36c48c', tab_fg:'#2a6b4f', tab_active_bg:'#2b3626', tab_active_fg:'#3fd89e',
+    cmd_bg:'#36c48c', cmd_fg:'#1a2418', cmd_cursor:'#2b3626',
+    hover_bg:'rgba(43,54,38,0.06)', sel_bg:'rgba(43,54,38,0.12)',
+    exp_comment:'#2a6b4f', exp_num:'#2f8f68', exp_text:'#2b3626', exp_border:'#2c9e70',
+  },
+  black: {
     // white on black — the previous paper-white values, inverted
     bg:'#000000', ts:'#888888', uid_palette:['#3cc8c0','#58c858','#c070e0','#5a9cf0','#e08040','#40a8d8','#c868c8','#40c090','#d87848','#7088e8'], uid_real:'#ffffff', col_host:'#e08aa0', col_data:'#aaaaaa',
     bar_bg:'#0d0d0d', bar_border:'#2a2a2a', bar_dim:'#666666', bar_bright:'#ffffff',
@@ -91,14 +101,15 @@ export const THEMES: Record<string, Theme> = {
 
 // Full palette set (used internally, e.g. by the news log). Admin only exposes a subset — see
 // THEME_NAMES below — the rest stay defined so re-enabling one later is a one-line change.
-export const ALL_THEME_NAMES = ['default', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light'];
+export const ALL_THEME_NAMES = ['default', 'black', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light'];
 
 // Admin-selectable site-wide themes. Trimmed to 2 for now at the user's request.
-export const THEME_NAMES = ['default', 'solarized-dark'];
+// 'default' is the mint stock; 'black' keeps the old white-on-black one a click away.
+export const THEME_NAMES = ['default', 'black', 'solarized-dark'];
 
 export const DEFAULT_THEME = 'default';
 
-export const LIGHT_THEMES = new Set(['eldar', 'monocai', 'solarized-light']);
+export const LIGHT_THEMES = new Set(['default', 'eldar', 'monocai', 'solarized-light']);
 
 export function isThemeName(name: string): boolean {
   return THEME_NAMES.includes(name);
@@ -117,7 +128,7 @@ export function siteVarMap(name: string): Record<string, string> {
     '--vlg-accent': t.uid_real,
     '--vlg-panel': t.bar_bg,
     '--vlg-invert': light ? '0' : '1',
-    '--vlg-strong': light ? '#000000' : '#ffffff',
+    '--vlg-strong': light ? t.exp_text : '#ffffff',
     '--vlg-cmd-cursor': t.cmd_cursor,
   };
 }

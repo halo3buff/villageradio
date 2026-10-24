@@ -98,6 +98,12 @@ img[src*="left-arrow"] {
   filter: invert(var(--vlg-invert, 0));
 }
 
+/* The rotating mark is baked grey: on the mint stock, multiply it into the paper so it
+   prints as a dark green ink instead of sitting on top as grey. */
+html[data-theme="default"] video[src*="logo_roto"] {
+  mix-blend-mode: multiply;
+}
+
 /* Admin console: always dark, and the page scrolls with the wheel. The base rules above make
    <body> its own (never-scrolling) scroll container with overscroll-behavior:none, which stops
    wheel scrolling from reaching the page and breaks position:sticky — fatal on the admin's tall
@@ -106,6 +112,9 @@ body:has(.admin-shell) {
   overflow: visible;
   background-color: #000;
   color-scheme: dark;
+}
+html:has(.admin-shell) {
+  background-color: #000;   /* whatever the site theme, no edge of it shows round the admin */
 }
 
 /* Admin toast: rises in from below. */
