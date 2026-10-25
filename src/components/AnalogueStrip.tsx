@@ -142,14 +142,18 @@ export type Metrics = {
 
 // The off-air figure: a jumbled ball of dots spinning on its own vertical axis, its tilt, spin
 // speed and every dot's distance from the centre drifting at rates that never line up.
-const ORB_R = 0.3;   // in the plot's -1..1 units
+const ORB_R = 0.42;   // in the plot's -1..1 units
 const ORB_N = 700;
 const ORB = Array.from({ length: ORB_N }, (_, i) => {
   const z = 1 - (2 * (i + 0.5)) / ORB_N, ring = Math.sqrt(1 - z * z), az = i * 2.39996; // golden-angle sphere
   const r = Math.random() < 0.85 ? 0.88 + 0.12 * Math.random() : 0.3 + 0.6 * Math.random();   // a shell, a few strays inside
   const j = () => (Math.random() - 0.5) * 0.18;       // knock each dot off its grid point
   return { x: ring * Math.cos(az) * r + j() * r, y: z * r + j() * r, z: ring * Math.sin(az) * r + j() * r,
-    w: 2.5 + Math.random() * 3.5, ph: Math.random() * 6.283, w2: 1 + Math.random() * 1.2, ph2: Math.random() * 6.283 };
+    // each dot its own reach, pace and rhythm: three unrelated rates, and a curve that makes
+    // some dots hang at the core and others at the rim
+    reach: 0.5 + Math.random() ** 0.7 * 0.9, curve: 0.4 + Math.random() * 1.8,
+    w: 4 + Math.random() * 10, w2: 1.5 + Math.random() * 5, w3: 7 + Math.random() * 12,
+    ph: Math.random() * 6.283, ph2: Math.random() * 6.283, ph3: Math.random() * 6.283 };
 });
 let spin = 0, spunAt = 0;
 function orb(t: number, lx: Float32Array, ly: Float32Array): number {
@@ -162,8 +166,9 @@ function orb(t: number, lx: Float32Array, ly: Float32Array): number {
   let n = 0;
   for (let k = 0; k < ORB.length; k++) {
     const p = ORB[k];
-    // every dot drifts in toward the core and back out past the shell, each at its own pace
-    const b = ORB_R * (1 + 0.75 * Math.sin(t * p.w + p.ph) + 0.2 * Math.sin(t * p.w2 + p.ph2));   // 0.05 to 1.95
+    // every dot dives right into the centre and back out, each on its own irregular rhythm
+    const wave = 0.5 * Math.sin(t * p.w + p.ph) + 0.3 * Math.sin(t * p.w2 + p.ph2) + 0.2 * Math.sin(t * p.w3 + p.ph3);
+    const b = ORB_R * p.reach * ((wave + 1) / 2) ** p.curve;   // 0 (the centre) to its reach
     const x1 = (p.x * cy + p.z * sy) * b, z1 = (-p.x * sy + p.z * cy) * b, y0 = p.y * b;   // spin (y)
     const y1 = y0 * cx - z1 * sx, z2 = y0 * sx + z1 * cx;                                  // tilt (x)
     if (z2 > 0.05 && k % 3) continue;   // the far side shows thin, so it reads as a ball, not a disc
