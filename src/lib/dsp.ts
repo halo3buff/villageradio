@@ -385,13 +385,16 @@ export class TestSignal {
       this.sweepT += dt;
       if (this.sweepT >= this.sweepSeconds) this.sweepT = 0;
 
-      this.rot += dt * 0.11;                       // one rotation per ~57 s
-      const spread = 0.55 + 0.45 * Math.sin(this.rot);
-      const tone = Math.sin(this.phase) * 0.2;     // -14 dBFS sweep
-      const nL = this.pinkL.next() * 0.06;         // ~-30 dBFS noise floor
-      const nR = this.pinkR.next() * 0.06;
-      l[i] = tone + nL;
-      r[i] = Math.sin(this.phase + spread * 1.4) * 0.2 + nR;
+      this.rot += dt;
+      // the figure turns all the way round (~26 s a turn) while it breathes between a line and
+      // a circle; the two breathing rates never line up, so it doesn't visibly loop
+      const t = this.rot;
+      const spread = 0.8 + 0.6 * Math.sin(t * 0.13) * Math.sin(t * 0.071 + 1);
+      const a0 = Math.sin(this.phase) * 0.2;       // -14 dBFS sweep
+      const b0 = Math.sin(this.phase + spread * 1.4) * 0.2;
+      const c = Math.cos(t * 0.24), s = Math.sin(t * 0.24);
+      l[i] = a0 * c - b0 * s + this.pinkL.next() * 0.06;   // ~-30 dBFS noise floor
+      r[i] = a0 * s + b0 * c + this.pinkR.next() * 0.06;
     }
   }
 }

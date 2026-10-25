@@ -15,7 +15,7 @@ export function trimDb(lufs: number | undefined, gainDb = 0): number {
 /** The station's visuals (Lissajous, bar dots) draw the signal as if it were this much quieter,
  *  so dense, loud passages still leave the figures room to move. Visual only — no readout or
  *  audio changes. */
-export const VISUAL_TRIM_DB = -6;
+export const VISUAL_TRIM_DB = -4;
 
 type Biquad = { b0: number; b1: number; b2: number; a1: number; a2: number };
 

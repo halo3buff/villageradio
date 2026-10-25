@@ -84,7 +84,7 @@ function grainPattern(ctx: CanvasRenderingContext2D) {
     const v = Math.random();
     const light = v > 0.5;
     img.data[i] = light ? 120 : 10; img.data[i + 1] = light ? 255 : 18; img.data[i + 2] = light ? 190 : 12;
-    img.data[i + 3] = Math.abs(v - 0.5) ** 2 * 4 * 255 * 0.22;
+    img.data[i + 3] = Math.abs(v - 0.5) ** 2 * 4 * 255 * 0.18;
   }
   g.putImageData(img, 0, 0);
   return (grain = ctx.createPattern(c, 'repeat'));

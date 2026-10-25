@@ -274,8 +274,8 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
       const lstep = Math.max(1, Math.floor(LISS_SPAN / LISS));
       let lp = 0;
       for (let i = FFT_SIZE - LISS_SPAN; i < FFT_SIZE && lp < LISS; i += lstep, lp++) {
-        m.lx[lp] = bufR[i] * LISS_GAIN;
-        m.ly[lp] = bufL[i] * LISS_GAIN;
+        m.lx[lp] = live ? bufR[i] * LISS_GAIN : bufR[i];   // the test figure keeps its size
+        m.ly[lp] = live ? bufL[i] * LISS_GAIN : bufL[i];
       }
       m.lHead = lp;
 
