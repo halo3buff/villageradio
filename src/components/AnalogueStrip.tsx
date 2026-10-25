@@ -144,24 +144,28 @@ export type Metrics = {
 // so it draws the same joined-up strands. A handful of partials in each of mid and side, every one
 // re-rolling its pitch and level at random, over a little noise: it never settles or repeats.
 const IDLE_R = 0.18;   // in the plot's -1..1 units: the reach of a quiet passage on air
-const partial = () => ({ w: 0.02 + Math.random() ** 2 * 0.25, a: Math.random(), ph: Math.random() * 6.283, to: Math.random() });
+const pitch = () => 0.02 + Math.random() ** 2 * 0.25;
+const partial = () => ({ w: pitch(), wTo: pitch(), a: Math.random(), ph: Math.random() * 6.283, to: Math.random() });
 const MID = Array.from({ length: 6 }, partial), SIDE = Array.from({ length: 4 }, partial);
 const IDLE_STEP = 40;   // samples the window slides each frame (the live one slides ~800): sets the pace
 const noise = Float32Array.from({ length: 4096 }, () => Math.random() - 0.5);
 let head = 0;
-function idleTrace(lx: Float32Array, ly: Float32Array): number {
+function idleTrace(lx: Float32Array, ly: Float32Array, dt: number): number {
+  const f = dt * 60;   // frames' worth of time, so the pace holds at any refresh rate
+  const ease = 1 - Math.exp(-0.02 * f);
   for (const bank of [MID, SIDE]) for (const q of bank) {
-    if (Math.random() < 0.006) Object.assign(q, { w: partial().w, to: Math.random() });
-    q.a += (q.to - q.a) * 0.02;
-    q.ph += q.w * IDLE_STEP;   // slide the window: most of last frame's trace is still there
+    if (Math.random() < 0.006 * f) Object.assign(q, { wTo: pitch(), to: Math.random() });
+    q.a += (q.to - q.a) * ease;
+    q.w += (q.wTo - q.w) * ease;   // pitch glides too: a jump would snap the whole trace
+    q.ph += q.w * IDLE_STEP * f;   // slide the window: most of last frame's trace is still there
   }
-  head = (head + IDLE_STEP) % noise.length;
+  head = (head + IDLE_STEP * f) % noise.length;
   let nM = 0, nS = 0;   // low-passed noise, read from a fixed loop so it slides with the window
   for (let i = 0; i < LISS; i++) {
     let mid = 0, side = 0;
     for (const q of MID) mid += q.a * Math.sin(q.ph + q.w * i);
     for (const q of SIDE) side += q.a * Math.sin(q.ph + q.w * i);
-    const j = (head + i) % noise.length;
+    const j = (Math.floor(head) + i) % noise.length;
     nM += (noise[j] - nM) * 0.3; nS += (noise[(j + 2048) % noise.length] - nS) * 0.3;
     mid = mid / 3 + nM * 0.3; side = side / 4 + nS * 0.18;
     lx[i] = (mid - side) * IDLE_R;   // x = right
@@ -310,7 +314,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
           m.ly[lp] = bufL[i] * LISS_GAIN;
         }
         m.lHead = lp;
-      } else m.lHead = idleTrace(m.lx, m.ly);
+      } else m.lHead = idleTrace(m.lx, m.ly, dt);
 
       m.pkL = peakDb(bufL); m.pkR = peakDb(bufR);
       m.tpL = truePeakDb(bufL); m.tpR = truePeakDb(bufR);
@@ -330,7 +334,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
       m.slope = spectralSlopeDbPerOct(Array.from(bandDb), THIRD_OCTAVE);
 
       // the figure has to move with the audio, so this runs every frame
-      if (now - lastDraw >= 1 / 60) {
+      if (now - lastDraw >= 1 / 60 - 0.004) {   // slack: frame timing jitters, and a strict 1/60 drops every other frame
         lastDraw = now;
         const cssW = wrap.clientWidth || GRID_W;
         // the plate is vertical everywhere now: Lissajous on top, readouts under it
