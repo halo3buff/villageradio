@@ -140,6 +140,40 @@ export type Metrics = {
   since: number;
 };
 
+// The off-air figure: a jumbled ball of dots spinning on its own vertical axis, its tilt, spin
+// speed and every dot's distance from the centre drifting at rates that never line up.
+const ORB_R = 0.3;   // in the plot's -1..1 units
+const ORB_N = 700;
+const ORB = Array.from({ length: ORB_N }, (_, i) => {
+  const z = 1 - (2 * (i + 0.5)) / ORB_N, ring = Math.sqrt(1 - z * z), az = i * 2.39996; // golden-angle sphere
+  const r = Math.random() < 0.85 ? 0.88 + 0.12 * Math.random() : 0.3 + 0.6 * Math.random();   // a shell, a few strays inside
+  const j = () => (Math.random() - 0.5) * 0.18;       // knock each dot off its grid point
+  return { x: ring * Math.cos(az) * r + j() * r, y: z * r + j() * r, z: ring * Math.sin(az) * r + j() * r,
+    w: 0.3 + Math.random() * 0.9, ph: Math.random() * 6.283 };
+});
+let spin = 0, spunAt = 0;
+function orb(t: number, lx: Float32Array, ly: Float32Array): number {
+  spin += (0.55 + 0.25 * Math.sin(t * 0.093) + 0.15 * Math.sin(t * 0.211)) * clamp(t - spunAt, 0, 0.1);
+  spunAt = t;
+  const tilt = 0.35 * Math.sin(t * 0.13) + 0.15 * Math.sin(t * 0.37 + 2);   // nods toward and away
+  const roll = 0.2 * Math.sin(t * 0.071 + 1);
+  const cy = Math.cos(spin), sy = Math.sin(spin), cx = Math.cos(tilt), sx = Math.sin(tilt);
+  const cr = Math.cos(roll), sr = Math.sin(roll);
+  let n = 0;
+  for (let k = 0; k < ORB.length; k++) {
+    const p = ORB[k];
+    const b = ORB_R * (1 + 0.07 * Math.sin(t * p.w + p.ph));   // each dot breathes on its own
+    const x1 = (p.x * cy + p.z * sy) * b, z1 = (-p.x * sy + p.z * cy) * b, y0 = p.y * b;   // spin (y)
+    const y1 = y0 * cx - z1 * sx, z2 = y0 * sx + z1 * cx;                                  // tilt (x)
+    if (z2 > 0.05 && k % 3) continue;   // the far side shows thin, so it reads as a ball, not a disc
+    const persp = 1.6 / (1.6 + z2);                                                        // near side larger
+    const x2 = x1 * persp, y2 = y1 * persp;
+    lx[n] = x2 * cr - y2 * sr + (Math.random() - 0.5) * 0.006;                             // roll, shimmer
+    ly[n++] = x2 * sr + y2 * cr + (Math.random() - 0.5) * 0.006;
+  }
+  return n;
+}
+
 /** fitHeight: the height the stacked (phone) plate may fill, in CSS px. */
 export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) {
   const fitRef = useRef(fitHeight);
@@ -271,13 +305,16 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
 
       // Lissajous: the tail of the current window, rewritten from scratch each
       // frame. x = right, y = left, as the plot is drawn.
-      const lstep = Math.max(1, Math.floor(LISS_SPAN / LISS));
-      let lp = 0;
-      for (let i = FFT_SIZE - LISS_SPAN; i < FFT_SIZE && lp < LISS; i += lstep, lp++) {
-        m.lx[lp] = live ? bufR[i] * LISS_GAIN : bufR[i];   // the test figure keeps its size
-        m.ly[lp] = live ? bufL[i] * LISS_GAIN : bufL[i];
-      }
-      m.lHead = lp;
+      // Off air the screen shows the orb instead (the readouts still read the test signal).
+      if (live) {
+        const lstep = Math.max(1, Math.floor(LISS_SPAN / LISS));
+        let lp = 0;
+        for (let i = FFT_SIZE - LISS_SPAN; i < FFT_SIZE && lp < LISS; i += lstep, lp++) {
+          m.lx[lp] = bufR[i] * LISS_GAIN;
+          m.ly[lp] = bufL[i] * LISS_GAIN;
+        }
+        m.lHead = lp;
+      } else m.lHead = orb(now, m.lx, m.ly);
 
       m.pkL = peakDb(bufL); m.pkR = peakDb(bufR);
       m.tpL = truePeakDb(bufL); m.tpR = truePeakDb(bufR);
