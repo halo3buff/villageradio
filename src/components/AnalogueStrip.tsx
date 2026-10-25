@@ -149,7 +149,7 @@ const ORB = Array.from({ length: ORB_N }, (_, i) => {
   const r = Math.random() < 0.85 ? 0.88 + 0.12 * Math.random() : 0.3 + 0.6 * Math.random();   // a shell, a few strays inside
   const j = () => (Math.random() - 0.5) * 0.18;       // knock each dot off its grid point
   return { x: ring * Math.cos(az) * r + j() * r, y: z * r + j() * r, z: ring * Math.sin(az) * r + j() * r,
-    w: 0.3 + Math.random() * 0.9, ph: Math.random() * 6.283 };
+    w: 0.5 + Math.random() * 1.3, ph: Math.random() * 6.283, w2: 0.2 + Math.random() * 0.5, ph2: Math.random() * 6.283 };
 });
 let spin = 0, spunAt = 0;
 function orb(t: number, lx: Float32Array, ly: Float32Array): number {
@@ -162,7 +162,8 @@ function orb(t: number, lx: Float32Array, ly: Float32Array): number {
   let n = 0;
   for (let k = 0; k < ORB.length; k++) {
     const p = ORB[k];
-    const b = ORB_R * (1 + 0.07 * Math.sin(t * p.w + p.ph));   // each dot breathes on its own
+    // every dot drifts in toward the core and back out past the shell, each at its own pace
+    const b = ORB_R * (1 + 0.28 * Math.sin(t * p.w + p.ph) + 0.14 * Math.sin(t * p.w2 + p.ph2));
     const x1 = (p.x * cy + p.z * sy) * b, z1 = (-p.x * sy + p.z * cy) * b, y0 = p.y * b;   // spin (y)
     const y1 = y0 * cx - z1 * sx, z2 = y0 * sx + z1 * cx;                                  // tilt (x)
     if (z2 > 0.05 && k % 3) continue;   // the far side shows thin, so it reads as a ball, not a disc
