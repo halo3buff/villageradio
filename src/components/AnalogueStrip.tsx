@@ -140,35 +140,25 @@ export type Metrics = {
   since: number;
 };
 
-// The off-air figure: a jumbled ball of dots, each diving into the centre and back out on its
-// own fast, irregular rhythm.
-const ORB_R = 0.18;   // in the plot's -1..1 units: the size of a quiet passage on air
-const ORB_N = 320;
-const ORB = Array.from({ length: ORB_N }, (_, i) => {
-  const z = 1 - (2 * (i + 0.5)) / ORB_N, ring = Math.sqrt(1 - z * z), az = i * 2.39996; // golden-angle sphere
-  const r = Math.random() < 0.85 ? 0.88 + 0.12 * Math.random() : 0.3 + 0.6 * Math.random();   // a shell, a few strays inside
-  const j = () => (Math.random() - 0.5) * 0.18;       // knock each dot off its grid point
-  return { x: ring * Math.cos(az) * r + j() * r, y: z * r + j() * r, z: ring * Math.sin(az) * r + j() * r,
-    // each dot its own reach, pace and rhythm: three unrelated rates, and a curve that makes
-    // some dots hang at the core and others at the rim
-    reach: 0.6 + Math.random() ** 0.7 * 0.55, curve: 0.3 + Math.random() * 0.8,
-    w: 8 + Math.random() * 16, w2: 3 + Math.random() * 8, w3: 14 + Math.random() * 20,
-    ph: Math.random() * 6.283, ph2: Math.random() * 6.283, ph3: Math.random() * 6.283 };
-});
-function orb(t: number, lx: Float32Array, ly: Float32Array): number {
-  for (let k = 0; k < ORB.length; k++) {
-    const p = ORB[k];
-    // now and then a dot loses its rhythm and picks up a new one, so nothing settles into a pattern
-    if (Math.random() < 0.01) { p.ph = Math.random() * 6.283; p.w = 8 + Math.random() * 16; }
-    // every dot dives right into the centre and back out, each on its own irregular rhythm
-    const wave = 0.5 * Math.sin(t * p.w + p.ph) + 0.3 * Math.sin(t * p.w2 + p.ph2) + 0.2 * Math.sin(t * p.w3 + p.ph3);
-    const b = ORB_R * p.reach * ((wave + 1) / 2) ** p.curve;   // 0 (the centre) to its reach
-    const u = p.x * b, v = p.y * b;
-    // leaned along the mono diagonal like real stereo, with a shimmer
-    lx[k] = (u + v) * 0.62 + (u - v) * 0.42 + (Math.random() - 0.5) * 0.012;
-    ly[k] = (u + v) * 0.62 - (u - v) * 0.42 + (Math.random() - 0.5) * 0.012;
+// The off-air figure: a made-up quiet signal plotted the way the live one is, sample after sample,
+// so it draws the same joined-up strands. A handful of partials in each of mid and side, every one
+// re-rolling its pitch and level at random, over a little noise: it never settles or repeats.
+const IDLE_R = 0.18;   // in the plot's -1..1 units: the reach of a quiet passage on air
+const partial = () => ({ w: 0.02 + Math.random() ** 2 * 0.25, a: Math.random(), ph: Math.random() * 6.283, to: Math.random() });
+const MID = Array.from({ length: 6 }, partial), SIDE = Array.from({ length: 4 }, partial);
+let nM = 0, nS = 0;   // low-passed noise, one per channel
+function idleTrace(lx: Float32Array, ly: Float32Array): number {
+  for (const bank of [MID, SIDE]) for (const q of bank) if (Math.random() < 0.08) Object.assign(q, { w: partial().w, to: Math.random() });
+  for (let i = 0; i < LISS; i++) {
+    let mid = 0, side = 0;
+    for (const q of MID) { q.ph += q.w; q.a += (q.to - q.a) * 0.002; mid += q.a * Math.sin(q.ph); }
+    for (const q of SIDE) { q.ph += q.w; q.a += (q.to - q.a) * 0.002; side += q.a * Math.sin(q.ph); }
+    nM += (Math.random() - 0.5 - nM) * 0.3; nS += (Math.random() - 0.5 - nS) * 0.3;
+    mid = mid / 3 + nM * 0.3; side = side / 4 + nS * 0.18;
+    lx[i] = (mid - side) * IDLE_R;   // x = right
+    ly[i] = (mid + side) * IDLE_R;   // y = left
   }
-  return ORB.length;
+  return LISS;
 }
 
 /** fitHeight: the height the stacked (phone) plate may fill, in CSS px. */
@@ -302,7 +292,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
 
       // Lissajous: the tail of the current window, rewritten from scratch each
       // frame. x = right, y = left, as the plot is drawn.
-      // Off air the screen shows the orb instead (the readouts still read the test signal).
+      // Off air the screen shows the idle trace instead (the readouts still read the test signal).
       if (live) {
         const lstep = Math.max(1, Math.floor(LISS_SPAN / LISS));
         let lp = 0;
@@ -311,7 +301,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
           m.ly[lp] = bufL[i] * LISS_GAIN;
         }
         m.lHead = lp;
-      } else m.lHead = orb(now, m.lx, m.ly);
+      } else m.lHead = idleTrace(m.lx, m.ly);
 
       m.pkL = peakDb(bufL); m.pkR = peakDb(bufR);
       m.tpL = truePeakDb(bufL); m.tpR = truePeakDb(bufR);
