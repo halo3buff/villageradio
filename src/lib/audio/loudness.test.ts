@@ -29,5 +29,7 @@ describe('trimDb', () => {
     expect(trimDb(-7.4)).toBeCloseTo(-6.6);
     expect(trimDb(-20)).toBe(0);
     expect(trimDb(undefined)).toBe(0);
+    expect(trimDb(-7.4, -2)).toBeCloseTo(-8.6); // admin level stacks on top
+    expect(trimDb(-20, -3)).toBe(-3);
   });
 });

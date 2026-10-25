@@ -246,7 +246,7 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
 
   /** Loudness-normalise: loud masters play at the -14 LUFS everyone else is at. */
   function applyTrim(track: Mix) {
-    trimRef.current = 10 ** (trimDb(track.lufs) / 20);
+    trimRef.current = 10 ** (trimDb(track.lufs, track.gainDb) / 20);
     if (trimNodeRef.current) trimNodeRef.current.gain.value = trimRef.current;
   }
 

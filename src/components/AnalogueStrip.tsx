@@ -8,6 +8,7 @@ import {
   correlation, peakDb, truePeakDb, rmsDb,
 } from '@/lib/dsp';
 import { drawPlate, fitStack, plateDims } from './stationPlate';
+import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 
 /**
  * AnalogueStrip — the SHARPpy summary strip, panel for panel, reading the
@@ -106,6 +107,7 @@ const FFT_SIZE = 8192;
 // audio immediately, so there is no persistence to drag the shape behind it.
 const LISS = 1100;          // sample pairs plotted, newest window only
 const LISS_SPAN = 2048;     // samples back from the head (~43 ms at 48k)
+const LISS_GAIN = 10 ** (VISUAL_TRIM_DB / 20); // the cloud only; the readouts stay true
 const HOLD_DECAY = 12;      // dB per second
 const BTN_PX = 10;          // transport button type size
 const GRADIENT = true;      // whisper of a wash behind the strip
@@ -272,8 +274,8 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
       const lstep = Math.max(1, Math.floor(LISS_SPAN / LISS));
       let lp = 0;
       for (let i = FFT_SIZE - LISS_SPAN; i < FFT_SIZE && lp < LISS; i += lstep, lp++) {
-        m.lx[lp] = bufR[i];
-        m.ly[lp] = bufL[i];
+        m.lx[lp] = bufR[i] * LISS_GAIN;
+        m.ly[lp] = bufL[i] * LISS_GAIN;
       }
       m.lHead = lp;
 

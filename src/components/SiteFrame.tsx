@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useAudio } from '@/lib/audio-context';
 import { CommandPrompt } from '@/components/CommandPrompt';
 import { StationBar } from '@/components/StationBar';
+import { useTrail } from '@/components/BackLink';
 import type { NavCommand } from '@/lib/types';
 
 /**
@@ -40,6 +41,7 @@ export function SiteFrame({
   // pause is a fresh function every render, so key on the path alone: fire once per arrival.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (pathname === '/') pause(); }, [pathname]);
+  useTrail(pathname);
 
   const prompt = NO_PROMPT(pathname) ? null : <CommandPrompt commands={commands} />;
 

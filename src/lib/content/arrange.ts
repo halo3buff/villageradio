@@ -139,6 +139,7 @@ export function validateManifest(data: unknown): { ok: boolean; errors: string[]
     if (!isStringArray(e.tags)) errors.push(`${at}: tags must be an array of strings`);
     if (e.hidden !== undefined && typeof e.hidden !== 'boolean') errors.push(`${at}: hidden must be a boolean`);
     if (e.lufs !== undefined && !(typeof e.lufs === 'number' && e.lufs > -100 && e.lufs < 20)) errors.push(`${at}: loudness must be a number of LUFS`);
+    if (e.gainDb !== undefined && !(typeof e.gainDb === 'number' && e.gainDb >= -24 && e.gainDb <= 0)) errors.push(`${at}: level must be between -24 and 0 dB`);
   });
 
   if (m.schedule !== undefined) {

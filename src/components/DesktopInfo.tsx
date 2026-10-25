@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { BackLink } from '@/components/BackLink';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import type { NavCommand } from '@/lib/types';
@@ -301,14 +301,14 @@ export function DesktopInfo({ content, commands, back = '/' }: { content: string
         </div>
 
         {/* Back arrow — centered on email midpoint */}
-        <Link href={back} style={{
+        <BackLink href={back} style={{
           position: 'absolute', right: 95, top: 942,
           display: 'block', width: 50, height: 50,
           pointerEvents: 'auto',
         }}>
           <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
             style={{ width: 50, height: 50, objectFit: 'contain' }} />
-        </Link>
+        </BackLink>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAudio } from '@/lib/audio-context';
 import { secondsIntoDay } from '@/lib/content/broadcast';
+import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 
 /**
  * The universal transport, pinned top-centre on every public page: the station clock (the
@@ -77,7 +78,7 @@ export function StationBar() {
           let p = 0;
           for (let i = i0; i <= i1; i++) p += Math.pow(10, buf[i] / 10);
           // same scale as the plate: -72 dB dark, -20 dB all three dots full
-          const target = Math.min(Math.max((10 * Math.log10(p || 1e-12) + 72) / 52, 0), 1) * ROWS;
+          const target = Math.min(Math.max((10 * Math.log10(p || 1e-12) + VISUAL_TRIM_DB + 72) / 52, 0), 1) * ROWS;
           level[c] = target > level[c] ? target : Math.max(target, level[c] - 0.08);
         }
       } else {

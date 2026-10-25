@@ -6,10 +6,16 @@
 export const TARGET_LUFS = -14;
 
 /** Playback trim for a track: loud masters come down to the target; quiet ones are left as
- *  made (no boost, so nothing new can clip and quiet-by-design pieces stay quiet). */
-export function trimDb(lufs: number | undefined): number {
-  return lufs === undefined ? 0 : Math.min(0, TARGET_LUFS - lufs);
+ *  made (no boost, so nothing new can clip and quiet-by-design pieces stay quiet). gainDb is
+ *  the admin's own per-track level on top (0 or below). */
+export function trimDb(lufs: number | undefined, gainDb = 0): number {
+  return (lufs === undefined ? 0 : Math.min(0, TARGET_LUFS - lufs)) + gainDb;
 }
+
+/** The station's visuals (Lissajous, bar dots) draw the signal as if it were this much quieter,
+ *  so dense, loud passages still leave the figures room to move. Visual only — no readout or
+ *  audio changes. */
+export const VISUAL_TRIM_DB = -6;
 
 type Biquad = { b0: number; b1: number; b2: number; a1: number; a2: number };
 

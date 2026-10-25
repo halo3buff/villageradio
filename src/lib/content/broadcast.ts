@@ -31,6 +31,7 @@ export function entryToMix(entry: BroadcastEntry): Mix {
     kind: entry.kind,
     hidden: entry.hidden,
     lufs: entry.lufs,
+    gainDb: entry.gainDb,
   };
 }
 

@@ -13,6 +13,8 @@ export interface Mix {
   hidden?: boolean;
   /** Integrated loudness (LUFS) — playback trims loud masters to the common level. */
   lufs?: number;
+  /** Extra playback level set in the admin, in dB (0 or below). */
+  gainDb?: number;
 }
 
 // --- Editable content manifests (GCS config bucket; see src/lib/content) ----------
@@ -34,6 +36,8 @@ export interface BroadcastEntry {
   hidden?: boolean;
   /** Integrated loudness (LUFS), measured in the admin on upload. */
   lufs?: number;
+  /** Extra playback level set in the admin, in dB (0 or below). */
+  gainDb?: number;
 }
 
 /** A block on the day: entry `entry` starts at `start` (seconds after midnight, Eastern) and

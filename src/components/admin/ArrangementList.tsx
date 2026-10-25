@@ -1190,16 +1190,7 @@ function Inspector({
           <span className={LABEL}>Tags</span>
           <TagsInput key={entry.id} value={entry.tags} onChange={(tags) => onPatch({ tags }, 'tags')} />
         </label>
-        <div>
-          <span className={LABEL}>Loudness</span>
-          <p className="font-mono text-[11px] text-white/60 tabular-nums">
-            {entry.lufs === undefined
-              ? 'not measured yet — use “Measure loudness” in the library'
-              : trimDb(entry.lufs) < 0
-                ? `${entry.lufs} LUFS · plays ${-trimDb(entry.lufs).toFixed(1)} dB quieter, at ${TARGET_LUFS}`
-                : `${entry.lufs} LUFS · plays as mastered`}
-          </p>
-        </div>
+        <Preview key={entry.id} entry={entry} onLevel={(gainDb) => onPatch({ gainDb: gainDb || undefined }, 'gain')} />
         <p className="font-mono text-[10px] text-white/30 break-all">{entry.file}</p>
       </div>
 
@@ -1310,6 +1301,92 @@ function SeriesPicker({
 }
 
 type AddMode = 'existing' | 'upload';
+/** Hear an entry exactly as the station plays it: the same loudness trim plus the admin level,
+ *  which this panel also sets. */
+function Preview({ entry, onLevel }: { entry: BroadcastEntry; onLevel: (gainDb: number) => void }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [t, setT] = useState(0);
+  const gain = entry.gainDb ?? 0;
+  const auto = trimDb(entry.lufs); // what normalisation alone does
+  const total = trimDb(entry.lufs, gain);
+  // Every trim is a cut (never above 0 dB), so the element's own volume applies it exactly.
+  useEffect(() => { if (ref.current) ref.current.volume = Math.min(1, 10 ** (total / 20)); }, [total]);
+
+  const toggle = () => {
+    const a = ref.current;
+    if (!a) return;
+    if (a.paused) a.play().catch(() => setPlaying(false));
+    else a.pause();
+  };
+
+  return (
+    <div>
+      <span className={LABEL}>Preview · as broadcast</span>
+      <audio
+        ref={ref}
+        src={`/api/audio/stream?file=${encodeURIComponent(entry.file)}`}
+        preload="none"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onTimeUpdate={(e) => setT(e.currentTarget.currentTime)}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={toggle}
+          aria-label={playing ? 'Pause preview' : 'Play preview'}
+          className="w-8 h-8 shrink-0 grid place-items-center rounded-md border border-white/15 text-white/80 hover:bg-white/[0.06] active:scale-[0.97] transition-[transform,background-color] duration-150"
+        >
+          {playing ? (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect x="1" y="1" width="3" height="8" /><rect x="6" y="1" width="3" height="8" /></svg>
+          ) : (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M2 1l7 4-7 4z" /></svg>
+          )}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={entry.durationSec || 1}
+          step={1}
+          value={t}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setT(v);
+            if (ref.current) ref.current.currentTime = v;
+          }}
+          aria-label="Seek"
+          className="flex-1 accent-white/70"
+        />
+        <span className="font-mono text-[10.5px] text-white/50 tabular-nums">
+          {formatDuration(Math.floor(t))} / {formatDuration(entry.durationSec)}
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <span className="font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/40 w-11">Level</span>
+        <input
+          type="range"
+          min={-12}
+          max={0}
+          step={0.5}
+          value={gain}
+          onChange={(e) => onLevel(Number(e.target.value))}
+          aria-label="Broadcast level"
+          className="flex-1 accent-white/70"
+        />
+        <span className="font-mono text-[10.5px] text-white/60 tabular-nums w-14 text-right">{gain === 0 ? '0 dB' : `${gain.toFixed(1)} dB`}</span>
+      </div>
+      <p className="mt-2 font-mono text-[11px] text-white/60 tabular-nums">
+        {entry.lufs === undefined
+          ? 'Loudness not measured yet — use “Measure loudness” in the library'
+          : `${entry.lufs} LUFS · ${auto < 0 ? `normalised ${auto.toFixed(1)} dB to ${TARGET_LUFS}` : 'plays as mastered'}`}
+        {gain < 0 ? ` · ${gain.toFixed(1)} dB by hand` : ''}
+        {total < 0 ? ` = ${total.toFixed(1)} dB on air` : ''}
+      </p>
+    </div>
+  );
+}
+
 type KnownFile = { file: string; durationSec: number; lufs?: number };
 
 /** Read an audio file's length locally, before spending time uploading it. */

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { BackLink } from '@/components/BackLink';
 import Image from 'next/image';
 import type { NavCommand } from '@/lib/types';
 import { censorCmd } from '@/lib/types';
@@ -34,13 +34,13 @@ export function MobileInfo({ content, commands, back = '/' }: { content: string;
       <div className="page-enter" style={{ position: 'absolute', inset: 0 }}>
 
         {/* Back arrow */}
-        <Link href={back} style={{
+        <BackLink href={back} style={{
           position: 'absolute', left: vw(17), top: dvh(16), display: 'block',
           width: vw(50), height: vw(50),
         }}>
           <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
             style={{ width: vw(50), height: vw(50), objectFit: 'contain' }} />
-        </Link>
+        </BackLink>
 
         {/* 8-bit tree */}
         <div style={{
