@@ -142,7 +142,7 @@ export type Metrics = {
 
 // The off-air figure: a jumbled ball of dots spinning on its own vertical axis, its tilt, spin
 // speed and every dot's distance from the centre drifting at rates that never line up.
-const ORB_R = 0.42;   // in the plot's -1..1 units
+const ORB_R = 0.18;   // the size of a quiet passage on air   // in the plot's -1..1 units
 const ORB_N = 700;
 const ORB = Array.from({ length: ORB_N }, (_, i) => {
   const z = 1 - (2 * (i + 0.5)) / ORB_N, ring = Math.sqrt(1 - z * z), az = i * 2.39996; // golden-angle sphere
@@ -151,7 +151,7 @@ const ORB = Array.from({ length: ORB_N }, (_, i) => {
   return { x: ring * Math.cos(az) * r + j() * r, y: z * r + j() * r, z: ring * Math.sin(az) * r + j() * r,
     // each dot its own reach, pace and rhythm: three unrelated rates, and a curve that makes
     // some dots hang at the core and others at the rim
-    reach: 0.5 + Math.random() ** 0.7 * 0.9, curve: 0.4 + Math.random() * 1.8,
+    reach: 0.6 + Math.random() ** 0.7 * 0.55, curve: 0.3 + Math.random() * 0.8,
     w: 4 + Math.random() * 10, w2: 1.5 + Math.random() * 5, w3: 7 + Math.random() * 12,
     ph: Math.random() * 6.283, ph2: Math.random() * 6.283, ph3: Math.random() * 6.283 };
 });
@@ -174,8 +174,10 @@ function orb(t: number, lx: Float32Array, ly: Float32Array): number {
     if (z2 > 0.05 && k % 3) continue;   // the far side shows thin, so it reads as a ball, not a disc
     const persp = 1.6 / (1.6 + z2);                                                        // near side larger
     const x2 = x1 * persp, y2 = y1 * persp;
-    lx[n] = x2 * cr - y2 * sr + (Math.random() - 0.5) * 0.006;                             // roll, shimmer
-    ly[n++] = x2 * sr + y2 * cr + (Math.random() - 0.5) * 0.006;
+    const u = x2 * cr - y2 * sr, v = x2 * sr + y2 * cr;                                    // roll
+    // leaned along the mono diagonal like real stereo, with a shimmer
+    lx[n] = (u + v) * 0.62 + (u - v) * 0.42 + (Math.random() - 0.5) * 0.006;
+    ly[n++] = (u + v) * 0.62 - (u - v) * 0.42 + (Math.random() - 0.5) * 0.006;
   }
   return n;
 }
