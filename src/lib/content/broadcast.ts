@@ -30,6 +30,7 @@ export function entryToMix(entry: BroadcastEntry): Mix {
     tags: entry.tags,
     kind: entry.kind,
     hidden: entry.hidden,
+    lufs: entry.lufs,
   };
 }
 

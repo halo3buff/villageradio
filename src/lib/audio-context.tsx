@@ -3,6 +3,7 @@ import { createContext, useContext, useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Mix } from '@/lib/types';
 import { positionAt, secondsIntoDay, type Segment } from '@/lib/content/broadcast';
+import { trimDb } from '@/lib/audio/loudness';
 
 type AudioMode = 'idle' | 'broadcast' | 'individual';
 
@@ -33,10 +34,7 @@ const PlayerContext = createContext<AudioCtx | null>(null);
 // BROADCAST_TZ, so it is identical for every listener at a given instant.
 // The only per-user variance is a *wrong* device clock, corrected by the server
 // offset. These constants govern how we gently re-converge during a session.
-const NUDGE_THRESHOLD_SEC = 0.25;       // ignore drift smaller than this
-const HARD_SEEK_SEC       = 1.5;        // above this, fade + seek instead of nudging
-const RATE_WINDOW_SEC     = 30;         // absorb a rate nudge over this many seconds
-const RATE_MAX            = 0.03;       // cap playbackRate change at ±3% (imperceptible)
+const HARD_SEEK_SEC       = 1.5;        // drift past this gets a fade-covered seek; less is inaudible on radio
 const CORRECT_INTERVAL_MS = 5 * 60_000; // how often to check for drift
 const TIME_REFRESH_MS     = 10 * 60_000;// how often to re-fetch the server clock offset
 
@@ -77,8 +75,8 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
   const silentRef       = useRef(false); // tuned in, but the schedule says silence right now
   const boundaryRef     = useRef<ReturnType<typeof setTimeout> | null>(null); // fires when this play / silence ends
   const serverOffsetRef = useRef<number | null>(null);  // ms to add to Date.now() for server-accurate time
-  const rateResetRef    = useRef<ReturnType<typeof setTimeout>  | null>(null); // resets playbackRate after a nudge
-  const intendedRateRef = useRef(1); // the rate WE want — guards against external overrides (e.g. speed-control browser extensions)
+  const trimNodeRef     = useRef<GainNode | null>(null); // per-track loudness trim (see loudness.ts)
+  const trimRef         = useRef(1);
   const correctTimerRef = useRef<ReturnType<typeof setInterval> | null>(null); // periodic drift check
   const timeRefreshRef  = useRef<ReturnType<typeof setInterval> | null>(null); // periodic server-clock refresh
 
@@ -161,19 +159,19 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     if (!audioRef.current) {
       const a = new Audio();
       a.crossOrigin = 'anonymous';
-      // Keep pitch constant if the drift corrector nudges playbackRate — a tempo
-      // nudge stays imperceptible, never a pitch shift. (Default is true, but pin it.)
+      // The station always plays at exactly 1× — nothing here ever changes the rate. Some
+      // media-speed browser extensions force a remembered rate (e.g. 0.9×) onto every
+      // <audio>/<video>, which would make the stream play slow: snap any such change back,
+      // including the default rate a new src load would otherwise pick up.
       a.preservesPitch = true;
-      a.defaultPlaybackRate = 1;
-      a.playbackRate = 1;
-      // Defend the broadcast tempo: some media-speed browser extensions force a
-      // remembered rate (e.g. 0.9×) onto every <audio>/<video>, which would make the
-      // stream play slow. If anything sets a rate we didn't ask for, snap it back.
-      a.addEventListener('ratechange', () => {
-        if (Math.abs(a.playbackRate - intendedRateRef.current) > 1e-3) {
-          a.playbackRate = intendedRateRef.current;
-        }
-      });
+      const pin = () => {
+        if (a.defaultPlaybackRate !== 1) a.defaultPlaybackRate = 1;
+        if (a.playbackRate !== 1) a.playbackRate = 1;
+      };
+      pin();
+      a.addEventListener('ratechange', pin);
+      a.addEventListener('loadstart', pin);
+      a.addEventListener('playing', pin);
       // Dead-air watch: a buffering hiccup gets a 2.5s grace period before the
       // scope declares NO CARRIER; an outright error declares it immediately.
       // Any resumed playback clears the state.
@@ -228,6 +226,9 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     const gain = ctx.createGain();
     gain.gain.value = volumeRef.current;
     gainNodeRef.current = gain;
+    const trim = ctx.createGain();
+    trim.gain.value = trimRef.current;
+    trimNodeRef.current = trim;
 
     // Analysers tap pre-gain so volume doesn't affect visualiser levels
     source.connect(splitter);
@@ -235,10 +236,18 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     splitter.connect(aR, 1);
     source.connect(aFreq);
 
-    source.connect(gain);
+    // Analysers read the file as mastered; listeners hear it trimmed to the common level.
+    source.connect(trim);
+    trim.connect(gain);
     gain.connect(ctx.destination);
 
     setAnalyserL(aL); setAnalyserR(aR); setAnalyserFreq(aFreq);
+  }
+
+  /** Loudness-normalise: loud masters play at the -14 LUFS everyone else is at. */
+  function applyTrim(track: Mix) {
+    trimRef.current = 10 ** (trimDb(track.lufs) / 20);
+    if (trimNodeRef.current) trimNodeRef.current.gain.value = trimRef.current;
   }
 
   function setVolume(v: number) {
@@ -256,6 +265,7 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     broadcastIdxRef.current = idx;
     setBroadcastIndex(idx);
     setCurrentTrack(track);
+    applyTrim(track);
 
     audio.ontimeupdate = () => {
       const a = audioRef.current!;
@@ -276,9 +286,6 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
 
   async function tuneIntoBroadcast() {
     const audio = audioRef.current!;
-    intendedRateRef.current = 1;
-    audio.playbackRate = 1; // clear any leftover nudge from a previous track
-
     // Fetch server time once per session to correct for skewed device clocks
     if (serverOffsetRef.current === null) {
       serverOffsetRef.current = await fetchServerOffsetMs();
@@ -368,26 +375,9 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     gain.gain.linearRampToValueAtTime(volumeRef.current, now + 0.12);
   }
 
-  // Smoothly absorb a small drift by speeding up / slowing down playback a touch.
-  // A ±3% rate change is an inaudible pitch shift; it converges over RATE_WINDOW_SEC
-  // then snaps back to 1.0. No seek, no glitch.
-  function nudgeRate(driftSec: number) {
-    const audio = audioRef.current;
-    if (!audio) return;
-    let rate = 1 + driftSec / RATE_WINDOW_SEC;            // behind → >1, ahead → <1
-    rate = Math.max(1 - RATE_MAX, Math.min(1 + RATE_MAX, rate));
-    intendedRateRef.current = rate;                       // tell the guard this rate is ours
-    audio.playbackRate = rate;
-    if (rateResetRef.current) clearTimeout(rateResetRef.current);
-    rateResetRef.current = setTimeout(() => {
-      intendedRateRef.current = 1;
-      if (audioRef.current) audioRef.current.playbackRate = 1;
-    }, RATE_WINDOW_SEC * 1000);
-  }
-
   // Periodic check: how far is actual playback from where the broadcast clock says
-  // it should be? Small drift → smooth rate nudge. Large drift or wrong track →
-  // fade-covered seek/re-tune (rare; mainly after a long stall).
+  // it should be? Large drift or wrong track → fade-covered seek/re-tune (rare;
+  // mainly after a long stall). Playback speed is never touched.
   function correctDrift() {
     if (modeRef.current !== 'broadcast') return;
     const audio = audioRef.current;
@@ -399,8 +389,6 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
 
     // On the wrong track entirely — re-derive from the clock, hidden behind a gain dip
     if (expected.idx !== broadcastIdxRef.current) {
-      intendedRateRef.current = 1;
-      audio.playbackRate = 1;
       fadeOutThen(() => { tuneIntoBroadcast(); fadeIn(); });
       console.log('[VR broadcast] resync: wrong track → re-tune');
       return;
@@ -410,13 +398,8 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     const absDrift = Math.abs(drift);
 
     if (absDrift > HARD_SEEK_SEC) {
-      intendedRateRef.current = 1;
-      audio.playbackRate = 1;
       fadeOutThen(() => { safeSeek(audio, expected.offset); fadeIn(); });
       console.log('[VR broadcast] resync: hard seek', { drift: +drift.toFixed(2) });
-    } else if (absDrift > NUDGE_THRESHOLD_SEC) {
-      nudgeRate(drift);
-      console.log('[VR broadcast] resync: rate nudge', { drift: +drift.toFixed(2), rate: +audio.playbackRate.toFixed(3) });
     }
   }
 
@@ -432,11 +415,8 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
   function stopBroadcastTimers() {
     if (correctTimerRef.current) { clearInterval(correctTimerRef.current); correctTimerRef.current = null; }
     if (timeRefreshRef.current)  { clearInterval(timeRefreshRef.current);  timeRefreshRef.current  = null; }
-    if (rateResetRef.current)    { clearTimeout(rateResetRef.current);     rateResetRef.current    = null; }
     if (boundaryRef.current)     { clearTimeout(boundaryRef.current);      boundaryRef.current     = null; }
     silentRef.current = false;
-    intendedRateRef.current = 1;
-    if (audioRef.current) audioRef.current.playbackRate = 1;
   }
 
   function broadcastPlay() {
@@ -468,6 +448,7 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     audio.onended  = () => { setIsPlaying(false); setCurrentTrack(null); };
     initWebAudio(audio);
     setCurrentTrack(track);
+    applyTrim(track);
     setIsPlaying(true);
     audio.play().catch(() => setIsPlaying(false));
   }

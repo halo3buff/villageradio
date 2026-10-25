@@ -11,6 +11,8 @@ export interface Mix {
   kind?: 'mix' | 'inter';
   /** Stays in the archive/sidebar but skipped when computing the live rotation. */
   hidden?: boolean;
+  /** Integrated loudness (LUFS) — playback trims loud masters to the common level. */
+  lufs?: number;
 }
 
 // --- Editable content manifests (GCS config bucket; see src/lib/content) ----------
@@ -30,6 +32,8 @@ export interface BroadcastEntry {
   tags: string[];
   /** Excluded from the live rotation's play order/timing; still editable and playable standalone. */
   hidden?: boolean;
+  /** Integrated loudness (LUFS), measured in the admin on upload. */
+  lufs?: number;
 }
 
 /** A block on the day: entry `entry` starts at `start` (seconds after midnight, Eastern) and

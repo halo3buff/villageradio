@@ -11,6 +11,7 @@ import {
   BROADCAST_TZ,
   type Segment,
 } from '@/lib/content/broadcast';
+import { measureLoudness, fileReader, urlReader, trimDb, TARGET_LUFS } from '@/lib/audio/loudness';
 import { Banner } from './ui';
 
 type Props = { initial: BroadcastManifest; generation: string };
@@ -136,10 +137,29 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   );
   const dirty = useMemo(() => baseline === null || JSON.stringify(doc) !== JSON.stringify(baseline), [doc, baseline]);
   const knownFiles = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const e of entries) if (!map.has(e.file)) map.set(e.file, e.durationSec);
-    return [...map.entries()].map(([file, durationSec]) => ({ file, durationSec }));
+    const map = new Map<string, KnownFile>();
+    for (const e of entries) if (!map.has(e.file)) map.set(e.file, { file: e.file, durationSec: e.durationSec, lufs: e.lufs });
+    return [...map.values()];
   }, [entries]);
+  // Files with no loudness yet (added before measuring existed) — measured on request.
+  const unmeasured = useMemo(() => [...new Set(entries.filter((e) => e.lufs === undefined).map((e) => e.file))], [entries]);
+  const [measuring, setMeasuring] = useState<string | null>(null);
+
+  /** Download each unmeasured file back from storage and measure it. Each result lands as an
+   *  ordinary unpublished change; the station uses it once you publish. */
+  async function measureAll() {
+    for (const [i, file] of unmeasured.entries()) {
+      setMeasuring(`${i + 1}/${unmeasured.length}`);
+      try {
+        const lufs = await measureLoudness(await urlReader(`/api/audio/stream?file=${encodeURIComponent(file)}`));
+        setDoc((d) => ({ ...d, entries: d.entries.map((e) => (e.file === file ? { ...e, lufs } : e)) }));
+        setStatus('idle');
+      } catch {
+        notify(`Couldn't measure ${file}`);
+      }
+    }
+    setMeasuring(null);
+  }
 
   const y = (sec: number) => (sec / 60) * ppm;
 
@@ -656,6 +676,16 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
               + Add
             </button>
           </div>
+          {(unmeasured.length > 0 || measuring) && (
+            <button
+              onClick={measureAll}
+              disabled={!!measuring}
+              className={`${BTN} mb-3 w-full h-7 text-[11.5px]`}
+              title={`Measures each file's loudness so loud masters play at ${TARGET_LUFS} LUFS, like Spotify`}
+            >
+              {measuring ? `Measuring loudness ${measuring}…` : `Measure loudness · ${unmeasured.length} file${unmeasured.length > 1 ? 's' : ''}`}
+            </button>
+          )}
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className={`${INPUT} mb-4`} />
           {drag?.active && drag.from === 'block' && (
             <p className="mb-3 rounded-md border border-dashed border-white/25 px-2.5 py-2 font-sans text-[11.5px] text-white/60">
@@ -1160,6 +1190,16 @@ function Inspector({
           <span className={LABEL}>Tags</span>
           <TagsInput key={entry.id} value={entry.tags} onChange={(tags) => onPatch({ tags }, 'tags')} />
         </label>
+        <div>
+          <span className={LABEL}>Loudness</span>
+          <p className="font-mono text-[11px] text-white/60 tabular-nums">
+            {entry.lufs === undefined
+              ? 'not measured yet — use “Measure loudness” in the library'
+              : trimDb(entry.lufs) < 0
+                ? `${entry.lufs} LUFS · plays ${-trimDb(entry.lufs).toFixed(1)} dB quieter, at ${TARGET_LUFS}`
+                : `${entry.lufs} LUFS · plays as mastered`}
+          </p>
+        </div>
         <p className="font-mono text-[10px] text-white/30 break-all">{entry.file}</p>
       </div>
 
@@ -1270,6 +1310,7 @@ function SeriesPicker({
 }
 
 type AddMode = 'existing' | 'upload';
+type KnownFile = { file: string; durationSec: number; lufs?: number };
 
 /** Read an audio file's length locally, before spending time uploading it. */
 function probeDuration(file: File): Promise<number> {
@@ -1309,14 +1350,14 @@ function AddPanel({
   onAdd,
   onCancel,
 }: {
-  knownFiles: { file: string; durationSec: number }[];
+  knownFiles: KnownFile[];
   existingIds: string[];
   onAdd: (entry: BroadcastEntry) => void;
   onCancel: () => void;
 }) {
   const [mode, setMode] = useState<AddMode>('upload');
   const [existingFile, setExistingFile] = useState(knownFiles[0]?.file ?? '');
-  const [upload, setUpload] = useState<{ file: string; durationSec: number } | null>(null);
+  const [upload, setUpload] = useState<KnownFile | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [title, setTitle] = useState('');
@@ -1339,6 +1380,8 @@ function AddPanel({
       return setUploadError('Could not read that file — is it a valid mp3?');
     }
     setProgress(0);
+    // measured from the local file while it uploads — no download back needed
+    const lufs = measureLoudness(fileReader(picked)).catch(() => undefined);
     try {
       // Presigned R2 URL: avoids Cloud Run's 32 MB body limit.
       const presignRes = await fetch('/api/admin/broadcast/presign', {
@@ -1350,7 +1393,7 @@ function AddPanel({
       if (!presignRes.ok || !presign.ok) return setUploadError(presign.error ?? 'Upload could not start.');
       if (!(await putWithProgress(presign.url, picked, setProgress)))
         return setUploadError('Upload failed — check your connection and try again.');
-      setUpload({ file: presign.key, durationSec });
+      setUpload({ file: presign.key, durationSec, lufs: await lufs });
       if (!title) setTitle(picked.name.replace(/\.[^.]+$/, ''));
     } catch {
       setUploadError('Network error — try again.');
@@ -1369,6 +1412,7 @@ function AddPanel({
         date,
         durationSec: selected.durationSec,
         file: selected.file,
+        ...(selected.lufs !== undefined ? { lufs: selected.lufs } : {}),
         kind,
         ...(kind === 'mix' && series ? { series } : {}),
         tags: [],
@@ -1454,7 +1498,8 @@ function AddPanel({
             <>
               <span className="font-sans text-[12.5px] text-white/85">✓ {upload.file}</span>
               <span className="font-mono text-[10.5px] text-white/40">
-                {formatDuration(upload.durationSec)} · click to replace
+                {formatDuration(upload.durationSec)}
+                {upload.lufs !== undefined ? ` · ${upload.lufs} LUFS` : ''} · click to replace
               </span>
             </>
           ) : (
