@@ -151,7 +151,7 @@ type Annotation = { startDate: string; endDate: string | null; description: stri
 /** Live traffic plus the past 30 days of outages Cloudflare's analysts logged for Palestine.
  *  Empty without a CLOUDFLARE_RADAR_TOKEN or when Radar is unreachable. */
 export async function getNet(): Promise<NetReport> {
-  const token = process.env.CLOUDFLARE_RADAR_TOKEN;
+  const token = process.env.CLOUDFLARE_RADAR_TOKEN?.trim();   // a pasted secret can carry a newline
   if (!token) return { now: null, lines: [] };
   const get = async (p: string) => {
     const r = await fetch(`${CF}/${p}`, { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 300 } });
