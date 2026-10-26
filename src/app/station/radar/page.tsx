@@ -4,7 +4,9 @@ import { RadarDesktop } from '@/components/RadarDesktop';
 import { getGazaReports, getNet, getOutages, getRadarFeed, telexLines } from '@/lib/radar';
 
 export const metadata: Metadata = { title: 'Radar' };
-export const revalidate = 60;
+// rendered per request (the console refreshes it every minute); the feeds themselves are
+// cached for 2–5 minutes in their fetches. ISR here kept serving the build-time copy.
+export const dynamic = 'force-dynamic';
 
 /** The radar console — reached from the station, sharing its pass (see gateOf). */
 export default async function StationRadarPage() {
