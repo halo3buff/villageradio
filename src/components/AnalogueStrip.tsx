@@ -143,7 +143,7 @@ export type Metrics = {
 // Off air the screen does what a real goniometer does with nothing playing: the trace sits on the
 // centre as a small flickering speck, the input's own noise floor. Left and right noise are
 // independent, so the speck is round, and every frame is fresh.
-const FLOOR = 0.022;   // noise level, in the plot's -1..1 units (about -33 dB under full scale)
+const FLOOR = 0.016;   // noise level, in the plot's -1..1 units (about -33 dB under full scale)
 const FLOOR_N = 260;   // dots in the speck
 const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(6.283 * Math.random());
 function noiseFloor(lx: Float32Array, ly: Float32Array): number {
