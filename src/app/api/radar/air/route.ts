@@ -10,15 +10,15 @@ let last: { t: number; ac: Aircraft[] } | null = null;
 let inflight: Promise<void> | null = null;
 
 async function refresh() {
-  const r = await fetch('https://api.adsb.lol/v2/point/31.9/35.0/150', {
-    headers: { 'User-Agent': 'vlgfm.live radar console (+https://vlgfm.live)' },   // adsb.lol refuses anonymous agents
+  const r = await fetch('https://opendata.adsb.fi/api/v3/lat/31.9/lon/35.0/dist/150', {
+    headers: { 'User-Agent': 'vlgfm.live radar console (+https://vlgfm.live)' },
     cache: 'no-store',
   });
-  if (!r.ok) throw new Error(`adsb.lol ${r.status}`);
+  if (!r.ok) throw new Error(`adsb.fi ${r.status}`);
   last = { t: Date.now(), ac: aircraft((await r.json()).ac ?? [], AIR_BOX) };
 }
 
-/** Aircraft over Gaza, the West Bank and Israel, from adsb.lol's open ADS-B feed.
+/** Aircraft over Gaza, the West Bank and Israel, from adsb.fi's open ADS-B feed (personal, non-commercial use; cite adsb.fi).
  *  `t` is when the fix was taken; a refused refresh keeps serving the last good one. */
 export async function GET() {
   if (!last || Date.now() - last.t >= FIX_EVERY) {

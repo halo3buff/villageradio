@@ -17,7 +17,7 @@ import { telex } from './Teleprinter';
 
 export const W = 260, H = 446;
 const X0 = 10, Y0 = 22, SW = 240, SH = 328;
-const POLL = 15000;        // asks the server for its latest fix; a new one lands every FIX_EVERY
+const POLL = FIX_EVERY;     // asks the server for its latest fix as often as it takes one
 const TRAIL = 30;          // positions kept per contact
 
 type Track = { a: Aircraft; at: number; trail: [number, number][] };
@@ -161,7 +161,7 @@ export function Airspace() {
       line(X0 + SW / 2, ty + 6, X0 + SW / 2, ty + 70, INK);
       ['TRANSPONDER CONTACTS', 'ONLY. STRIKE AIRCRAFT', 'AND MOST DRONES FLY', 'WITHOUT BROADCASTING,', 'SO DO NOT SHOW HERE.']
         .forEach((r, i) => t(r, X0 + SW / 2 + 6, ty + 14 + i * 12, 5));
-      t('SRC ADSB.LOL (ODBL) / NATURAL EARTH', X0, H - 3, 5);
+      t('SRC ADSB.FI (HTTPS://ADSB.FI) / NAT. EARTH', X0, H - 3, 5);
     });
 
     const pick = (e: PointerEvent) => {

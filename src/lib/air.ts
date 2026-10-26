@@ -2,9 +2,8 @@
 
 export const AIR_BOX = { w: 33.9, e: 36.0, s: 30.9, n: 33.4 };   // matches scripts/build-map.py
 
-/** How often the server takes a fresh fix: adsb.lol's keyless allowance is 500 calls a day.
- *  With a feed that allows more (airplanes.live, 1/s once approved), drop this to 5000. */
-export const FIX_EVERY = 180_000;
+/** How often the server takes a fresh fix (adsb.fi's open feed allows one call a second). */
+export const FIX_EVERY = 5000;
 
 export type Aircraft = {
   hex: string; flight: string; type: string; reg: string;
