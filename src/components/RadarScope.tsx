@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { Contact, RadarFeed } from '@/lib/radar';
+import { CORE, INK, mountPlate, platePoint, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
 
 /**
  * The radar — a PPI scope in the station plate's print (mint stock, olive screen,
@@ -20,14 +21,11 @@ const PERIOD = 9000;            // ms per revolution
 const YEAR = 365;
 const LOG_MAX = Math.log10(1001);
 
-// the station plate's colours (stationPlate.ts)
-const PAPER = '#3fd89e', INK = '#2b3626', SCREEN = '#36442e', YEL = '#f0c02c';
-const TRACE = '#62f2b6', SCREEN_INK = 'rgba(98,242,182,0.8)', SCREEN_DIM = 'rgba(98,242,182,0.3)';
 
 type Series = { key: keyof Omit<Contact, 'date'>; label: string; color: string; glyph: 'dot' | 'square' | 'cross' | 'ring' };
 const SERIES: Series[] = [
   { key: 'displaced', label: 'DISPLACED', color: TRACE, glyph: 'square' },
-  { key: 'attacks', label: 'SETTLER ATK', color: '#c8ffe6', glyph: 'dot' },
+  { key: 'attacks', label: 'SETTLER ATK', color: CORE, glyph: 'dot' },
   { key: 'injured', label: 'INJURED', color: TRACE, glyph: 'cross' },
   { key: 'killed', label: 'KILLED', color: YEL, glyph: 'ring' },
 ];
@@ -57,68 +55,26 @@ export function RadarScope({ feed }: { feed: RadarFeed | null }) {
 
   useEffect(() => {
     const cv = ref.current!;
-    const ctx = cv.getContext('2d')!;
-    const plex = getComputedStyle(document.documentElement).getPropertyValue('--font-ibm-plex-mono').trim();
-    const MONO = `${plex || 'Consolas'}, Consolas, monospace`;
     const today = feed?.summary.westBank.updated ?? new Date().toISOString().slice(0, 10);
     const all = feed ? blips(feed.contacts, today) : [];
     let hover: Blip | null = null;
-    let s = 1, raf = 0;
 
-    // film grain, as on the station's screen
-    const g = document.createElement('canvas');
-    g.width = g.height = 160;
-    const gc = g.getContext('2d')!, img = gc.createImageData(160, 160);
-    for (let i = 0; i < img.data.length; i += 4) {
-      const v = Math.random(), light = v > 0.5;
-      img.data[i] = light ? 120 : 10; img.data[i + 1] = light ? 255 : 18; img.data[i + 2] = light ? 190 : 12;
-      img.data[i + 3] = Math.abs(v - 0.5) ** 2 * 4 * 255 * 0.18;
-    }
-    gc.putImageData(img, 0, 0);
-    const grain = ctx.createPattern(g, 'repeat');
-
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      s = (cv.clientWidth / W) * dpr;
-      cv.width = Math.round(W * s); cv.height = Math.round(H * s);
-    };
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(cv);
-
-    const t = (str: string, x: number, y: number, size = 6.5, color = INK, align: CanvasTextAlign = 'left') => {
-      ctx.font = `700 ${size}px ${MONO}`;
-      ctx.fillStyle = color; ctx.textAlign = align;
-      ctx.fillText(str.toUpperCase(), x, y);
-    };
-    const line = (x0: number, y0: number, x1: number, y1: number, color: string, w = 0.6) => {
-      ctx.strokeStyle = color; ctx.lineWidth = w;
-      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-    };
-    const glyph = (b: Blip, a: number) => {
-      const sz = 1.4 + (b.s.key === 'killed' ? 1.2 : 0);
-      ctx.globalAlpha = a;
-      ctx.fillStyle = ctx.strokeStyle = b.s.color; ctx.lineWidth = 0.8;
-      ctx.shadowColor = b.s.color; ctx.shadowBlur = 6 * s * a;
-      ctx.beginPath();
-      if (b.s.glyph === 'dot') { ctx.arc(b.x, b.y, sz, 0, 7); ctx.fill(); }
-      else if (b.s.glyph === 'square') { ctx.rect(b.x - sz, b.y - sz, sz * 2, sz * 2); ctx.stroke(); }
-      else if (b.s.glyph === 'cross') { ctx.moveTo(b.x - sz, b.y); ctx.lineTo(b.x + sz, b.y); ctx.moveTo(b.x, b.y - sz); ctx.lineTo(b.x, b.y + sz); ctx.stroke(); }
-      else { ctx.arc(b.x, b.y, sz, 0, 7); ctx.stroke(); }
-      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-    };
-
-    const frame = (now: number) => {
-      ctx.setTransform(s, 0, 0, s, 0, 0);
-      (ctx as unknown as { letterSpacing: string }).letterSpacing = '0.5px';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
+    const stop = mountPlate(cv, W, H, ({ ctx, s, mono, t, line, screen, grain }, now) => {
+      const glyph = (b: Blip, a: number) => {
+        const sz = 1.4 + (b.s.key === 'killed' ? 1.2 : 0);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = ctx.strokeStyle = b.s.color; ctx.lineWidth = 0.8;
+        ctx.shadowColor = b.s.color; ctx.shadowBlur = 6 * s * a;
+        ctx.beginPath();
+        if (b.s.glyph === 'dot') { ctx.arc(b.x, b.y, sz, 0, 7); ctx.fill(); }
+        else if (b.s.glyph === 'square') { ctx.rect(b.x - sz, b.y - sz, sz * 2, sz * 2); ctx.stroke(); }
+        else if (b.s.glyph === 'cross') { ctx.moveTo(b.x - sz, b.y); ctx.lineTo(b.x + sz, b.y); ctx.moveTo(b.x, b.y - sz); ctx.lineTo(b.x, b.y + sz); ctx.stroke(); }
+        else { ctx.arc(b.x, b.y, sz, 0, 7); ctx.stroke(); }
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      };
 
       // ── the screen ─────────────────────────────────────────────────────────
-      ctx.fillStyle = SCREEN; ctx.fillRect(X0, Y0, SCR, SCR);
-      const vig = ctx.createRadialGradient(CX, CY, SCR * 0.2, CX, CY, SCR * 0.75);
-      vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(10,16,8,0.45)');
-      ctx.fillStyle = vig; ctx.fillRect(X0, Y0, SCR, SCR);
+      screen(X0, Y0, SCR, SCR);
 
       // range rings, log: 1 / 10 / 100 / 1000
       for (const [k, v] of [1, 10, 100, 1000].entries()) {
@@ -169,13 +125,9 @@ export function RadarScope({ feed }: { feed: RadarFeed | null }) {
         const c = hover.c;
         t(c.date, X0 + SCR - 6, Y0 + SCR - 32, 5.5, SCREEN_INK, 'right');
         SERIES.forEach((sr, i) => t(`${sr.label} ${c[sr.key]}`, X0 + SCR - 6, Y0 + SCR - 24 + i * 6.5, 5,
-          sr.key === hover!.s.key ? '#c8ffe6' : SCREEN_DIM, 'right'));
+          sr.key === hover!.s.key ? CORE : SCREEN_DIM, 'right'));
       }
-      if (grain) {
-        const k = 1.6 / s;
-        grain.setTransform(new DOMMatrix([k, 0, 0, k, Math.random() * 160 * k, Math.random() * 160 * k]));
-        ctx.fillStyle = grain; ctx.fillRect(X0, Y0, SCR, SCR);
-      }
+      grain(X0, Y0, SCR, SCR);
 
       // ── the figures table, the station's readout columns ──────────────────
       const ty = Y0 + SCR + 8;
@@ -191,7 +143,7 @@ export function RadarScope({ feed }: { feed: RadarFeed | null }) {
         cols.forEach(([head, rows], i) => {
           const x = X0 + i * cw + 6;
           if (i) line(X0 + i * cw, ty + 6, X0 + i * cw, ty + TABLE_H - 26, INK);
-          ctx.font = `700 5px ${MONO}`;
+          ctx.font = `700 5px ${mono}`;
           const hw = ctx.measureText(head).width + 10;
           ctx.strokeStyle = INK; ctx.strokeRect(x, ty + 6, hw, 8);
           t(head, x + 5, ty + 12, 5);
@@ -199,14 +151,10 @@ export function RadarScope({ feed }: { feed: RadarFeed | null }) {
         });
       } else t('FEED UNREACHABLE — RETRYING HOURLY', CX, ty + 40, 6.5, INK, 'center');
       t('SRC TECH FOR PALESTINE / UN OCHA / GAZA + LEBANON MOH', X0, H - 3, 5);
-
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
 
     const pick = (e: PointerEvent) => {
-      const r = cv.getBoundingClientRect();
-      const px = ((e.clientX - r.left) / r.width) * W, py = ((e.clientY - r.top) / r.height) * H;
+      const { x: px, y: py } = platePoint(cv, W, H, e);
       let best: Blip | null = null, bd = 36;   // within 6 units
       for (const b of all) {
         const d = (b.x - px) ** 2 + (b.y - py) ** 2;
@@ -216,7 +164,7 @@ export function RadarScope({ feed }: { feed: RadarFeed | null }) {
     };
     cv.addEventListener('pointermove', pick);
     cv.addEventListener('pointerdown', pick);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick); };
+    return () => { stop(); cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick); };
   }, [feed]);
 
   return (
@@ -226,7 +174,8 @@ export function RadarScope({ feed }: { feed: RadarFeed | null }) {
       aria-label={feed
         ? `Radar of West Bank incidents over the past year. West Bank: ${feed.summary.westBank.killed} killed, ${feed.summary.westBank.attacks} settler attacks. Gaza: ${feed.summary.gaza.killed} killed.`
         : 'Radar feed unavailable'}
-      style={{ display: 'block', width: '100%', aspectRatio: `${W} / ${H}`, touchAction: 'manipulation' }}
+      className="plate radar"
+      style={{ aspectRatio: `${W} / ${H}`, touchAction: 'manipulation' }}
     />
   );
 }
