@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { TelexLine } from '@/lib/radar';
+import type { NetNow, TelexLine } from '@/lib/radar';
 import { INK, mountPlate, platePoint } from './plateKit';
 
 /**
@@ -32,10 +32,12 @@ export function telex(text: string) {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: `${utc()} ${text}` }));
 }
 
-const alarm = (text: string) => text.includes('OUTAGE') || text.includes(' MIL ');
+const alarm = (text: string) => text.includes('OUTAGE') || text.includes(' MIL ') || text.includes('TRAFFIC DROP');
 
-export function Teleprinter({ lines }: { lines: TelexLine[] }) {
+export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const live = useRef(net);
+  live.current = net;
   // the roll lives outside React: everything received, in order, and how far printing has got
   const roll = useRef({ received: [] as string[], seen: new Set<string>(), printed: 0, started: 0 });
 
@@ -110,9 +112,11 @@ export function Teleprinter({ lines }: { lines: TelexLine[] }) {
       [
         `WB REPORTS ${count(' WB ')}  (OCHA, 365 D)`,
         `GAZA REPORTS ${count(' GAZA ')}  (MOH, 45 D)`,
-        `NET OUTAGES ${count('OUTAGE')}  (IODA, 30 D)`,
+        `NET OUTAGES ${count('OUTAGE')}  (IODA / CLOUDFLARE, 30 D)`,
         `MIL AIRCRAFT ${count(' MIL ')}  (ADS-B, LIVE)`,
-        `LAST RX ${r.received.at(-1)?.slice(0, 14) ?? '--'}`,
+        live.current
+          ? `PS NET TRAFFIC ${Math.round(live.current.pct * 100)}% OF USUAL  (${live.current.at.slice(11, 16)}Z)`
+          : `LAST RX ${r.received.at(-1)?.slice(0, 14) ?? '--'}`,
         shown < r.received.length ? '> RECEIVING <' : r.received.length ? '> STANDING BY <' : '> LINE DEAD <',
       ].forEach((row, j) => t(row, X0 + 6, ty + 13 + j * 10.5, 5.5));
       t('KIA KILLED / INJ INJURED / DISPL DISPLACED', X0, H - 3, 5);

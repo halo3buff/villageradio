@@ -5,7 +5,7 @@ import { BackLink } from '@/components/BackLink';
 import { RadarScope } from '@/components/RadarScope';
 import { SettlementMap } from '@/components/SettlementMap';
 import { Teleprinter } from '@/components/Teleprinter';
-import type { RadarFeed, TelexLine } from '@/lib/radar';
+import type { NetNow, RadarFeed, TelexLine } from '@/lib/radar';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -16,7 +16,7 @@ const ROW_W = 260 + 372 + 260 + 260, ROW_H = 446;   // the four plates side by s
 
 /** The radar console: teleprinter | radar | settlement map | airspace in a row above the
  *  prompt; on phones a scrolling column, the roll last. BACK where the station keeps README. */
-export function RadarDesktop({ feed, telex }: { feed: RadarFeed | null; telex: TelexLine[] }) {
+export function RadarDesktop({ feed, telex, net }: { feed: RadarFeed | null; telex: TelexLine[]; net: NetNow | null }) {
   const router = useRouter();
   useEffect(() => {
     const iv = setInterval(() => router.refresh(), REFRESH);
@@ -40,7 +40,7 @@ export function RadarDesktop({ feed, telex }: { feed: RadarFeed | null; telex: T
         }
       `}</style>
       <div className="console-band" aria-hidden />
-      <Teleprinter lines={telex} />
+      <Teleprinter lines={telex} net={net} />
       <RadarScope feed={feed} />
       <SettlementMap />
       <Airspace />
