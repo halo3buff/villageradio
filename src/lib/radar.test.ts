@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contacts, rebin, status } from './radar';
+import { contacts } from './radar';
 
 describe('contacts', () => {
   it('turns cumulative reports into per-report deltas, skipping fills and the out-of-window', () => {
@@ -18,14 +18,3 @@ describe('contacts', () => {
   });
 });
 
-describe('signal', () => {
-  it('rebins into hourly means, leaving empty hours null', () => {
-    expect(rebin({ from: 0, step: 1800, values: [2, 4, null, null, 6] }, 0, 3)).toEqual([3, null, 6]);
-  });
-  it('reads OUTAGE from IODA events, DEGRADED from a routing drop', () => {
-    const r = { name: 'X', bgp: [100, 100, 100, 80], ping: [], outages: [] as { start: number; end: number; source: string }[] };
-    expect(status(r, 1e6)).toBe('DEGRADED');
-    expect(status({ ...r, bgp: [100, 100, 99] }, 1e6)).toBe('NOMINAL');
-    expect(status({ ...r, outages: [{ start: 0, end: 1e6 - 60, source: 'bgp' }] }, 1e6)).toBe('OUTAGE');
-  });
-});

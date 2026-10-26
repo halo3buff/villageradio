@@ -94,67 +94,27 @@ export async function getGazaReports(today: string): Promise<GazaReport[]> {
   }
 }
 
-// ── the signal monitor: IODA (Georgia Tech) internet measurements ────────────
-// BGP = address blocks still routed to the rest of the internet; PROBE = blocks
-// still answering pings. Both collapse when a region goes dark.
+// ── internet outages (IODA, Georgia Tech), for the teleprinter ──────────────
 
 const IODA = 'https://api.ioda.inetintel.cc.gatech.edu/v2';
-export const REGIONS = [{ code: 1226, name: 'GAZA' }, { code: 4581, name: 'WEST BANK' }];
-export const BIN = 3600;       // seconds per point on the trace
-export const SPAN = 7 * 86400;
+const REGIONS = [{ code: 1226, name: 'GAZA' }, { code: 4581, name: 'WEST BANK' }];
 
-export type Outage = { start: number; end: number; source: string };
-export type Region = { name: string; bgp: (number | null)[]; ping: (number | null)[]; outages: Outage[] };
-export type SignalFeed = { from: number; regions: Region[] };
-type Series = { from: number; step: number; values: (number | null)[] };
+export type Outage = { region: string; start: number; end: number; source: string };
 
-/** Average a series into `n` bins of BIN seconds from t0; empty bins are null. */
-export function rebin({ from, step, values }: Series, t0: number, n: number): (number | null)[] {
-  const sum = new Array(n).fill(0), cnt = new Array(n).fill(0);
-  values.forEach((v, i) => {
-    const b = Math.floor((from + i * step - t0) / BIN);
-    if (v != null && b >= 0 && b < n) { sum[b] += v; cnt[b]++; }
-  });
-  return sum.map((s, i) => (cnt[i] ? s / cnt[i] : null));
-}
-
-export type Status = 'OUTAGE' | 'DEGRADED' | 'NOMINAL' | 'NO DATA';
-
-/** IODA's own outage detection decides OUTAGE; otherwise routing under 90% of its week's median is DEGRADED. */
-export function status(r: Region, now: number): Status {
-  if (r.outages.some(o => o.end > now - 2 * 3600)) return 'OUTAGE';
-  const v = r.bgp.filter((x): x is number => x != null);
-  if (!v.length) return 'NO DATA';
-  const median = [...v].sort((a, b) => a - b)[v.length >> 1];
-  return v.at(-1)! < median * 0.9 ? 'DEGRADED' : 'NOMINAL';
-}
-
-export async function getSignal(): Promise<SignalFeed | null> {
-  const until = Math.floor(Date.now() / 1000 / BIN) * BIN, from = until - SPAN;
-  const get = async (path: string) => {
-    const r = await fetch(`${IODA}/${path}`, { next: { revalidate: 600 } });
-    if (!r.ok) throw new Error(`${path} ${r.status}`);
-    return (await r.json()).data;
-  };
+/** The past 30 days of outages IODA detected in each region; empty when it's unreachable. */
+export async function getOutages(): Promise<Outage[]> {
+  const until = Math.floor(Date.now() / 1000 / 3600) * 3600;
   try {
-    const regions = await Promise.all(REGIONS.map(async ({ code, name }) => {
-      const [bgp, ping, events] = await Promise.all([
-        get(`signals/raw/region/${code}?from=${from}&until=${until}&datasource=bgp`),
-        get(`signals/raw/region/${code}?from=${from}&until=${until}&datasource=ping-slash24`),
-        get(`outages/events?entityType=region&entityCode=${code}&from=${until - 30 * 86400}&until=${until}`),
-      ]);
-      return {
-        name,
-        bgp: rebin(bgp[0][0], from, SPAN / BIN),
-        ping: rebin(ping[0][0], from, SPAN / BIN),
-        outages: (events as { start: number; duration: number; datasource: string }[])
-          .map(e => ({ start: e.start, end: e.start + e.duration, source: e.datasource })),
-      };
+    const all = await Promise.all(REGIONS.map(async ({ code, name }) => {
+      const r = await fetch(`${IODA}/outages/events?entityType=region&entityCode=${code}&from=${until - 30 * 86400}&until=${until}`, { next: { revalidate: 600 } });
+      if (!r.ok) throw new Error(`ioda ${r.status}`);
+      return ((await r.json()).data as { start: number; duration: number; datasource: string }[])
+        .map(e => ({ region: name, start: e.start, end: e.start + e.duration, source: e.datasource }));
     }));
-    return { from, regions };
+    return all.flat();
   } catch (e) {
-    console.error('signal feed', e);
-    return null;
+    console.error('outages', e);
+    return [];
   }
 }
 
@@ -166,15 +126,15 @@ const stamp = (d: string) => d.slice(2).replace(/-/g, '.');
 const field = (k: string, v: number) => (v ? `  ${k} ${v.toLocaleString('en-US')}` : '');
 
 /** Every report and outage as one printed line, oldest first. */
-export function telexLines(wb: Contact[], gaza: GazaReport[], signal: SignalFeed | null): TelexLine[] {
+export function telexLines(wb: Contact[], gaza: GazaReport[], outages: Outage[]): TelexLine[] {
   const day = (d: string) => Date.parse(d) / 1000 + 12 * 3600;   // reports print at noon
   const lines: TelexLine[] = [
     ...wb.map(c => ({ t: day(c.date), text: `${stamp(c.date)} WB  ${field('KIA', c.killed)}${field('INJ', c.injured)}${field('SETTLER ATK', c.attacks)}${field('DISPL', c.displaced)}` })),
     ...gaza.map(g => ({ t: day(g.date), text: `${stamp(g.date)} GAZA${field('KIA', g.killed)}${field('INJ', g.injured)}${g.recovered ? `  (${g.recovered} RECOVERED)` : ''}` })),
-    ...(signal?.regions ?? []).flatMap(r => r.outages.map(o => {
+    ...outages.map(o => {
       const iso = new Date(o.start * 1000).toISOString();
-      return { t: o.start, text: `${stamp(iso.slice(0, 10))} ${iso.slice(11, 16)}Z ${r.name} NET OUTAGE ${o.source.toUpperCase()} ${Math.round((o.end - o.start) / 60)} MIN` };
-    })),
+      return { t: o.start, text: `${stamp(iso.slice(0, 10))} ${iso.slice(11, 16)}Z ${o.region} NET OUTAGE ${o.source.toUpperCase()} ${Math.round((o.end - o.start) / 60)} MIN` };
+    }),
   ];
   return lines.sort((a, b) => a.t - b.t);
 }
