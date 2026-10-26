@@ -72,7 +72,7 @@ export function HomeDesktop() {
         background: DESKTOP, zIndex: 4, pointerEvents: 'none',
       }} />
 
-      {/* README — top-right corner */}
+      {/* README and RADAR — top-right corner */}
       <Link
         href="/station/readme"
         style={{
@@ -83,6 +83,17 @@ export function HomeDesktop() {
         }}
       >
         README
+      </Link>
+      <Link
+        href="/station/radar"
+        style={{
+          position: 'absolute', top: 44, right: 24, zIndex: 5,
+          fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',
+          color: 'var(--vlg-fg, #000)', textDecoration: 'none',
+          pointerEvents: 'auto',
+        }}
+      >
+        RADAR
       </Link>
 
     </div>

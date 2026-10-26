@@ -8,7 +8,7 @@ import { grantClearance } from '@/lib/clearance';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 // The prompt's "file" is the page you're on; anything unlisted shows its own last segment.
 const FILES: Record<string, string> = {
-  '/': 'landing', '/station': 'broadcast', '/information': 'README_0', '/station/readme': 'README_1',
+  '/': 'landing', '/station': 'broadcast', '/information': 'README_0', '/station/readme': 'README_1', '/station/radar': 'radar',
 };
 const ps1 = (path: string) => `MAIN:/vlg/stn/${FILES[path] ?? path.split('/').pop()} > `;
 
