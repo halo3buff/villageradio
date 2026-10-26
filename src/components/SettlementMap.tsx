@@ -8,14 +8,14 @@ import { extent, fit, loadGeo, rings, type Geo, type Site } from './geo';
  * The settlement map — the West Bank as Peace Now surveys it: Oslo's Areas A
  * and B lit, Area C (full Israeli control) in amber wash, settlement council
  * jurisdictions, the separation barrier, and every settlement, outpost and
- * farm outpost. A year counter replays 1967 → 2024; each site appears in the
- * year it was founded and flares as it lands. Hover a site to read it.
+ * farm outpost, as of Peace Now's latest survey. The newest year's sites pulse.
+ * Hover a site to read it.
  */
 
 export const W = 260, H = 446;
 const X0 = 10, Y0 = 22, SW = 240, SH = 328;
-const FIRST = 1967, LAST = 2024;
-const PLAY = 20000, HOLD = 7000;   // ms of replay, then ms held on the present
+const SURVEY = '14.11.2024';   // Peace Now's layer date (see scripts/build-map.py)
+const NEWEST = 2024;
 
 const SETTLEMENT = 0, OUTPOST = 1, FARM = 2, INDUSTRIAL = 3;
 
@@ -42,9 +42,7 @@ export function SettlementMap() {
       screen(X0, Y0, SW, SH);
       t(geo === null ? '[ NO MAP ]' : '[ SETTLEMENTS ]', X0 + 6, Y0 + 13, 8.5, SCREEN_INK);
 
-      const ph = now % (PLAY + HOLD);
-      const year = Math.min(LAST, FIRST + Math.floor((ph / PLAY) * (LAST - FIRST + 1)));
-      const shown = (x: Site) => x.y == null || x.y <= year;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 400);
 
       if (geo && proj) {
         const { p } = proj;
@@ -62,8 +60,7 @@ export function SettlementMap() {
         ctx.strokeStyle = SCREEN_INK; ctx.lineWidth = 0.8; ctx.stroke();
 
         for (const x of geo.sites) {
-          if (!shown(x)) continue;
-          const fresh = x.y != null && year - x.y <= 1 && ph < PLAY;
+          const fresh = x.y === NEWEST;
           const [cx, cy] = p(x.c[0], x.c[1]);
           ctx.fillStyle = ctx.strokeStyle = YEL; ctx.lineWidth = 0.6;
           ctx.shadowColor = YEL; ctx.shadowBlur = fresh || x === hover ? 8 * s : 0;
@@ -79,14 +76,18 @@ export function SettlementMap() {
           } else {
             ctx.arc(cx, cy, 0.8, 0, 7); ctx.fill();
           }
-          if (fresh) { ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, 7); ctx.strokeStyle = CORE; ctx.stroke(); }
+          if (fresh) {
+            ctx.globalAlpha = 0.3 + 0.7 * pulse;
+            ctx.beginPath(); ctx.arc(cx, cy, 2.5 + pulse * 1.5, 0, 7); ctx.strokeStyle = CORE; ctx.stroke();
+          }
           ctx.shadowBlur = 0; ctx.globalAlpha = 1;
         }
 
-        // ── the left column: year, running counts, legend ─────────────────
-        const count = (k: number) => geo!.sites.filter(x => x.t === k && shown(x)).length;
-        t(String(year), X0 + 8, Y0 + 44, 16, ph < PLAY ? CORE : SCREEN_INK);
-        t(ph < PLAY ? 'REPLAY' : 'PRESENT', X0 + 8, Y0 + 54, 5, SCREEN_DIM);
+        // ── the left column: survey date, counts, legend ──────────────────
+        const count = (k: number) => geo!.sites.filter(x => x.t === k).length;
+        t(SURVEY, X0 + 8, Y0 + 40, 9, SCREEN_INK);
+        t('LATEST SURVEY', X0 + 8, Y0 + 48, 4.5, SCREEN_DIM);
+        t(`◎ FOUNDED ${NEWEST}`, X0 + 8, Y0 + 57, 4.5, CORE);
         [[`SETTLEMENTS`, count(SETTLEMENT)], ['OUTPOSTS', count(OUTPOST)], ['FARMS', count(FARM)], ['INDUSTRIAL', count(INDUSTRIAL)]]
           .forEach(([k, v], i) => {
             t(String(v), X0 + 8, Y0 + 76 + i * 17, 9, SCREEN_INK);

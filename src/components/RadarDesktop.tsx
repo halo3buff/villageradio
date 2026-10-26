@@ -6,14 +6,23 @@ import { RadarScope } from '@/components/RadarScope';
 import { SettlementMap } from '@/components/SettlementMap';
 import { Teleprinter } from '@/components/Teleprinter';
 import type { RadarFeed, TelexLine } from '@/lib/radar';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the global command prompt's strip, as on the station
+const REFRESH = 60000;    // re-fetch the reports and outages in place; the instruments take them live
 const ROW_W = 260 + 372 + 260 + 260, ROW_H = 446;   // the four plates side by side, plate units
 
 /** The radar console: teleprinter | radar | settlement map | airspace in a row above the
  *  prompt; on phones a scrolling column, the roll last. BACK where the station keeps README. */
 export function RadarDesktop({ feed, telex }: { feed: RadarFeed | null; telex: TelexLine[] }) {
+  const router = useRouter();
+  useEffect(() => {
+    const iv = setInterval(() => router.refresh(), REFRESH);
+    return () => clearInterval(iv);
+  }, [router]);
+
   return (
     <div className="console" style={{ background: 'var(--vlg-bg, #fff)' }}>
       <style>{`

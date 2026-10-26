@@ -50,16 +50,24 @@ function blips(cs: Contact[], today: string): Blip[] {
 
 const n = (v: number) => v.toLocaleString('en-US');
 
-export function RadarScope({ feed }: { feed: RadarFeed | null }) {
+export function RadarScope({ feed: latest }: { feed: RadarFeed | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  // the page refreshes the feed in the background; the running scope picks it up next frame
+  const live = useRef(latest);
+  useEffect(() => { live.current = latest; }, [latest]);
 
   useEffect(() => {
     const cv = ref.current!;
-    const today = feed?.summary.westBank.updated ?? new Date().toISOString().slice(0, 10);
-    const all = feed ? blips(feed.contacts, today) : [];
+    let feed: RadarFeed | null | undefined, today = '', all: Blip[] = [];
     let hover: Blip | null = null;
 
     const stop = mountPlate(cv, W, H, ({ ctx, s, mono, t, line, screen, grain }, now) => {
+      if (feed !== live.current) {
+        feed = live.current;
+        today = feed?.summary.westBank.updated ?? new Date().toISOString().slice(0, 10);
+        all = feed ? blips(feed.contacts, today) : [];
+        hover = null;
+      }
       const glyph = (b: Blip, a: number) => {
         const sz = 1.4 + (b.s.key === 'killed' ? 1.2 : 0);
         ctx.globalAlpha = a;
@@ -149,7 +157,7 @@ export function RadarScope({ feed }: { feed: RadarFeed | null }) {
           t(head, x + 5, ty + 12, 5);
           rows.forEach((r, j) => t(r, x, ty + 24 + j * 9, 5.5));
         });
-      } else t('FEED UNREACHABLE — RETRYING HOURLY', CX, ty + 40, 6.5, INK, 'center');
+      } else t('FEED UNREACHABLE — RETRYING', CX, ty + 40, 6.5, INK, 'center');
       t('SRC TECH FOR PALESTINE / UN OCHA / GAZA + LEBANON MOH', X0, H - 3, 5);
     });
 
@@ -165,14 +173,14 @@ export function RadarScope({ feed }: { feed: RadarFeed | null }) {
     cv.addEventListener('pointermove', pick);
     cv.addEventListener('pointerdown', pick);
     return () => { stop(); cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick); };
-  }, [feed]);
+  }, []);
 
   return (
     <canvas
       ref={ref}
       role="img"
-      aria-label={feed
-        ? `Radar of West Bank incidents over the past year. West Bank: ${feed.summary.westBank.killed} killed, ${feed.summary.westBank.attacks} settler attacks. Gaza: ${feed.summary.gaza.killed} killed.`
+      aria-label={latest
+        ? `Radar of West Bank incidents over the past year. West Bank: ${latest.summary.westBank.killed} killed, ${latest.summary.westBank.attacks} settler attacks. Gaza: ${latest.summary.gaza.killed} killed.`
         : 'Radar feed unavailable'}
       className="plate radar"
       style={{ aspectRatio: `${W} / ${H}`, touchAction: 'manipulation' }}

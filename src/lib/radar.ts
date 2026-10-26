@@ -46,7 +46,7 @@ export function contacts(rows: WBRow[], today: string, days = 365): Contact[] {
 /** Null when the feed is down — the page shows NO SIGNAL rather than failing. */
 export async function getRadarFeed(): Promise<RadarFeed | null> {
   try {
-    const get = (p: string) => fetch(`${API}/${p}`, { next: { revalidate: 3600 } }).then(r => {
+    const get = (p: string) => fetch(`${API}/${p}`, { next: { revalidate: 300 } }).then(r => {
       if (!r.ok) throw new Error(`${p} ${r.status}`);
       return r.json();
     });
@@ -85,7 +85,7 @@ export function gazaReports(rows: GazaRow[], today: string, days = 45): GazaRepo
 
 export async function getGazaReports(today: string): Promise<GazaReport[]> {
   try {
-    const r = await fetch(`${API}/v2/casualties_daily.json`, { next: { revalidate: 3600 } });
+    const r = await fetch(`${API}/v2/casualties_daily.json`, { next: { revalidate: 300 } });
     if (!r.ok) throw new Error(`casualties_daily ${r.status}`);
     return gazaReports(await r.json(), today);
   } catch (e) {
@@ -106,7 +106,7 @@ export async function getOutages(): Promise<Outage[]> {
   const until = Math.floor(Date.now() / 1000 / 3600) * 3600;
   try {
     const all = await Promise.all(REGIONS.map(async ({ code, name }) => {
-      const r = await fetch(`${IODA}/outages/events?entityType=region&entityCode=${code}&from=${until - 30 * 86400}&until=${until}`, { next: { revalidate: 600 } });
+      const r = await fetch(`${IODA}/outages/events?entityType=region&entityCode=${code}&from=${until - 30 * 86400}&until=${until}`, { next: { revalidate: 120 } });
       if (!r.ok) throw new Error(`ioda ${r.status}`);
       return ((await r.json()).data as { start: number; duration: number; datasource: string }[])
         .map(e => ({ region: name, start: e.start, end: e.start + e.duration, source: e.datasource }));

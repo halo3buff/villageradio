@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { AIR_BOX, type Aircraft } from '@/lib/air';
+import { AIR_BOX, FIX_EVERY, type Aircraft } from '@/lib/air';
 import { CORE, INK, mountPlate, platePoint, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
 import { fit, loadGeo, rings, type Geo } from './geo';
+import { telex } from './Teleprinter';
 
 /**
  * The airspace scope — every aircraft broadcasting ADS-B over Gaza, the West
- * Bank and Israel, polled every 10 s and dead-reckoned between polls, an
+ * Bank and Israel: the server's latest fix, dead-reckoned between fixes, an
  * air-traffic display: a box per contact, a one-minute leader along its
  * track, a fading trail, and a data block (callsign, flight level, type).
  * Military-registered airframes in amber. Only what transponds shows up —
@@ -16,11 +17,13 @@ import { fit, loadGeo, rings, type Geo } from './geo';
 
 export const W = 260, H = 446;
 const X0 = 10, Y0 = 22, SW = 240, SH = 328;
-const POLL = 10000;
+const POLL = 15000;        // asks the server for its latest fix; a new one lands every FIX_EVERY
 const TRAIL = 30;          // positions kept per contact
-const STALE = 60000;       // drop a contact unseen this long
 
 type Track = { a: Aircraft; at: number; trail: [number, number][] };
+
+const name = (a: Aircraft) => a.flight || a.reg || a.hex;
+const fl = (a: Aircraft) => (a.alt == null ? '---' : a.alt === 0 ? 'GND' : `FL${String(Math.round(a.alt / 100)).padStart(3, '0')}`);
 
 export function Airspace() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -31,7 +34,7 @@ export function Airspace() {
     const tracks = new Map<string, Track>();
     let geo: Geo | null = null;
     let ok: boolean | null = null;      // null = first poll pending
-    let lastPoll = 0;
+    let fixT = 0;                       // when the server's latest fix was taken (epoch ms)
     let hover: Track | null = null;
     let alive = true;
     loadGeo().then(g => { geo = g; });
@@ -42,17 +45,27 @@ export function Airspace() {
         const j = await r.json();
         if (!alive) return;
         ok = r.ok && Array.isArray(j.ac);
-        if (!ok) return;
-        const now = performance.now();
-        lastPoll = now;
+        if (!ok || j.t === fixT) return;
+        fixT = j.t;
+        // the fix's moment on this page's clock, so dead reckoning starts from when it was taken
+        const now = performance.now() - Math.max(0, Date.now() - j.t);
+        const seen = new Set<string>();
         for (const a of j.ac as Aircraft[]) {
+          seen.add(a.hex);
+          if (a.mil && !tracks.has(a.hex)) {
+            telex(`AIR  MIL ${a.type || '?'} ${name(a)} ${fl(a)} ${a.lat.toFixed(2)}N ${a.lon.toFixed(2)}E HDG ${Math.round(a.track)}`);
+          }
           const tr = tracks.get(a.hex) ?? { a, at: now, trail: [] };
           tr.trail.push([a.lon, a.lat]);
           if (tr.trail.length > TRAIL) tr.trail.shift();
           tr.a = a; tr.at = now;
           tracks.set(a.hex, tr);
         }
-        for (const [k, tr] of tracks) if (now - tr.at > STALE) tracks.delete(k);
+        for (const [k, tr] of tracks) {
+          if (seen.has(k)) continue;
+          if (tr.a.mil) telex(`AIR  LOST CONTACT ${tr.a.type} ${name(tr.a)}`);
+          tracks.delete(k);
+        }
       } catch {
         if (alive) ok = false;
       }
@@ -62,7 +75,7 @@ export function Airspace() {
 
     // where a contact is now: its last fix carried along its track at its ground speed
     const at = (tr: Track, now: number): [number, number] => {
-      const nm = (tr.a.gs * Math.min(now - tr.at, 20000)) / 3.6e6;
+      const nm = (tr.a.gs * Math.min(now - tr.at, FIX_EVERY + 60000)) / 3.6e6;
       const r = (tr.a.track * Math.PI) / 180;
       return [tr.a.lon + (nm * Math.sin(r)) / (60 * Math.cos((tr.a.lat * Math.PI) / 180)), tr.a.lat + (nm * Math.cos(r)) / 60];
     };
@@ -70,8 +83,10 @@ export function Airspace() {
     const stop = mountPlate(cv, W, H, ({ ctx, s, t, line, screen, grain }, now) => {
       screen(X0, Y0, SW, SH);
       t(ok === false ? '[ NO FEED ]' : '[ AIRSPACE ]', X0 + 6, Y0 + 13, 8.5, SCREEN_INK);
-      const fresh = ok && now - lastPoll < POLL * 1.5;
-      t('ADS-B / LIVE', X0 + SW - 12, Y0 + 13, 5.5, SCREEN_INK, 'right');
+      // the fix's age, counting up until the next lands
+      const age = fixT ? Math.max(0, Math.floor((Date.now() - fixT) / 1000)) : 0;
+      const fresh = ok && fixT && age * 1000 < FIX_EVERY + POLL;
+      t(fixT ? `ADS-B / FIX ${Math.floor(age / 60)}:${String(age % 60).padStart(2, '0')}` : 'ADS-B', X0 + SW - 12, Y0 + 13, 5.5, SCREEN_INK, 'right');
       if (fresh && Math.floor(now / 600) % 2 === 0) { ctx.fillStyle = CORE; ctx.beginPath(); ctx.arc(X0 + SW - 7, Y0 + 11, 1.5, 0, 7); ctx.fill(); }
 
       // graticule every half degree
