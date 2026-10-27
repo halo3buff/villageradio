@@ -192,7 +192,7 @@ const field = (k: string, v: number) => (v ? `  ${k} ${v.toLocaleString('en-US')
 
 /** Every report and outage as one printed line, oldest first. */
 export function telexLines(wb: Contact[], gaza: GazaReport[], outages: Outage[], net: TelexLine[] = []): TelexLine[] {
-  const day = (d: string) => Date.parse(d) / 1000 + 12 * 3600;   // reports print at noon
+  const day = (d: string) => Math.min(Date.parse(d) / 1000 + 12 * 3600, Date.now() / 1000);   // reports print at noon, never ahead of now
   const lines: TelexLine[] = [
     ...wb.map(c => ({ t: day(c.date), k: 'report' as const, hot: c.killed > 0, text: `${stamp(c.date)} WB  ${field('KIA', c.killed)}${field('INJ', c.injured)}${field('SETTLER ATK', c.attacks)}${field('DISPL', c.displaced)}` })),
     ...gaza.map(g => ({ t: day(g.date), k: 'report' as const, text: `${stamp(g.date)} GAZA${field('KIA', g.killed)}${field('INJ', g.injured)}${g.recovered ? `  (${g.recovered} RECOVERED)` : ''}` })),

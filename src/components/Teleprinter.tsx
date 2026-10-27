@@ -18,8 +18,7 @@ const LH = 8.5;                       // line height
 const MARK = X0 + 16;                  // the kind mark's column, clear of the feed holes
 const TX = X0 + 21;                   // the type's left margin
 const VISIBLE = Math.floor((PH - 16) / LH);
-const TYPED = 8;                      // of the roll on arrival, the newest lines typed in
-const CPS = 45;                       // characters per second
+const CPS = 45;                      // characters per second
 const PAUSE = 6;                      // the carriage return, in characters
 const EVENT = 'vlg:telex';
 
@@ -28,11 +27,11 @@ const utc = () => {
   return `${iso.slice(2, 10).replace(/-/g, '.')} ${iso.slice(11, 16)}Z`;
 };
 
-type Msg = { text: string; k: TelexKind; hot?: boolean };
+type Msg = TelexLine;
 
 /** Print a live event on the teleprinter, stamped now. */
 export function telex(text: string, k: TelexKind, hot = false) {
-  window.dispatchEvent(new CustomEvent<Msg>(EVENT, { detail: { text: `${utc()} ${text}`, k, hot } }));
+  window.dispatchEvent(new CustomEvent<Msg>(EVENT, { detail: { t: Date.now() / 1000, text: `${utc()} ${text}`, k, hot } }));
 }
 
 const RED = '#7a2a10';
@@ -55,38 +54,46 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
   const ref = useRef<HTMLCanvasElement>(null);
   const live = useRef(net);
   live.current = net;
-  // the roll lives outside React: everything received, in order, and how far printing has got
-  const roll = useRef({ received: [] as Msg[], seen: new Set<string>(), printed: 0, started: 0 });
+  // The roll lives outside React. It is the server's list as of its latest refresh (which already
+  // holds every report sorted by time, a corrected line replacing the old one) plus this page's live
+  // events, always printed in time order. Only lines newer than everything already on the roll are
+  // typed in at the bottom; the rest, and the whole roll on opening, are simply there.
+  const roll = useRef({ server: [] as Msg[], local: [] as Msg[], queue: [] as Msg[], newest: -Infinity, started: 0, rows: [] as Msg[] });
 
-  // report lines from the first load or a background refresh: the new ones join the queue
   useEffect(() => {
     const r = roll.current;
-    for (const l of lines) {
-      if (r.seen.has(l.text)) continue;
-      r.seen.add(l.text); r.received.push({ text: l.text, k: l.k, hot: l.hot });
-    }
-    // first arrival: lay most of the roll down at once, type the newest few
-    if (r.printed === 0 && r.received.length > TYPED) r.printed = r.received.length - TYPED;
+    const first = !r.server.length && !r.local.length;
+    const had = new Set(r.server.map(l => l.text));
+    if (!first) r.queue.push(...lines.filter(l => !had.has(l.text) && l.t > r.newest));
+    r.server = lines;
+    for (const l of lines) r.newest = Math.max(r.newest, l.t);
   }, [lines]);
 
   useEffect(() => {
     const cv = ref.current!;
     const r = roll.current;
-    const onEvent = (e: Event) => { r.received.push((e as CustomEvent<Msg>).detail); };
+    const onEvent = (e: Event) => {
+      const m = (e as CustomEvent<Msg>).detail;
+      r.local.push(m); r.queue.push(m); r.newest = Math.max(r.newest, m.t);
+    };
     window.addEventListener(EVENT, onEvent);
     let back = 0;                     // lines scrolled back from the newest
 
     const stop = mountPlate(cv, W, H, ({ ctx, mono, t, line }, now) => {
-      // the head types the next queued line, then returns the carriage
+      // the head types the oldest queued line, then returns the carriage
       let partial = '';
-      if (r.printed < r.received.length) {
+      if (r.queue.length) {
+        r.queue.sort((a, b) => a.t - b.t);
         if (!r.started) r.started = now;
-        const text = r.received[r.printed].text;
+        const text = r.queue[0].text;
         const c = Math.floor(((now - r.started) / 1000) * CPS);
-        if (c >= text.length + PAUSE) { r.printed++; r.started = 0; }
+        if (c >= text.length + PAUSE) { r.queue.shift(); r.started = 0; }
         else partial = text.slice(0, c);
       }
-      const shown = r.printed;
+      const queued = new Set(r.queue);
+      r.rows = [...r.server, ...r.local].filter(m => !queued.has(m)).sort((a, b) => a.t - b.t);
+      const total = r.rows.length + r.queue.length;
+      const shown = r.rows.length;
 
       // the paper: a lighter sheet with feed holes down both margins
       ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(X0, Y0, PW, PH);
@@ -102,8 +109,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
       // the roll, bottom-up from the print head
       ctx.save();
       ctx.beginPath(); ctx.rect(X0, Y0, PW, PH); ctx.clip();
-      const rows = r.received.slice(0, shown);
-      if (partial) rows.push({ ...r.received[shown], text: partial });
+      const rows = partial ? [...r.rows, { ...r.queue[0], text: partial }] : r.rows;
       const end = Math.max(0, rows.length - back);
       const baseY = Y0 + PH - 10;
       for (let k = 0; k < VISIBLE && end - 1 - k >= 0; k++) {
@@ -121,18 +127,19 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
       if (back) t(`▲ ${back} BACK`, X0 + PW - 14, Y0 + 9, 5, INK, 'right');
 
       t('TELEX / VLG-RX', X0, Y0 - 5, 5.5);
-      t(`${r.received.length} MSG  ${shown < r.received.length ? 'RECEIVING' : r.received.length ? 'STANDING BY' : 'LINE DEAD'}`, X0 + PW, Y0 - 5, 5.5, INK, 'right');
+      t(`${total} MSG  ${r.queue.length ? 'RECEIVING' : total ? 'STANDING BY' : 'LINE DEAD'}`, X0 + PW, Y0 - 5, 5.5, INK, 'right');
 
       // ── the footer, the radar's table style ───────────────────────────────
       const ty = Y0 + PH + 8;
       ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.strokeRect(X0, ty, PW, 76);
-      const count = (k: TelexKind) => r.received.filter(l => l.k === k).length;
+      const all = [...r.server, ...r.local];
+      const count = (k: TelexKind) => all.filter(l => l.k === k).length;
       const net = live.current;
       ([
         ['incident', `FIELD REPORTS ${count('incident')}`, 'WAFA, 72 H'],
         ['alert', `SIRENS ${count('alert')}`, 'TZEVA ADOM'],
         ['fire', `SAT FIRES ${count('fire')}`, 'NASA VIIRS, 7 D'],
-        ['air', `MIL AIRCRAFT ${r.received.filter(l => l.k === 'air' && l.hot).length}`, 'ADS-B, LIVE'],
+        ['air', `MIL AIRCRAFT ${all.filter(l => l.k === 'air' && l.hot).length}`, 'ADS-B, LIVE'],
         ['net', `NET ${count('net')}${net ? `  TRAFFIC ${Math.round(net.pct * 100)}%` : ''}`, 'IODA / CF'],
         ['report', `DAILY REPORTS ${count('report')}`, 'OCHA / MOH'],
       ] as [TelexKind, string, string][]).forEach(([k, label, src], j) => {
@@ -145,7 +152,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
     });
 
     // scroll the roll: wheel on desktop, drag on touch
-    const max = () => Math.max(0, r.printed - VISIBLE);
+    const max = () => Math.max(0, r.rows.length - VISIBLE);
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
       back = Math.min(max(), Math.max(0, back + Math.sign(e.deltaY) * -3));
