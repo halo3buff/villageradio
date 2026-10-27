@@ -65,7 +65,7 @@ export function fitStack(ratio: number) {
 // The mint report-cover stock: dark olive ink on mint, and the screen a dark
 // olive print window with the trace glowing through in the stock's own mint.
 // Colours sampled from the reference cover.
-const PAPER = '#3fd89e';
+const PAPER = '#eef8f1';
 const INK = '#2b3626';
 const SCREEN = '#36442e';
 const YEL = '#f0c02c';

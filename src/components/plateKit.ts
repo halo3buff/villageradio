@@ -5,7 +5,7 @@
  * animation frame with a Pen in those units.
  */
 
-export const PAPER = '#3fd89e', INK = '#2b3626', SCREEN = '#36442e', YEL = '#f0c02c';
+export const PAPER = '#eef8f1', INK = '#2b3626', SCREEN = '#36442e', YEL = '#f0c02c';
 export const TRACE = '#62f2b6', CORE = '#c8ffe6';
 export const SCREEN_INK = 'rgba(98,242,182,0.8)', SCREEN_DIM = 'rgba(98,242,182,0.3)';
 
