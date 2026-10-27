@@ -8,7 +8,7 @@ import {
   correlation, peakDb, truePeakDb, rmsDb,
 } from '@/lib/dsp';
 import { drawPlate, fitStack, plateDims } from './stationPlate';
-import { egaAware } from './plateKit';
+import { themeAware } from './plateKit';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 
 /**
@@ -192,7 +192,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
     if (!el || !wrap) return;
     const ctx = el.getContext('2d');
     if (!ctx) return;
-    egaAware(ctx);   // the plate repaints itself under the EGA theme
+    themeAware(ctx);   // the plate repaints itself under a look (EGA, chart)
 
     // the strip should sit on exactly the page's white, not a guess at it
     const root = getComputedStyle(document.documentElement);

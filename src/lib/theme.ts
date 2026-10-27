@@ -99,6 +99,17 @@ export const THEMES: Record<string, Theme> = {
     hover_bg:'rgba(85,85,255,0.15)', sel_bg:'rgba(85,85,255,0.3)',
     exp_comment:'#55ff55', exp_num:'#5555ff', exp_text:'#55ffff', exp_border:'#5555ff',
   },
+  chart: {
+    // an aeronautical chart: warm white paper, black ink, chart magenta and blue, ochre for
+    // settlements; labels grey, values black; graph-paper grid (globals.css)
+    bg:'#fbfaf6', ts:'#6b6b6b', uid_palette:['#1f4e9c','#b0127f','#a8650f','#1a7f37','#c8102e','#5a3e9c'], uid_real:'#b0127f', col_host:'#1f4e9c', col_data:'#1a1a1a',
+    bar_bg:'#f3f1ea', bar_border:'#1a1a1a', bar_dim:'#6b6b6b', bar_bright:'#1a1a1a',
+    filter_col:'#1f4e9c',
+    tab_bg:'#f3f1ea', tab_fg:'#6b6b6b', tab_active_bg:'#1a1a1a', tab_active_fg:'#fbfaf6',
+    cmd_bg:'#f3f1ea', cmd_fg:'#1a1a1a', cmd_cursor:'#b0127f',
+    hover_bg:'rgba(31,78,156,0.06)', sel_bg:'rgba(176,18,127,0.08)',
+    exp_comment:'#1f4e9c', exp_num:'#9a9a9a', exp_text:'#1a1a1a', exp_border:'#c9d8ee',
+  },
   'solarized-light': {
     bg:'#fdf6e3', ts:'#b58900', uid_palette:['#2aa198','#268bd2','#859900','#6c71c4'], uid_real:'#d33682', col_host:'#dc322f', col_data:'#586e75',
     bar_bg:'#eee8d5', bar_border:'#d8d0b8', bar_dim:'#93a1a1', bar_bright:'#b58900',
@@ -112,15 +123,15 @@ export const THEMES: Record<string, Theme> = {
 
 // Full palette set (used internally, e.g. by the news log). Admin only exposes a subset — see
 // THEME_NAMES below — the rest stay defined so re-enabling one later is a one-line change.
-export const ALL_THEME_NAMES = ['default', 'black', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light', 'ega'];
+export const ALL_THEME_NAMES = ['default', 'black', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light', 'ega', 'chart'];
 
 // Admin-selectable site-wide themes. Trimmed to 2 for now at the user's request.
 // 'default' is the mint stock; 'black' keeps the old white-on-black one a click away.
-export const THEME_NAMES = ['default', 'black', 'solarized-dark', 'ega'];
+export const THEME_NAMES = ['default', 'black', 'solarized-dark', 'ega', 'chart'];
 
 export const DEFAULT_THEME = 'default';
 
-export const LIGHT_THEMES = new Set(['default', 'eldar', 'monocai', 'solarized-light']);
+export const LIGHT_THEMES = new Set(['default', 'eldar', 'monocai', 'solarized-light', 'chart']);
 
 export function isThemeName(name: string): boolean {
   return THEME_NAMES.includes(name);

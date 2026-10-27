@@ -8,7 +8,7 @@ import type { RadarFeed } from '@/lib/radar';
 import type { Incident } from '@/lib/wafa';
 
 const sourcesOf = (x: Incident) => [...new Set([x.src, ...(x.also ?? []).map(a => a.src)])];   // as in lib/wafa, which is server-only
-import { CORE, INK, isEga, mountPlate, platePoint, SCREEN, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
+import { CORE, INK, look, mountPlate, platePoint, SCREEN, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
 import { loadGeo, rings, type Geo } from './geo';
 import { AIR_EVENT } from './Airspace';
 
@@ -99,9 +99,10 @@ export function RadarScope(props: Props) {
       vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(10,16,8,0.5)');
       ctx.fillStyle = vig; ctx.fillRect(CX - R, CY - R, R * 2, R * 2);
 
-      // under the EGA theme, the tracker's blue latitude / longitude grid, every quarter degree
-      if (isEga()) {
-        ctx.strokeStyle = '#0000aa'; ctx.lineWidth = 0.5; ctx.beginPath();
+      // under a look (EGA, chart), the tracker's / chart's latitude-longitude grid, every quarter degree
+      const L = look();
+      if (L) {
+        ctx.strokeStyle = L.grid; ctx.lineWidth = 0.5; ctx.beginPath();
         for (let lon = 33.5; lon <= 36.5; lon += 0.25) { const [x0, y0] = p(lon, 30.5), [x1, y1] = p(lon, 33.5); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
         for (let lat = 30.5; lat <= 33.5; lat += 0.25) { const [x0, y0] = p(33.5, lat), [x1, y1] = p(36.5, lat); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
         ctx.stroke();

@@ -112,9 +112,21 @@ html[data-theme="ega"] body::after {
     radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.35) 100%);
 }
 
-/* The rotating mark is baked grey: on the mint stock, multiply it into the paper so it
-   prints as a dark green ink instead of sitting on top as grey. */
-html[data-theme="default"] [src*="logo_roto"] {
+/* Chart theme: an aeronautical chart's paper, a pale blue graph-paper grid and a faint paper grain. */
+html[data-theme="chart"] body {
+  background-image:
+    linear-gradient(rgba(31,78,156,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31,78,156,0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+html[data-theme="chart"] body::after {
+  content: ''; position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The rotating mark is baked grey: on light stock (the mint, the chart's paper), multiply it into
+   the paper so it prints as ink instead of sitting on top as grey. */
+html[data-theme="default"] [src*="logo_roto"], html[data-theme="chart"] [src*="logo_roto"] {
   mix-blend-mode: multiply;
 }
 
