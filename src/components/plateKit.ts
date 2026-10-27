@@ -125,7 +125,7 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
       if (!pattern) return;
       const k = 1.6 / p.s;   // a grain is ~1.6 device pixels
       pattern.setTransform(new DOMMatrix([k, 0, 0, k, Math.random() * 160 * k, Math.random() * 160 * k]));
-      ctx.save(); if (isEga()) ctx.globalAlpha = 0.6;   // on black, a fainter phosphor speckle
+      ctx.save(); if (isEga()) ctx.globalAlpha = 0.35;   // on black, a faint phosphor speckle
       ctx.fillStyle = pattern; ctx.fillRect(x, y, w, h);
       ctx.restore();
     },

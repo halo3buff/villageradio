@@ -2,6 +2,7 @@ import { THIRD_OCTAVE } from '@/lib/dsp';
 import { THEMES, paletteColor } from '@/lib/theme';
 import seedCommands from '@/lib/content/seed/commands.json';
 import type { Metrics } from './AnalogueStrip';
+import { isEga } from './plateKit';
 
 /**
  * stationPlate — the station drawn as a printed instrument plate: black
@@ -231,7 +232,9 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     if (gp) {
       const k = 1.6 / s;   // a grain is ~1.6 device pixels
       gp.setTransform(new DOMMatrix([k, 0, 0, k, Math.random() * 160 * k, Math.random() * 160 * k]));
+      ctx.save(); if (isEga()) ctx.globalAlpha = 0.35;   // on black, a faint phosphor speckle
       ctx.fillStyle = gp; ctx.fillRect(X, Y, D, DH);
+      ctx.restore();
     }
   } else {
     header(35, 298, 563);
