@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { NetNow, TelexLine } from '@/lib/radar';
+import type { NetNow, TelexKind, TelexLine } from '@/lib/radar';
 import { INK, mountPlate, platePoint } from './plateKit';
 
 /**
@@ -15,7 +15,8 @@ import { INK, mountPlate, platePoint } from './plateKit';
 export const W = 260, H = 446;
 const X0 = 10, Y0 = 22, PW = 240, PH = 328;
 const LH = 8.5;                       // line height
-const TX = X0 + 14;                   // the type's left margin, clear of the feed holes
+const MARK = X0 + 16;                  // the kind mark's column, clear of the feed holes
+const TX = X0 + 21;                   // the type's left margin
 const VISIBLE = Math.floor((PH - 16) / LH);
 const TYPED = 8;                      // of the roll on arrival, the newest lines typed in
 const CPS = 45;                       // characters per second
@@ -27,26 +28,42 @@ const utc = () => {
   return `${iso.slice(2, 10).replace(/-/g, '.')} ${iso.slice(11, 16)}Z`;
 };
 
+type Msg = { text: string; k: TelexKind; hot?: boolean };
+
 /** Print a live event on the teleprinter, stamped now. */
-export function telex(text: string) {
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: `${utc()} ${text}` }));
+export function telex(text: string, k: TelexKind, hot = false) {
+  window.dispatchEvent(new CustomEvent<Msg>(EVENT, { detail: { text: `${utc()} ${text}`, k, hot } }));
 }
 
-const alarm = (text: string) => text.includes('OUTAGE') || text.includes(' MIL ') || text.includes('TRAFFIC DROP') || text.includes(' FIRE ');
+const RED = '#7a2a10';
+
+/** The margin mark for a kind of line, centred on (x, y): the same marks the radar plots. */
+function mark(ctx: CanvasRenderingContext2D, k: TelexKind, x: number, y: number, color: string) {
+  ctx.fillStyle = ctx.strokeStyle = color; ctx.lineWidth = 0.6;
+  ctx.beginPath();
+  switch (k) {
+    case 'report': ctx.moveTo(x - 1.6, y); ctx.lineTo(x + 1.6, y); ctx.moveTo(x, y - 1.6); ctx.lineTo(x, y + 1.6); ctx.stroke(); break;
+    case 'fire': ctx.arc(x, y, 1.4, 0, 7); ctx.fill(); break;
+    case 'air': ctx.moveTo(x, y - 1.8); ctx.lineTo(x + 1.8, y); ctx.lineTo(x, y + 1.8); ctx.lineTo(x - 1.8, y); ctx.closePath(); ctx.stroke(); break;
+    case 'incident': ctx.moveTo(x, y - 1.8); ctx.lineTo(x + 1.7, y + 1.3); ctx.lineTo(x - 1.7, y + 1.3); ctx.closePath(); ctx.fill(); break;
+    case 'alert': ctx.arc(x, y, 0.7, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x, y, 1.9, 0, 7); ctx.stroke(); break;
+    case 'net': ctx.moveTo(x - 2, y + 0.8); ctx.lineTo(x - 0.7, y - 1); ctx.lineTo(x + 0.7, y + 1); ctx.lineTo(x + 2, y - 0.8); ctx.stroke(); break;
+  }
+}
 
 export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const live = useRef(net);
   live.current = net;
   // the roll lives outside React: everything received, in order, and how far printing has got
-  const roll = useRef({ received: [] as string[], seen: new Set<string>(), printed: 0, started: 0 });
+  const roll = useRef({ received: [] as Msg[], seen: new Set<string>(), printed: 0, started: 0 });
 
   // report lines from the first load or a background refresh: the new ones join the queue
   useEffect(() => {
     const r = roll.current;
     for (const l of lines) {
       if (r.seen.has(l.text)) continue;
-      r.seen.add(l.text); r.received.push(l.text);
+      r.seen.add(l.text); r.received.push({ text: l.text, k: l.k, hot: l.hot });
     }
     // first arrival: lay most of the roll down at once, type the newest few
     if (r.printed === 0 && r.received.length > TYPED) r.printed = r.received.length - TYPED;
@@ -55,7 +72,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
   useEffect(() => {
     const cv = ref.current!;
     const r = roll.current;
-    const onEvent = (e: Event) => { r.received.push((e as CustomEvent<string>).detail); };
+    const onEvent = (e: Event) => { r.received.push((e as CustomEvent<Msg>).detail); };
     window.addEventListener(EVENT, onEvent);
     let back = 0;                     // lines scrolled back from the newest
 
@@ -64,7 +81,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
       let partial = '';
       if (r.printed < r.received.length) {
         if (!r.started) r.started = now;
-        const text = r.received[r.printed];
+        const text = r.received[r.printed].text;
         const c = Math.floor(((now - r.started) / 1000) * CPS);
         if (c >= text.length + PAUSE) { r.printed++; r.started = 0; }
         else partial = text.slice(0, c);
@@ -86,40 +103,45 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
       ctx.save();
       ctx.beginPath(); ctx.rect(X0, Y0, PW, PH); ctx.clip();
       const rows = r.received.slice(0, shown);
-      if (partial) rows.push(partial);
+      if (partial) rows.push({ ...r.received[shown], text: partial });
       const end = Math.max(0, rows.length - back);
       const baseY = Y0 + PH - 10;
       for (let k = 0; k < VISIBLE && end - 1 - k >= 0; k++) {
-        const text = rows[end - 1 - k];
-        t(text, TX, baseY - k * LH, 5, alarm(text) ? '#7a2a10' : INK);
+        const m = rows[end - 1 - k], y = baseY - k * LH, color = m.hot ? RED : INK;
+        mark(ctx, m.k, MARK, y - 1.8, color);
+        t(m.text, TX, y, 5, color);
       }
       // the carriage: a block cursor after the last character, blinking once done
       if (!back && (partial || Math.floor(now / 530) % 2 === 0)) {
         ctx.font = `700 5px ${mono}`;
         ctx.fillStyle = INK;
-        ctx.fillRect(TX + ctx.measureText((rows.at(-1) ?? '').toUpperCase()).width + 1.5, baseY - 4.5, 3, 5);
+        ctx.fillRect(TX + ctx.measureText((rows.at(-1)?.text ?? '').toUpperCase()).width + 1.5, baseY - 4.5, 3, 5);
       }
       ctx.restore();
       if (back) t(`▲ ${back} BACK`, X0 + PW - 14, Y0 + 9, 5, INK, 'right');
 
       t('TELEX / VLG-RX', X0, Y0 - 5, 5.5);
-      t(`${r.received.length} MSG`, X0 + PW, Y0 - 5, 5.5, INK, 'right');
+      t(`${r.received.length} MSG  ${shown < r.received.length ? 'RECEIVING' : r.received.length ? 'STANDING BY' : 'LINE DEAD'}`, X0 + PW, Y0 - 5, 5.5, INK, 'right');
 
       // ── the footer, the radar's table style ───────────────────────────────
       const ty = Y0 + PH + 8;
       ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.strokeRect(X0, ty, PW, 76);
-      const count = (k: string) => r.received.filter(l => l.includes(k)).length;
-      [
-        `WB REPORTS ${count(' WB ')}  (OCHA, 365 D)`,
-        `GAZA REPORTS ${count(' GAZA ')}  (MOH, 45 D)`,
-        `NET OUTAGES ${count('OUTAGE')}  (IODA / CLOUDFLARE, 30 D)`,
-        `SAT FIRES ${count(' FIRE ')}  MIL AIRCRAFT ${count(' MIL ')}  (7 D / LIVE)`,
-        live.current
-          ? `PS NET TRAFFIC ${Math.round(live.current.pct * 100)}% OF USUAL  (${live.current.at.slice(11, 16)}Z)`
-          : `LAST RX ${r.received.at(-1)?.slice(0, 14) ?? '--'}`,
-        shown < r.received.length ? '> RECEIVING <' : r.received.length ? '> STANDING BY <' : '> LINE DEAD <',
-      ].forEach((row, j) => t(row, X0 + 6, ty + 13 + j * 10.5, 5.5));
-      t('KIA KILLED / INJ INJURED / DISPL DISPLACED', X0, H - 3, 5);
+      const count = (k: TelexKind) => r.received.filter(l => l.k === k).length;
+      const net = live.current;
+      ([
+        ['incident', `FIELD REPORTS ${count('incident')}`, 'WAFA, 72 H'],
+        ['alert', `SIRENS ${count('alert')}`, 'TZEVA ADOM'],
+        ['fire', `SAT FIRES ${count('fire')}`, 'NASA VIIRS, 7 D'],
+        ['air', `MIL AIRCRAFT ${r.received.filter(l => l.k === 'air' && l.hot).length}`, 'ADS-B, LIVE'],
+        ['net', `NET ${count('net')}${net ? `  TRAFFIC ${Math.round(net.pct * 100)}%` : ''}`, 'IODA / CF'],
+        ['report', `DAILY REPORTS ${count('report')}`, 'OCHA / MOH'],
+      ] as [TelexKind, string, string][]).forEach(([k, label, src], j) => {
+        const y = ty + 13 + j * 10.5;
+        mark(ctx, k, X0 + 9, y - 1.8, INK);
+        t(label, X0 + 15, y, 5.5);
+        t(src, X0 + PW - 6, y, 4.5, INK, 'right');
+      });
+      t('RED: KILLED / STRIKE / SIRENS / OUTAGE / MIL', X0, H - 3, 5);
     });
 
     // scroll the roll: wheel on desktop, drag on touch

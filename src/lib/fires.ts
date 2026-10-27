@@ -1,22 +1,27 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { loadPlaces, type Place } from './places';
+import type { TelexLine } from './radar';
+
+export type { Place };
 
 /**
  * Fires and heat seen from orbit over Gaza and the West Bank: NASA FIRMS' VIIRS
  * detections (three satellites, ~375 m pixels, each pass online within ~3 h), from
- * the open 7-day global files — no key. Every detection gets its region and the
+ * the open global files — no key: the 7-day files hourly, the 24-hour ones (~5 MB) every
+ * 10 minutes so a new pass shows within minutes of NASA posting it. Every detection gets its region and the
  * nearest Palestinian town (public/map/places.json, built by scripts/build-places.py).
  * Over Gaza most are strike fires; over the West Bank, field, grove and village fires.
  */
 
-const FILES = [
-  'suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_7d.csv',
-  'noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_7d.csv',
-  'noaa-21-viirs-c2/csv/J2_VIIRS_C2_Global_7d.csv',
+const FILES = (span: '7d' | '24h') => [
+  `suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_${span}.csv`,
+  `noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_${span}.csv`,
+  `noaa-21-viirs-c2/csv/J2_VIIRS_C2_Global_${span}.csv`,
 ];
 const BASE = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/';
 export const FIRE_BOX = { w: 34.15, e: 35.7, s: 31.15, n: 32.65 };
-const EVERY = 3600_000;   // the files gain a pass every few hours; an hourly look is plenty
+const EVERY = { '7d': 3600_000, '24h': 600_000 };
 
 export type Region = 'GAZA' | 'WEST BANK' | '';
 export type Fire = {
@@ -29,7 +34,6 @@ export type Fire = {
 };
 
 type Ring = [number, number][];
-export type Place = [en: string, ar: string, lon: number, lat: number, rank: number, gov: string, gaza: 0 | 1];
 
 /** Even-odd point in polygon over all rings (holes included). */
 export function inside(rings: Ring[], lon: number, lat: number) {
@@ -90,41 +94,44 @@ async function scan(file: string) {
 
 let maps: Promise<{ wb: Ring[]; gaza: Ring[]; places: Place[] }> | null = null;
 const loadMaps = () => (maps ??= (async (): Promise<{ wb: Ring[]; gaza: Ring[]; places: Place[] }> => {
-  const dir = path.join(process.cwd(), 'public', 'map');
-  const geo = JSON.parse(await readFile(path.join(dir, 'geo.json'), 'utf8'));
-  return { wb: geo.wb, gaza: geo.gaza, places: JSON.parse(await readFile(path.join(dir, 'places.json'), 'utf8')) as Place[] };
+  const geo = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'map', 'geo.json'), 'utf8'));
+  return { wb: geo.wb, gaza: geo.gaza, places: await loadPlaces() };
 })());
 
-// ponytail: per-instance memory, refetched hourly per instance; a FIRMS MAP_KEY's area API
-// (a few KB per call) is the upgrade if the 3 × 40 MB pulls ever matter.
-let last: { at: number; fires: Fire[] } | null = null;
-let inflight: Promise<void> | null = null;
+// ponytail: per-instance memory; a FIRMS MAP_KEY's area API (a few KB per call) is the upgrade
+// if the 3 × 40 MB hourly pulls ever matter.
+const last: Record<'7d' | '24h', { at: number; fires: Fire[] } | null> = { '7d': null, '24h': null };
+const inflight: Record<'7d' | '24h', Promise<void> | null> = { '7d': null, '24h': null };
 
-async function refresh() {
-  const [m, ...files] = await Promise.all([loadMaps(), ...FILES.map(scan)]);
-  last = {
+async function refresh(span: '7d' | '24h') {
+  const [m, ...files] = await Promise.all([loadMaps(), ...FILES(span).map(scan)]);
+  last[span] = {
     at: Date.now(),
-    fires: files.flat()
-      .map(f => {
-        const region: Region = inside(m.gaza, f.lon, f.lat) ? 'GAZA' : inside(m.wb, f.lon, f.lat) ? 'WEST BANK' : '';
-        return { ...f, region, near: region ? nearest(m.places.filter(p => p[6] === (region === 'GAZA' ? 1 : 0)), f.lon, f.lat) : null };
-      })
-      .sort((a, b) => a.t - b.t),
+    fires: files.flat().map(f => {
+      const region: Region = inside(m.gaza, f.lon, f.lat) ? 'GAZA' : inside(m.wb, f.lon, f.lat) ? 'WEST BANK' : '';
+      return { ...f, region, near: region ? nearest(m.places.filter(p => p[6] === (region === 'GAZA' ? 1 : 0)), f.lon, f.lat) : null };
+    }),
   };
 }
 
-/** The past 7 days of detections in the box, oldest first; the last good set if FIRMS is down. */
+/** The past 7 days of detections in the box, oldest first; the last good sets if FIRMS is down. */
 export async function getFires(): Promise<Fire[] | null> {
-  if (!last || Date.now() - last.at >= EVERY) {
-    inflight ??= refresh().catch(e => console.error('fires', e)).finally(() => { inflight = null; });
-    // a cold start waits; after that, a stale set is served while the refresh runs
-    if (!last) await inflight;
+  for (const span of ['24h', '7d'] as const) {
+    const l = last[span];
+    if (!l || Date.now() - l.at >= EVERY[span]) {
+      inflight[span] ??= refresh(span).catch(e => console.error('fires', span, e)).finally(() => { inflight[span] = null; });
+    }
   }
-  return last?.fires ?? null;
+  // a cold start waits for the small file; the week fills in behind it
+  if (!last['24h'] && inflight['24h']) await inflight['24h'];
+  if (!last['24h'] && !last['7d']) return null;
+  const all = new Map<string, Fire>();
+  for (const f of [...(last['7d']?.fires ?? []), ...(last['24h']?.fires ?? [])]) all.set(`${f.t} ${f.lat} ${f.lon}`, f);
+  return [...all.values()].sort((a, b) => a.t - b.t);
 }
 
 /** The teleprinter's lines: one per pass per place in Gaza or the West Bank, hottest heat given. */
-export function fireLines(fires: Fire[]): { t: number; text: string }[] {
+export function fireLines(fires: Fire[]): TelexLine[] {
   const by = new Map<string, { f: Fire; n: number; frp: number }>();
   for (const f of fires) {
     if (!f.region) continue;
@@ -136,7 +143,7 @@ export function fireLines(fires: Fire[]): { t: number; text: string }[] {
     const iso = new Date(f.t * 1000).toISOString();
     const where = f.near ? `${f.near.km}KM ${f.near.dir} ${f.near.en.slice(0, 16)}` : `${f.lat.toFixed(2)}N ${f.lon.toFixed(2)}E`;
     return {
-      t: f.t,
+      t: f.t, k: 'fire' as const, hot: f.region === 'GAZA',
       text: `${iso.slice(2, 10).replace(/-/g, '.')} ${iso.slice(11, 16)}Z FIRE ${f.region === 'GAZA' ? 'GAZA' : 'W.BANK'} ${where.toUpperCase()}${n > 1 ? ` x${n}` : ''} ${Math.round(frp * 10) / 10}MW`,
     };
   });

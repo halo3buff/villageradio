@@ -5,24 +5,26 @@ import { BackLink } from '@/components/BackLink';
 import { RadarScope } from '@/components/RadarScope';
 import { SettlementMap } from '@/components/SettlementMap';
 import { Teleprinter } from '@/components/Teleprinter';
-import type { Fire } from '@/lib/fires';
-import type { NetNow, RadarFeed, TelexLine } from '@/lib/radar';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import type { Live } from '@/lib/live';
+import { useEffect, useState } from 'react';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the global command prompt's strip, as on the station
-const REFRESH = 60000;    // re-fetch the reports and outages in place; the instruments take them live
+const POLL = 15000;       // the console's state from /api/radar/live; the instruments take it live
 const ROW_W = 260 + 372 + 260 + 260, ROW_H = 446;   // the four plates side by side, plate units
 
 /** The radar console: teleprinter | radar | settlement map | airspace in a row above the
  *  prompt; on phones a scrolling column, the roll last. BACK where the station keeps README. */
-export function RadarDesktop({ feed, telex, net, fires }: { feed: RadarFeed | null; telex: TelexLine[]; net: NetNow | null; fires: Fire[] | null }) {
-  const router = useRouter();
+export function RadarDesktop({ initial }: { initial: Live }) {
+  const [live, setLive] = useState(initial);
   useEffect(() => {
-    const iv = setInterval(() => router.refresh(), REFRESH);
-    return () => clearInterval(iv);
-  }, [router]);
+    let alive = true;
+    const poll = () => fetch('/api/radar/live', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null)).then((j: Live | null) => { if (alive && j) setLive(j); }).catch(() => {});
+    const iv = setInterval(poll, POLL);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
+  const { feed, telex, net, fires, incidents, alerts } = live;
 
   return (
     <div className="console" style={{ background: 'var(--vlg-bg, #fff)' }}>
@@ -42,7 +44,7 @@ export function RadarDesktop({ feed, telex, net, fires }: { feed: RadarFeed | nu
       `}</style>
       <div className="console-band" aria-hidden />
       <Teleprinter lines={telex} net={net} />
-      <RadarScope feed={feed} fires={fires} />
+      <RadarScope feed={feed} fires={fires} incidents={incidents} alerts={alerts} />
       <SettlementMap />
       <Airspace />
       <BackLink href="/station" style={{

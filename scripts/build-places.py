@@ -54,9 +54,22 @@ GAZA = [
     ("Khuza'a", 'خزاعة', 34.361, 31.308, 2, 'Khan Younis'), ('Maghazi', 'المغازي', 34.382, 31.422, 1, 'Deir Al-Balah'),
     ('Beit Lahia', 'بيت لاهيا', 34.495, 31.546, 1, 'North Gaza'), ('Beit Hanoun', 'بيت حانون', 34.535, 31.539, 1, 'North Gaza'),
     ('Shati', 'الشاطئ', 34.447, 31.532, 1, 'Gaza'),
+    # (Zeitoun, Tuffah, Daraj, Rimal, Nasr, Sabra left out: olives, apples, stairs, sand… — everyday
+    # words that would place a report about an olive grove in Gaza City)
+    ('Shujaiya', 'الشجاعية', 34.482, 31.502, 2, 'Gaza'), ('Tel al-Hawa', 'تل الهوى', 34.432, 31.505, 2, 'Gaza'),
+    ('Sheikh Radwan', 'الشيخ رضوان', 34.457, 31.530, 2, 'Gaza'), ('Sheikh Ajlin', 'الشيخ عجلين', 34.422, 31.493, 2, 'Gaza'),
+    ('Jabalia Camp', 'مخيم جباليا', 34.493, 31.533, 2, 'North Gaza'), ('Beit Lahia', 'بيت لاهيا', 34.495, 31.546, 1, 'North Gaza'),
+    ('Nuseirat Camp', 'مخيم النصيرات', 34.395, 31.447, 2, 'Deir Al-Balah'), ('Bureij Camp', 'مخيم البريج', 34.403, 31.442, 2, 'Deir Al-Balah'),
+    ('Wadi Gaza', 'وادي غزة', 34.405, 31.465, 2, 'Deir Al-Balah'), ('Khan Younis Camp', 'مخيم خان يونس', 34.296, 31.350, 2, 'Khan Younis'),
+    ('Tal as-Sultan', 'تل السلطان', 34.240, 31.316, 2, 'Rafah'), ('Shaboura', 'الشابورة', 34.253, 31.290, 2, 'Rafah'),
+    ('Bani Suheila', 'بني سهيلا', 34.326, 31.343, 1, 'Khan Younis'),
 ]
 rows += [[en, ar, lon, lat, rank, gov, 1] for en, ar, lon, lat, rank, gov in GAZA]
-rows = [r for r in rows if r[5]]   # no governorate: outside Palestine
+# names that are also everyday words, first names or places abroad (hill, Salem, Sidon, Muscat, vine,
+# rail, butter, goat…): matching them in news text would place reports in the wrong village
+AMBIGUOUS = {'Tell', 'Salim', 'Muscat', 'Seida', 'Sika', 'Karma', 'Zibdah', '`nz@', 'Noa', 'Saffa', "'Aba", 'Kafa', 'Mirka', 'City Center'}
+rows = [r for r in rows if r[0] not in AMBIGUOUS]
+rows = [r for r in {(r[0], r[5]): r for r in rows}.values() if r[5]]   # one per name and governorate; none outside Palestine
 
 def km(lon, lat, c):
     k = math.cos(math.radians(lat))

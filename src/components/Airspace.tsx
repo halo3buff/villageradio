@@ -57,7 +57,7 @@ export function Airspace() {
         for (const a of j.ac as Aircraft[]) {
           seen.add(a.hex);
           if (a.mil && !tracks.has(a.hex)) {
-            telex(`AIR  MIL ${a.type || '?'} ${name(a)} ${fl(a)} ${a.lat.toFixed(2)}N ${a.lon.toFixed(2)}E HDG ${Math.round(a.track)}`);
+            telex(`MIL ${a.type || '?'} ${name(a)} ${fl(a)} ${a.lat.toFixed(2)}N ${a.lon.toFixed(2)}E HDG ${Math.round(a.track)}`, 'air', true);
           }
           const tr = tracks.get(a.hex) ?? { a, at: now, trail: [] };
           tr.trail.push([a.lon, a.lat]);
@@ -67,7 +67,7 @@ export function Airspace() {
         }
         for (const [k, tr] of tracks) {
           if (seen.has(k)) continue;
-          if (tr.a.mil) telex(`AIR  LOST CONTACT ${tr.a.type} ${name(tr.a)}`);
+          if (tr.a.mil) telex(`LOST CONTACT ${tr.a.type || '?'} ${name(tr.a)}`, 'air');
           tracks.delete(k);
         }
       } catch {

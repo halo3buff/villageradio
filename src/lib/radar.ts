@@ -139,8 +139,8 @@ export function netTraffic(ts: string[], vs: number[]): NetReport {
     if (!usual) continue;
     const pct = vs[i] / usual, at = ts[i], t = Date.parse(at) / 1000;
     const when = `${stamp(at.slice(0, 10))} ${at.slice(11, 16)}Z`;
-    if (!down && pct < LOW) { down = true; lines.push({ t, text: `${when} PS NET TRAFFIC DROP ${Math.round(pct * 100)}% OF USUAL` }); }
-    else if (down && pct > BACK) { down = false; lines.push({ t, text: `${when} PS NET TRAFFIC BACK ${Math.round(pct * 100)}% OF USUAL` }); }
+    if (!down && pct < LOW) { down = true; lines.push({ t, k: 'net', hot: true, text: `${when} PS NET TRAFFIC DROP ${Math.round(pct * 100)}% OF USUAL` }); }
+    else if (down && pct > BACK) { down = false; lines.push({ t, k: 'net', text: `${when} PS NET TRAFFIC BACK ${Math.round(pct * 100)}% OF USUAL` }); }
     now = { pct, at };
   }
   return { now, lines };
@@ -169,6 +169,7 @@ export async function getNet(): Promise<NetReport> {
     for (const a of ann.annotations as Annotation[]) {
       const cause = a.outage?.outageCause?.replace(/_/g, ' ') ?? '';
       net.lines.push({
+        k: 'net', hot: true,
         t: Date.parse(a.startDate) / 1000,
         text: `${stamp(a.startDate.slice(0, 10))} ${a.startDate.slice(11, 16)}Z PS NET OUTAGE ${cause} ${a.endDate ? '' : '(ONGOING) '}${a.description.toUpperCase().slice(0, 40)}`.trimEnd(),
       });
@@ -182,7 +183,9 @@ export async function getNet(): Promise<NetReport> {
 
 // ── the teleprinter's roll ───────────────────────────────────────────────────
 
-export type TelexLine = { t: number; text: string };   // t = unix seconds
+/** What a line is about, for the teleprinter's margin mark. */
+export type TelexKind = 'report' | 'net' | 'fire' | 'air' | 'incident' | 'alert';
+export type TelexLine = { t: number; text: string; k: TelexKind; hot?: boolean };   // t = unix seconds; hot prints red
 
 const stamp = (d: string) => d.slice(2).replace(/-/g, '.');
 const field = (k: string, v: number) => (v ? `  ${k} ${v.toLocaleString('en-US')}` : '');
@@ -191,11 +194,11 @@ const field = (k: string, v: number) => (v ? `  ${k} ${v.toLocaleString('en-US')
 export function telexLines(wb: Contact[], gaza: GazaReport[], outages: Outage[], net: TelexLine[] = []): TelexLine[] {
   const day = (d: string) => Date.parse(d) / 1000 + 12 * 3600;   // reports print at noon
   const lines: TelexLine[] = [
-    ...wb.map(c => ({ t: day(c.date), text: `${stamp(c.date)} WB  ${field('KIA', c.killed)}${field('INJ', c.injured)}${field('SETTLER ATK', c.attacks)}${field('DISPL', c.displaced)}` })),
-    ...gaza.map(g => ({ t: day(g.date), text: `${stamp(g.date)} GAZA${field('KIA', g.killed)}${field('INJ', g.injured)}${g.recovered ? `  (${g.recovered} RECOVERED)` : ''}` })),
+    ...wb.map(c => ({ t: day(c.date), k: 'report' as const, hot: c.killed > 0, text: `${stamp(c.date)} WB  ${field('KIA', c.killed)}${field('INJ', c.injured)}${field('SETTLER ATK', c.attacks)}${field('DISPL', c.displaced)}` })),
+    ...gaza.map(g => ({ t: day(g.date), k: 'report' as const, text: `${stamp(g.date)} GAZA${field('KIA', g.killed)}${field('INJ', g.injured)}${g.recovered ? `  (${g.recovered} RECOVERED)` : ''}` })),
     ...outages.map(o => {
       const iso = new Date(o.start * 1000).toISOString();
-      return { t: o.start, text: `${stamp(iso.slice(0, 10))} ${iso.slice(11, 16)}Z ${o.region} NET OUTAGE ${o.source.toUpperCase()} ${Math.round((o.end - o.start) / 60)} MIN` };
+      return { t: o.start, k: 'net' as const, hot: true, text: `${stamp(iso.slice(0, 10))} ${iso.slice(11, 16)}Z ${o.region} NET OUTAGE ${o.source.toUpperCase()} ${Math.round((o.end - o.start) / 60)} MIN` };
     }),
     ...net,
   ];
