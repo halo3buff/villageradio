@@ -18,6 +18,7 @@ export type Live = {
   incidents: Incident[];
   alerts: Alert[];
   net: NetNow | null;
+  took?: Record<string, number>;   // ms each source took on this read
 };
 
 const stamp = (t: number) => {
@@ -51,5 +52,5 @@ export async function getLive(): Promise<Live> {
   const telex = telexLines(feed?.contacts ?? [], gaza, outages, [
     ...net.lines, ...fireLines(fires ?? []), ...incidentLines(incidents), ...alertLines(alerts),
   ]);
-  return { at: Date.now(), feed, telex, fires, incidents, alerts, net: net.now };
+  return { at: Date.now(), feed, telex, fires, incidents, alerts, net: net.now, took };
 }
