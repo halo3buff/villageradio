@@ -22,48 +22,76 @@ export type Pen = {
 };
 
 /**
- * The EGA theme (DOS satellite-tracker look): black, the 16-colour EGA palette, no glow or grain,
- * the VGA bitmap face. Rather than every instrument carrying two palettes, the plate's own colours
- * are translated as they're set on the context: each mint/olive value to its EGA counterpart.
+ * The EGA theme (a DOS satellite tracker's screen): black, the standard 16-colour EGA palette as
+ * solid colours, the VGA bitmap face, labels in green with their values in yellow, no glow.
+ * Rather than every instrument carrying two palettes, a canvas made EGA-aware translates its own
+ * mint/olive colours, fonts and type as they're set: plates (mountPlate) and the station plate.
  */
-const EGA: Record<string, string> = {
-  [PAPER]: '#000000', [INK]: '#55ffff', [SCREEN]: '#000000', [YEL]: '#ffff55', [TRACE]: '#55ff55', [CORE]: '#ffffff',
-  '#7a2a10': '#ff5555', '#ff8a6a': '#ff55ff', '#fff': '#ffffff', 'rgba(255,255,255,0.18)': 'rgba(0,0,0,0)',
+const E = {   // the EGA palette entries used
+  black: '#000000', blue: '#0000aa', cyan: '#00aaaa', brown: '#aa5500', grey: '#aaaaaa',
+  lblue: '#5555ff', lgreen: '#55ff55', lcyan: '#55ffff', lred: '#ff5555', lmagenta: '#ff55ff', yellow: '#ffff55', white: '#ffffff',
 };
-function egaColor(c: string): string {
+const NONE = 'rgba(0,0,0,0)';
+const EGA: Record<string, string> = {
+  [PAPER]: E.black, [INK]: E.lcyan, [SCREEN]: E.black, [YEL]: E.yellow, [TRACE]: E.lgreen, [CORE]: E.white,
+  '#7a2a10': E.lred, '#ff8a6a': E.lmagenta, '#fff': E.white,
+  'rgba(255,255,255,0.18)': NONE, 'rgba(236,230,210,0.35)': E.lblue, 'rgba(255,255,255,0.028)': 'rgba(85,85,255,0.1)',
+};
+/** A plate colour → its EGA counterpart. Faint washes (land fills) vanish: the tracker draws outlines. */
+export function egaColor(c: string): string {
   if (EGA[c]) return EGA[c];
   const m = c.match(/^rgba\((\d+),(\d+),(\d+),([\d.]+)\)$/);
   if (!m) return c;
   const [r, g, b, a] = [+m[1], +m[2], +m[3], +m[4]];
-  // screen trace: faint washes (land fills) → none, the tracker draws outlines only; dim → blue grid; bright → green
-  if (r === 98 && g === 242 && b === 182) return a < 0.2 ? 'rgba(0,0,0,0)' : a < 0.5 ? `rgba(85,85,255,${Math.min(1, a * 2.5)})` : `rgba(85,255,85,${a})`;
-  if (r === 240 && g === 192 && b === 44 && a < 0.2) return 'rgba(0,0,0,0)';
-  if (r === 240 && g === 192 && b === 44) return `rgba(255,255,85,${a})`;
-  if (r === 43 && g === 54 && b === 38) return `rgba(85,255,255,${a})`;
+  if (r === 98 && g === 242 && b === 182) return a < 0.2 ? NONE : a < 0.35 ? E.blue : a < 0.6 ? E.lblue : a < 0.75 ? E.lgreen : E.lcyan;   // screen trace
+  if (r === 240 && g === 192 && b === 44) return a < 0.2 ? NONE : a < 0.5 ? E.brown : E.yellow;   // settlements
+  if (r === 43 && g === 54 && b === 38) return a < 0.5 ? E.cyan : E.lcyan;   // ink tints on the paper
   return c;
 }
-const isEga = () => document.documentElement.dataset.theme === 'ega';
+export const isEga = () => typeof document !== 'undefined' && document.documentElement.dataset.theme === 'ega';
+const EGA_TYPE = 1.5;   // VT323 sits small in its em: half again fills the line, a touch larger than the plate type
+// "KILLED 1,129", "FIELD REPORTS 24H 53": a label, then from its first figure the value
+const LABEL_VALUE = /^([A-Z][A-Z .'/&()+-]*?[A-Z):]\s+)([-+]?\d[\s\S]*)$/;
+const STAMP = /^(\d\d\.\d\d\.\d\d \d\d:\d\dZ )([\s\S]*)$/;   // a telex line's time
 
-/** Route the context's colour and glow through the EGA translation while that theme is on. */
-function egaAware(ctx: CanvasRenderingContext2D) {
+/** Route a context's colours, glow, face and plain type through the EGA translation while that theme is on. */
+export function egaAware(ctx: CanvasRenderingContext2D) {
   const proto = CanvasRenderingContext2D.prototype;
-  for (const key of ['fillStyle', 'strokeStyle', 'shadowColor'] as const) {
+  const vga = getComputedStyle(document.documentElement).getPropertyValue('--font-vt323').trim() || 'monospace';
+  let fill = '';   // the fill colour as the instrument set it, before translation
+  const prop = (key: 'fillStyle' | 'strokeStyle' | 'shadowColor' | 'shadowBlur' | 'font', map: (v: unknown) => unknown) => {
     const d = Object.getOwnPropertyDescriptor(proto, key)!;
-    Object.defineProperty(ctx, key, {
-      get() { return d.get!.call(ctx); },
-      set(v) { d.set!.call(ctx, typeof v === 'string' && isEga() ? egaColor(v) : v); },
-    });
-  }
-  const blur = Object.getOwnPropertyDescriptor(proto, 'shadowBlur')!;
-  Object.defineProperty(ctx, 'shadowBlur', { get() { return blur.get!.call(ctx); }, set(v) { blur.set!.call(ctx, isEga() ? 0 : v); } });
+    Object.defineProperty(ctx, key, { get() { return d.get!.call(ctx); }, set(v) { d.set!.call(ctx, isEga() ? map(v) : v); } });
+  };
+  prop('fillStyle', v => { fill = typeof v === 'string' ? v : ''; return typeof v === 'string' ? egaColor(v) : v; });
+  prop('strokeStyle', v => (typeof v === 'string' ? egaColor(v) : v));
+  prop('shadowColor', v => (typeof v === 'string' ? egaColor(v) : v));
+  prop('shadowBlur', () => 0);
+  prop('font', v => {
+    const m = typeof v === 'string' && !/arabic/i.test(v) && v.match(/([\d.]+)px/);
+    return m ? `${parseFloat(m[1]) * EGA_TYPE}px ${vga}, monospace` : v;
+  });
+  // plain type in two colours, as the tracker prints it: label green, value yellow; a telex time green
+  const fillText = proto.fillText;
+  ctx.fillText = (text: string, x: number, y: number, maxWidth?: number) => {
+    const plain = fill === INK || fill === 'rgba(98,242,182,0.8)';
+    const m = isEga() && plain && (text.match(STAMP) ?? text.match(LABEL_VALUE));
+    if (!m) return fillText.call(ctx, text, x, y, maxWidth);
+    const [, a, b] = m, stamp = STAMP.test(text);
+    const wa = ctx.measureText(a).width, wb = ctx.measureText(b).width, align = ctx.textAlign;
+    const x0 = align === 'right' || align === 'end' ? x - wa - wb : align === 'center' ? x - (wa + wb) / 2 : x;
+    const keep = fill;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = E.lgreen; fillText.call(ctx, a, x0, y);
+    ctx.fillStyle = stamp ? E.lcyan : E.yellow; fillText.call(ctx, b, x0 + wa, y);
+    ctx.textAlign = align; ctx.fillStyle = keep;
+  };
 }
 
 export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (p: Pen, now: number) => void) {
   const ctx = cv.getContext('2d')!;
   egaAware(ctx);
-  const css = getComputedStyle(document.documentElement);
-  const plex = css.getPropertyValue('--font-ibm-plex-mono').trim();
-  const vga = css.getPropertyValue('--font-vt323').trim();
+  const plex = getComputedStyle(document.documentElement).getPropertyValue('--font-ibm-plex-mono').trim();
   const g = document.createElement('canvas');
   g.width = g.height = 160;
   const gc = g.getContext('2d')!, img = gc.createImageData(160, 160);
@@ -78,8 +106,7 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
   const p: Pen = {
     ctx, s: 1, mono: `${plex || 'Consolas'}, Consolas, monospace`,
     t: (str, x, y, size = 6.5, color = INK, align = 'left') => {
-      // VT323 sits small in its em: a third larger fills the same line
-      ctx.font = isEga() ? `400 ${size * 1.35}px ${vga || 'monospace'}, monospace` : `700 ${size}px ${p.mono}`;
+      ctx.font = `700 ${size}px ${p.mono}`;
       ctx.fillStyle = color; ctx.textAlign = align;
       ctx.fillText(str.toUpperCase(), x, y);
     },
@@ -95,10 +122,12 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
       ctx.fillStyle = vig; ctx.fillRect(x, y, w, h);
     },
     grain: (x, y, w, h) => {
-      if (!pattern || isEga()) return;
+      if (!pattern) return;
       const k = 1.6 / p.s;   // a grain is ~1.6 device pixels
       pattern.setTransform(new DOMMatrix([k, 0, 0, k, Math.random() * 160 * k, Math.random() * 160 * k]));
+      ctx.save(); if (isEga()) ctx.globalAlpha = 0.6;   // on black, a fainter phosphor speckle
       ctx.fillStyle = pattern; ctx.fillRect(x, y, w, h);
+      ctx.restore();
     },
   };
 
