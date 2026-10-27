@@ -22,6 +22,19 @@ describe('wafa', () => {
     expect(locate('أنواع من القنابل', places).place).toBeNull();     // نوع inside a word
   });
 
+  it('knows other spellings, لل for ل+ال, and needs a place word before everyday-word names', () => {
+    const more: Place[] = [
+      ['Al Mughayyir', 'المغير', 35, 32, 2, 'X', 0],
+      ['Deir Istiya', 'دير إسيتا', 35, 32, 2, 'X', 0, '', '', null, 0, ['دير استيا'], 0],
+      ['Zeitoun', 'الزيتون', 34.45, 31.49, 2, 'Gaza', 1, '', '', null, 0, [], 1],
+    ];
+    expect(locate('قوات الاحتلال تجمعت عند المدخل الغربي للمغير', more).place?.[0]).toBe('Al Mughayyir');
+    expect(locate('مستعمرون يهاجمون مزارعين في دير استيا', more).place?.[0]).toBe('Deir Istiya');
+    expect(locate('منعوهم من قطف الزيتون', more).place).toBeNull();
+    expect(locate('قصف منزلا في حي الزيتون', more).place?.[0]).toBe('Zeitoun');
+    expect(locate('قصف منزلا بحي الزيتون', more).place?.[0]).toBe('Zeitoun');
+  });
+
   it('marks "Gaza Strip" as Gaza without placing it at Gaza City', () => {
     expect(locate('غارة على قطاع غزة', places)).toEqual({ place: null, gaza: true });
     expect(locate('الحرب على غزة', places)).toEqual({ place: null, gaza: true });

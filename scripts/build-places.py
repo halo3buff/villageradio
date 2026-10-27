@@ -10,13 +10,15 @@ also tags as villages.
   pip install shapely
   python scripts/build-places.py <populated_places.geojson>
 
-Rows: [english, arabic, lon, lat, rank (0 city, 1 town, 2 village), governorate, region (0 WB, 1 Gaza),
-       nearest settlement/outpost name, its type, km to it, outposts + farm outposts within 3 km]
+Rows: [english, arabic, lon, lat, rank (0 city, 1 town, 2 village, 3 hamlet), governorate, region (0 WB, 1 Gaza),
+       nearest settlement/outpost name, its type, km to it, outposts + farm outposts within 3 km,
+       other Arabic spellings, strict (1 = also an everyday word: only matched after بلدة/قرية/حي…)]
 """
 import json, math, os, sys
 from shapely.geometry import shape
 
-RANK = {'city': 0, 'town': 1, 'village': 2}
+RANK = {'city': 0, 'town': 1, 'village': 2, 'suburb': 2, 'hamlet': 3}
+ARABIC = lambda t: next((x.strip() for x in (t or '').split('|') if any('ء' <= ch <= 'ي' for ch in x)), None)
 root = os.path.join(os.path.dirname(__file__), '..', 'public', 'map')
 geo = json.load(open(os.path.join(root, 'geo.json'), encoding='utf-8'))
 sites = [s['c'] for s in geo['sites']]
@@ -33,17 +35,20 @@ def near_site(lon, lat, km=0.6):
     k = math.cos(math.radians(lat))
     return built.contains(Point(lon, lat)) or any(((lon - x) * k) ** 2 + (lat - y) ** 2 < (km / 111) ** 2 for x, y in sites)
 
-rows, seen = [], set()
+rows, seen = [], {}
 for f in json.load(open(sys.argv[1], encoding='utf-8'))['features']:
     p = f['properties']
     rank = RANK.get(p.get('place'))
-    en, ar = p.get('name_en') or p.get('name_latin'), p.get('name_ar')
-    if rank is None or not en or not ar:
+    en, ar = p.get('name_en') or p.get('name_latin'), ARABIC(p.get('name_ar')) or ARABIC(p.get('name'))   # many carry Arabic only in name
+    if rank is None or not en or not ar or any(ch in en for ch in '@`'):   # '@`': OSM's machine transliteration, unreadable
         continue
     c = shape(f['geometry']).representative_point()
-    if norm(en) in site_names or near_site(c.x, c.y) or (en, p.get('adm2_name')) in seen:   # OSM lists a few twice, spelled two ways
+    if norm(en) in site_names or near_site(c.x, c.y):
         continue
-    seen.add((en, p.get('adm2_name')))
+    if (en, p.get('adm2_name')) in seen:   # OSM lists some twice, spelled two ways: keep both spellings
+        seen[(en, p.get('adm2_name'))].add(ar)
+        continue
+    seen[(en, p.get('adm2_name'))] = {ar}
     rows.append([en, ar, round(c.x, 4), round(c.y, 4), rank, p.get('adm2_name') or '',
                  1 if p.get('adm1_name') == 'Gaza Strip' else 0])
 
@@ -54,8 +59,10 @@ GAZA = [
     ("Khuza'a", 'خزاعة', 34.361, 31.308, 2, 'Khan Younis'), ('Maghazi', 'المغازي', 34.382, 31.422, 1, 'Deir Al-Balah'),
     ('Beit Lahia', 'بيت لاهيا', 34.495, 31.546, 1, 'North Gaza'), ('Beit Hanoun', 'بيت حانون', 34.535, 31.539, 1, 'North Gaza'),
     ('Shati', 'الشاطئ', 34.447, 31.532, 1, 'Gaza'),
-    # (Zeitoun, Tuffah, Daraj, Rimal, Nasr, Sabra left out: olives, apples, stairs, sand… — everyday
-    # words that would place a report about an olive grove in Gaza City)
+    # everyday words too (olives, apples, stairs, sand…): strict, matched only as حي الزيتون etc.
+    ('Zeitoun', 'الزيتون', 34.452, 31.493, 2, 'Gaza'), ('Tuffah', 'التفاح', 34.475, 31.511, 2, 'Gaza'),
+    ('Daraj', 'الدرج', 34.466, 31.509, 2, 'Gaza'), ('Rimal', 'الرمال', 34.447, 31.519, 2, 'Gaza'),
+    ('Nasr', 'النصر', 34.455, 31.527, 2, 'Gaza'), ('Sabra', 'الصبرة', 34.455, 31.501, 2, 'Gaza'),
     ('Shujaiya', 'الشجاعية', 34.482, 31.502, 2, 'Gaza'), ('Tel al-Hawa', 'تل الهوى', 34.432, 31.505, 2, 'Gaza'),
     ('Sheikh Radwan', 'الشيخ رضوان', 34.457, 31.530, 2, 'Gaza'), ('Sheikh Ajlin', 'الشيخ عجلين', 34.422, 31.493, 2, 'Gaza'),
     ('Jabalia Camp', 'مخيم جباليا', 34.493, 31.533, 2, 'North Gaza'), ('Beit Lahia', 'بيت لاهيا', 34.495, 31.546, 1, 'North Gaza'),
@@ -65,11 +72,16 @@ GAZA = [
     ('Bani Suheila', 'بني سهيلا', 34.326, 31.343, 1, 'Khan Younis'),
 ]
 rows += [[en, ar, lon, lat, rank, gov, 1] for en, ar, lon, lat, rank, gov in GAZA]
+# Bedouin communities beside settlements, which the settlement filter above drops
+rows += [['Khan al-Ahmar', 'الخان الأحمر', 35.355, 31.808, 3, 'Jerusalem', 0]]
 # names that are also everyday words, first names or places abroad (hill, Salem, Sidon, Muscat, vine,
-# rail, butter, goat…): matching them in news text would place reports in the wrong village
-AMBIGUOUS = {'Tell', 'Salim', 'Muscat', 'Seida', 'Sika', 'Karma', 'Zibdah', '`nz@', 'Noa', 'Saffa', "'Aba", 'Kafa', 'Mirka', 'City Center'}
-rows = [r for r in rows if r[0] not in AMBIGUOUS]
-rows = [r for r in {(r[0], r[5]): r for r in rows}.values() if r[5]]   # one per name and governorate; none outside Palestine
+# rail, butter, goat…), plus Gaza's word-named neighbourhoods: matched only after a place word
+AMBIGUOUS = {'Tell', 'Salim', 'Muscat', 'Seida', 'Sika', 'Karma', 'Zibdah', '`nz@', 'Noa', 'Saffa', "'Aba", 'Kafa', 'Mirka',
+             'Zeitoun', 'Tuffah', 'Daraj', 'Rimal', 'Nasr', 'Sabra'}
+DROP = {'City Center'}
+# how WAFA spells some places OSM spells otherwise
+ALIASES = {'Jerusalem': ['القدس'], 'Deir Istiya': ['دير استيا'], 'Beit Hanina Al-Balad': ['بيت حنينا'], 'Um Safa': ['أم صفا']}
+rows = [r for r in {(r[0], r[5]): r for r in rows if r[0] not in DROP}.values() if r[5]]   # one per name and governorate; none outside Palestine
 
 def km(lon, lat, c):
     k = math.cos(math.radians(lat))
@@ -80,6 +92,9 @@ for r in rows:
     d, s = ds[0] if ds else (None, None)
     r += [s['n'] if s else '', TYPES[s['t']] if s else '', round(d, 1) if s else None,
           sum(1 for x, y in ds if x <= 3 and y['t'] in (1, 2))]
+    aka = sorted((seen.get((r[0], r[5]), set()) | set(ALIASES.get(r[0], []))) - {r[1]})
+    one_word = ' ' not in r[1].strip().removeprefix('ال')
+    r += [aka, 1 if r[0] in AMBIGUOUS or (r[4] == 3 and one_word) else 0]   # one-word hamlet names are often plain words
 rows.sort(key=lambda r: (r[6], r[5], r[0]))
 json.dump(rows, open(os.path.join(root, 'places.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(len(rows), 'places;', sum(r[6] for r in rows), 'in Gaza')

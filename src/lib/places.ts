@@ -4,7 +4,7 @@ import path from 'node:path';
 /** public/map/places.json (scripts/build-places.py): Palestinian cities, towns, villages and
  *  Gaza neighbourhoods, read once per server instance. */
 export type Place = [en: string, ar: string, lon: number, lat: number, rank: number, gov: string, gaza: 0 | 1,
-  site?: string, siteType?: string, siteKm?: number | null, outposts3?: number];
+  site?: string, siteType?: string, siteKm?: number | null, outposts3?: number, aka?: string[], strict?: 0 | 1];
 
 let places: Promise<Place[]> | null = null;
 export const loadPlaces = () => (places ??= readFile(path.join(process.cwd(), 'public', 'map', 'places.json'), 'utf8')

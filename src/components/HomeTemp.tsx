@@ -35,17 +35,18 @@ export function HomeTemp() {
         color: 'var(--vlg-fg, #000)', textDecoration: 'none',
       }}>README</Link>
 
-      {/* The rotating station mark — dead centre. The render is 1920x1080,
-          transparent (VP9 alpha), with the mark in its middle third, so the
-          frame is let run wider than a phone screen (the main clips it) to
-          keep the mark a fair size.
+      {/* The rotating station mark — dead centre. An animated WebP cropped from
+          the 1920x1080 render (logo_roto_8bit.webm): iOS Safari plays VP9 alpha
+          as black, WebP alpha works everywhere. Sized as the old full frame was
+          (the crop is 0.375 of its width).
           Swap <ShannonDiagram /> back in here to restore the diagram. */}
-      <video
-        src="/site_assets/logo_roto_8bit.webm"
-        autoPlay loop muted playsInline aria-hidden
+      {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
+      <img
+        src="/site_assets/logo_roto.webp"
+        alt="" aria-hidden
         style={{
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-          width: 'clamp(760px, 80vw, 1200px)', maxWidth: 'none', height: 'auto',
+          width: 'clamp(285px, 30vw, 450px)', maxWidth: 'none', height: 'auto',
           pointerEvents: 'none',
         }}
       />

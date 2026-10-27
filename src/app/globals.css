@@ -100,7 +100,7 @@ img[src*="left-arrow"] {
 
 /* The rotating mark is baked grey: on the mint stock, multiply it into the paper so it
    prints as a dark green ink instead of sitting on top as grey. */
-html[data-theme="default"] video[src*="logo_roto"] {
+html[data-theme="default"] [src*="logo_roto"] {
   mix-blend-mode: multiply;
 }
 
