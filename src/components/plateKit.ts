@@ -35,7 +35,9 @@ function egaColor(c: string): string {
   const m = c.match(/^rgba\((\d+),(\d+),(\d+),([\d.]+)\)$/);
   if (!m) return c;
   const [r, g, b, a] = [+m[1], +m[2], +m[3], +m[4]];
-  if (r === 98 && g === 242 && b === 182) return a < 0.5 ? `rgba(85,85,255,${Math.min(1, a * 2.5)})` : `rgba(85,255,85,${a})`;   // screen trace: dim → blue grid, bright → green
+  // screen trace: faint washes (land fills) → none, the tracker draws outlines only; dim → blue grid; bright → green
+  if (r === 98 && g === 242 && b === 182) return a < 0.2 ? 'rgba(0,0,0,0)' : a < 0.5 ? `rgba(85,85,255,${Math.min(1, a * 2.5)})` : `rgba(85,255,85,${a})`;
+  if (r === 240 && g === 192 && b === 44 && a < 0.2) return 'rgba(0,0,0,0)';
   if (r === 240 && g === 192 && b === 44) return `rgba(255,255,85,${a})`;
   if (r === 43 && g === 54 && b === 38) return `rgba(85,255,255,${a})`;
   return c;
