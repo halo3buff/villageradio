@@ -1,0 +1,13 @@
+# Keeps the radar gathering when nobody has it open: each read of /api/radar/live refreshes the
+# shared snapshot if it has gone stale. GitHub runs schedules late at busy times; it's a backstop.
+name: radar-tick
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: curl -fsS -o /dev/null -w '%{http_code} %{time_total}s\n' https://vlgfm.live/api/radar/live

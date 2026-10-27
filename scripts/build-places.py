@@ -82,6 +82,8 @@ DROP = {'City Center'}
 # how WAFA spells some places OSM spells otherwise
 ALIASES = {'Jerusalem': ['القدس', 'الأقصى'], 'Deir Istiya': ['دير استيا'], 'Beit Hanina Al-Balad': ['بيت حنينا'], 'Um Safa': ['أم صفا']}
 rows = [r for r in {(r[0], r[5]): r for r in rows if r[0] not in DROP}.values() if r[5]]   # one per name and governorate; none outside Palestine
+for r in rows:   # OSM tags most governorate seats as towns: they're the cities
+    if r[0] == r[5]: r[4] = 0
 
 def km(lon, lat, c):
     k = math.cos(math.radians(lat))

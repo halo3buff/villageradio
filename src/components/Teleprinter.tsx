@@ -136,7 +136,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
       const count = (k: TelexKind) => all.filter(l => l.k === k).length;
       const net = live.current;
       ([
-        ['incident', `FIELD REPORTS ${count('incident')}`, 'WAFA, 72 H'],
+        ['incident', `FIELD REPORTS ${count('incident')}`, 'WAFA/MA\'AN/QNN, 72 H'],
         ['alert', `SIRENS ${count('alert')}`, 'TZEVA ADOM'],
         ['fire', `SAT FIRES ${count('fire')}`, 'NASA VIIRS, 7 D'],
         ['air', `MIL AIRCRAFT ${all.filter(l => l.k === 'air' && l.hot).length}`, 'ADS-B, LIVE'],

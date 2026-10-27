@@ -6,6 +6,8 @@ import type { Alert } from '@/lib/alerts';
 import type { Fire } from '@/lib/fires';
 import type { RadarFeed } from '@/lib/radar';
 import type { Incident } from '@/lib/wafa';
+
+const sourcesOf = (x: Incident) => [...new Set([x.src, ...(x.also ?? []).map(a => a.src)])];   // as in lib/wafa, which is server-only
 import { CORE, INK, mountPlate, platePoint, SCREEN, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
 import { loadGeo, rings, type Geo } from './geo';
 import { AIR_EVENT } from './Airspace';
@@ -155,6 +157,9 @@ export function RadarScope(props: Props) {
         glow(color, bl === hover ? 1 : Math.max(age < 6 * HOUR ? 0.85 : age < DAY ? 0.55 : 0.25, lit(bl)), 7);
         ctx.beginPath(); ctx.moveTo(bl.x, bl.y - 2.6); ctx.lineTo(bl.x + 2.4, bl.y + 1.8); ctx.lineTo(bl.x - 2.4, bl.y + 1.8); ctx.closePath();
         if (x.tags.includes('SETTLERS') || hotInc(x)) ctx.fill(); else ctx.stroke();
+        if (sourcesOf(x).length > 1) {   // confirmed by two channels or more: a second, outer triangle
+          ctx.beginPath(); ctx.moveTo(bl.x, bl.y - 4.6); ctx.lineTo(bl.x + 4.1, bl.y + 2.9); ctx.lineTo(bl.x - 4.1, bl.y + 2.9); ctx.closePath(); ctx.stroke();
+        }
         if (age < 6 * HOUR) pulse(bl.x, bl.y, 2.4, color);
         done();
       }
@@ -204,6 +209,7 @@ export function RadarScope(props: Props) {
         ['SIRENS', (x, y) => { ctx.fillStyle = ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.arc(x, y, 0.7, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.stroke(); }],
         ['SAT FIRE', (x, y) => { ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 7); ctx.fill(); }],
         ['MIL AIRCRAFT', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.moveTo(x, y - 2); ctx.lineTo(x + 2, y); ctx.lineTo(x, y + 2); ctx.lineTo(x - 2, y); ctx.closePath(); ctx.stroke(); }],
+        ['DOUBLE = 2+ SOURCES', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(x, y - 2.6); ctx.lineTo(x + 2.4, y + 1.8); ctx.lineTo(x - 2.4, y + 1.8); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y - 1.2); ctx.lineTo(x + 1.1, y + 0.8); ctx.lineTo(x - 1.1, y + 0.8); ctx.closePath(); ctx.stroke(); }],
         ['RED = KILLED/STRIKE', (x, y) => { ctx.fillStyle = RED; ctx.fillRect(x - 1.5, y - 1.5, 3, 3); }],
         ['PULSE = NEW', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, 0.8, 0, 7); ctx.stroke(); }],
       ];
@@ -223,7 +229,7 @@ export function RadarScope(props: Props) {
         rows([
           [x.tags.join(' / '), hotInc(x) ? RED : INK],
           [`${(x.place?.en ?? '').toUpperCase()}  ${when(x.t)}  (${ago(x.t)})`],
-          ['WAFA FIELD REPORT, AS POSTED:'],
+          [sourcesOf(x).length > 1 ? `CONFIRMED: ${sourcesOf(x).join(' + ')}. ${x.src}, AS POSTED:` : `${x.src} FIELD REPORT, AS POSTED:`],
         ]);
         // the report itself, Arabic, right to left, wrapped
         ctx.save();
@@ -281,7 +287,7 @@ export function RadarScope(props: Props) {
           rs.forEach((r, j) => t(r, x, ty + 24 + j * 9, 5.5));
         });
       } else t('FEED UNREACHABLE — RETRYING', CX, ty + 40, 6.5, INK, 'center');
-      t('SRC WAFA / TZEVA ADOM / NASA FIRMS / ADS-B / OCHA + MOH VIA TFP / OSM', X0, H - 3, 5);
+      t('SRC WAFA / MA\'AN / QNN / TZEVA ADOM / NASA FIRMS / ADS-B / OCHA + MOH VIA TFP / OSM', X0, H - 3, 5);
     });
 
     const pick = (e: PointerEvent) => {
@@ -307,7 +313,7 @@ export function RadarScope(props: Props) {
     <canvas
       ref={ref}
       role="img"
-      aria-label={`Radar map of Gaza and the West Bank: ${props.incidents.length} WAFA field reports in the past 72 hours${
+      aria-label={`Radar map of Gaza and the West Bank: ${props.incidents.length} field reports (WAFA, Ma'an, Quds News Network) in the past 72 hours${
         placed.length ? `, latest ${placed.at(-1)!.tags.join(' ').toLowerCase()} in ${placed.at(-1)!.place!.en}` : ''}; ${
         (props.fires ?? []).filter(f => f.region).length} satellite fire detections in 7 days; siren alerts and live military aircraft.`}
       className="plate radar"

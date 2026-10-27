@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { toAlerts } from './alerts';
 import type { Place } from './places';
-import { bestMatch, fold, locate, parsePage, tagsOf } from './wafa';
+import { bestMatch, fold, locate, merge, parsePage, sourcesOf, tagsOf, type Incident } from './wafa';
 
 const P = (en: string, ar: string, rank: number, gaza: 0 | 1 = 0): Place => [en, ar, 35, 32, rank, 'X', gaza];
 const places = [P('Hebron', 'الخليل', 0), P('Dura', 'دورا', 1), P('As Samu\'', 'السموع‎', 2), P('Gaza', 'غزة', 0, 1), P('Noa', 'نوع', 2)];
@@ -48,6 +48,25 @@ describe('wafa', () => {
     // the day's roundup repeats the report among many others: the report wins
     const roundup: [number, ReturnType<typeof art>] = [4, art(`تواصل عدوان الاحتلال ${'شهيد إصابات تهجير اعتقالات بيت فجار تقوع قلقيلية طولكرم جنين نابلس سلفيت أريحا طوباس '.repeat(1)} واقتحموا منزل المواطن رفيق صبحي نوفل حولت ثكنة عسكرية دير شرف هدم منزل مدينة قلقيلية مستعمرون يسيجون أراضي الأغوار الشمالية مخيم بلاطة عسكر الجديد الفارعة نور شمس`)];
     expect(bestMatch('اقتحم جنود الاحتلال منزل المواطن رفيق صبحي نوفل وحولوه إلى ثكنة عسكرية', [...cands, roundup])).toBe(1);
+  });
+
+  it('reads "X east of Y" as Y when the only X it knows is far from Y', () => {
+    const ps: Place[] = [['Huwara', 'حوارة', 35.25, 32.15, 2, 'Nablus', 0], ['Yatta', 'يطا', 35.09, 31.45, 1, 'Hebron', 0], ['Beita', 'بيتا', 35.29, 32.14, 2, 'Nablus', 0]];
+    expect(locate('هجوم مستوطنين على مسكنهما في حوارة شرق يطا', ps).place?.[0]).toBe('Yatta');
+    expect(locate('مستوطنون يهاجمون حوارة جنوب بيتا', ps).place?.[0]).toBe('Huwara');
+  });
+
+  it('merges reports of one place within 3 hours, across channels, into one event', () => {
+    const p = { en: 'Dura', ar: 'دورا', lon: 35, lat: 31.5, rank: 1 };
+    const x = (id: string, src: string, t: number, tags: Incident['tags'], place = p): Incident => ({ id, src, t, tags, text: '', place, gaza: false });
+    const out = merge([x('WAFA:1', 'WAFA', 0, ['ARREST']), x("MA'AN:9", "MA'AN", 3600, ['SETTLERS']), x('WAFA:2', 'WAFA', 5 * 3600, ['RAID']), x('QNN:3', 'QNN', 60, ['RAID'], { ...p, en: 'Yatta', lon: 35.1 })]);
+    expect(out.map(e => [e.id, e.tags, sourcesOf(e)])).toEqual([
+      ['WAFA:1', ['SETTLERS', 'ARREST'], ['WAFA', "MA'AN"]],
+      ['QNN:3', ['RAID'], ['QNN']],
+      ['WAFA:2', ['RAID'], ['WAFA']],
+    ]);
+    const city = { ...p, en: 'Hebron', rank: 0 };   // too coarse to merge on
+    expect(merge([x('WAFA:1', 'WAFA', 0, ['RAID'], city), x('QNN:2', 'QNN', 60, ['RAID'], city)])).toHaveLength(2);
   });
 
   it('marks "Gaza Strip" as Gaza without placing it at Gaza City', () => {
