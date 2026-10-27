@@ -41,9 +41,13 @@ export function alertLines(xs: Alert[]): TelexLine[] {
 
 export async function getLive(): Promise<Live> {
   const today = new Date().toISOString().slice(0, 10);
+  const t0 = Date.now(), took: Record<string, number> = {};
+  const timed = <T,>(name: string, p: Promise<T>) => p.finally(() => { took[name] = Date.now() - t0; });
   const [feed, gaza, outages, net, fires, incidents, alerts] = await Promise.all([
-    getRadarFeed(), getGazaReports(today), getOutages(), getNet(), getFires(), getIncidents(), getAlerts(),
+    timed('feed', getRadarFeed()), timed('gaza', getGazaReports(today)), timed('outages', getOutages()), timed('net', getNet()),
+    timed('fires', getFires()), timed('wafa', getIncidents()), timed('alerts', getAlerts()),
   ]);
+  if (Date.now() - t0 > 5000) console.warn('radar live slow', JSON.stringify(took));
   const telex = telexLines(feed?.contacts ?? [], gaza, outages, [
     ...net.lines, ...fireLines(fires ?? []), ...incidentLines(incidents), ...alertLines(alerts),
   ]);
