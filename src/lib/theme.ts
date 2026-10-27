@@ -34,13 +34,13 @@ export type Theme = {
 export const THEMES: Record<string, Theme> = {
   default: {
     // the mint report-cover stock: dark olive ink on mint (sampled from the reference cover)
-    bg:'#eef8f1', ts:'#1f5c43', uid_palette:['#0f5e5a','#1d5a1d','#5a2a7a','#1a3f80','#7a3a10','#0e4f6e','#6a2068','#0d5a40','#7a3418','#2a3a8a'], uid_real:'#1a2418', col_host:'#7a2040', col_data:'#2b3626',
-    bar_bg:'#38c98f', bar_border:'#2c9e70', bar_dim:'#2a6b4f', bar_bright:'#1a2418',
+    bg:'#eef8f1', ts:'#3a3a3a', uid_palette:['#0f5e5a','#1d5a1d','#5a2a7a','#1a3f80','#7a3a10','#0e4f6e','#6a2068','#0d5a40','#7a3418','#2a3a8a'], uid_real:'#1a2418', col_host:'#7a2040', col_data:'#2b3626',
+    bar_bg:'#dadada', bar_border:'#9e9e9e', bar_dim:'#5a5a5a', bar_bright:'#1a2418',
     filter_col:'#0f5e5a',
-    tab_bg:'#36c48c', tab_fg:'#2a6b4f', tab_active_bg:'#2b3626', tab_active_fg:'#3fd89e',
-    cmd_bg:'#36c48c', cmd_fg:'#1a2418', cmd_cursor:'#2b3626',
+    tab_bg:'#d2d2d2', tab_fg:'#5a5a5a', tab_active_bg:'#2b3626', tab_active_fg:'#eef8f1',
+    cmd_bg:'#d2d2d2', cmd_fg:'#1a2418', cmd_cursor:'#2b3626',
     hover_bg:'rgba(43,54,38,0.06)', sel_bg:'rgba(43,54,38,0.12)',
-    exp_comment:'#2a6b4f', exp_num:'#2f8f68', exp_text:'#2b3626', exp_border:'#2c9e70',
+    exp_comment:'#5a5a5a', exp_num:'#8a8a8a', exp_text:'#2b3626', exp_border:'#9e9e9e',
   },
   black: {
     // white on black — the previous paper-white values, inverted

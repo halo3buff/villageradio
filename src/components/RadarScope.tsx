@@ -96,7 +96,7 @@ export function RadarScope(props: Props) {
       ctx.beginPath(); ctx.arc(CX, CY, R, 0, 7); ctx.clip();
       ctx.fillStyle = SCREEN; ctx.fillRect(CX - R, CY - R, R * 2, R * 2);
       const vig = ctx.createRadialGradient(CX, CY, R * 0.3, CX, CY, R);
-      vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(10,16,8,0.5)');
+      vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.5)');
       ctx.fillStyle = vig; ctx.fillRect(CX - R, CY - R, R * 2, R * 2);
 
       // under a look (EGA, chart), the tracker's / chart's latitude-longitude grid, every quarter degree
@@ -112,15 +112,15 @@ export function RadarScope(props: Props) {
         ctx.beginPath(); rings(ctx, geo.coast, p, false);
         ctx.strokeStyle = SCREEN_DIM; ctx.lineWidth = 0.6; ctx.stroke();
         ctx.beginPath(); rings(ctx, [...geo.wb, ...geo.gaza], p);
-        ctx.fillStyle = 'rgba(98,242,182,0.07)'; ctx.fill('evenodd');
-        ctx.strokeStyle = 'rgba(98,242,182,0.4)'; ctx.lineWidth = 0.6; ctx.stroke();
+        ctx.fillStyle = 'rgba(230,230,230,0.07)'; ctx.fill('evenodd');
+        ctx.strokeStyle = 'rgba(230,230,230,0.4)'; ctx.lineWidth = 0.6; ctx.stroke();
         ctx.fillStyle = 'rgba(240,192,44,0.3)';
         for (const st of geo.sites) { const [x, y] = p(st.c[0], st.c[1]); ctx.fillRect(x - 0.4, y - 0.4, 0.8, 0.8); }
       }
       for (const c of cities) {
         const [x, y] = p(c[2], c[3]);
         ctx.fillStyle = SCREEN_DIM; ctx.fillRect(x - 0.7, y - 0.7, 1.4, 1.4);
-        t(c[0], x + 2.5, y + 1.5, 4, 'rgba(98,242,182,0.45)');
+        t(c[0], x + 2.5, y + 1.5, 4, 'rgba(230,230,230,0.45)');
       }
       for (const km of [25, 50, 75]) {
         const r = (km / RANGE_KM) * R;
@@ -132,8 +132,8 @@ export function RadarScope(props: Props) {
       const sweep = ((now % PERIOD) / PERIOD) * 2 * Math.PI;
       if ('createConicGradient' in ctx) {
         const cg = ctx.createConicGradient(sweep - Math.PI / 2 - 0.9, CX, CY);
-        cg.addColorStop(0, 'rgba(98,242,182,0)'); cg.addColorStop(0.9 / (2 * Math.PI), 'rgba(98,242,182,0.14)');
-        cg.addColorStop(0.9 / (2 * Math.PI) + 0.001, 'rgba(98,242,182,0)');
+        cg.addColorStop(0, 'rgba(230,230,230,0)'); cg.addColorStop(0.9 / (2 * Math.PI), 'rgba(230,230,230,0.14)');
+        cg.addColorStop(0.9 / (2 * Math.PI) + 0.001, 'rgba(230,230,230,0)');
         ctx.fillStyle = cg; ctx.fillRect(CX - R, CY - R, R * 2, R * 2);
       }
       line(CX, CY, CX + Math.sin(sweep) * R, CY - Math.cos(sweep) * R, TRACE, 1);

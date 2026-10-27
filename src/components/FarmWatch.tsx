@@ -29,7 +29,7 @@ const weekday = (d: string) => new Intl.DateTimeFormat('ar', { weekday: 'long', 
 const stamp = (t: number) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Hebron', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(t * 1000));
 
 const card: React.CSSProperties = { background: PAPER, color: INK, border: `1px solid ${INK}`, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 };
-const head: React.CSSProperties = { background: SCREEN, color: '#62f2b6', margin: '-14px -16px 4px', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 };
+const head: React.CSSProperties = { background: SCREEN, color: '#e6e6e6', margin: '-14px -16px 4px', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 };
 const en: React.CSSProperties = { fontFamily: MONO, fontSize: 11, letterSpacing: '0.04em', opacity: 0.8, direction: 'ltr', unicodeBidi: 'isolate' };
 
 function H({ ar, children }: { ar: string; children: string }) {

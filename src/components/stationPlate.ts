@@ -67,11 +67,11 @@ export function fitStack(ratio: number) {
 // Colours sampled from the reference cover.
 const PAPER = '#eef8f1';
 const INK = '#2b3626';
-const SCREEN = '#36442e';
+const SCREEN = '#1e1e1e';
 const YEL = '#f0c02c';
-const TRACE = '#62f2b6';   // the Lissajous trace, mint light through the print
-const SCREEN_INK = 'rgba(98,242,182,0.8)';   // type on the screen
-const SCREEN_DIM = 'rgba(98,242,182,0.3)';   // the screen's graticule
+const TRACE = '#e6e6e6';   // the Lissajous trace, mint light through the print
+const SCREEN_INK = 'rgba(230,230,230,0.8)';   // type on the screen
+const SCREEN_DIM = 'rgba(230,230,230,0.3)';   // the screen's graticule
 
 // film grain over the screen: one random tile, drawn at a fresh offset each frame
 let grain: CanvasPattern | null = null;
@@ -84,7 +84,7 @@ function grainPattern(ctx: CanvasRenderingContext2D) {
   for (let i = 0; i < img.data.length; i += 4) {
     const v = Math.random();
     const light = v > 0.5;
-    img.data[i] = light ? 120 : 10; img.data[i + 1] = light ? 255 : 18; img.data[i + 2] = light ? 190 : 12;
+    img.data[i] = light ? 220 : 10; img.data[i + 1] = light ? 220 : 10; img.data[i + 2] = light ? 220 : 10;
     img.data[i + 3] = Math.abs(v - 0.5) ** 2 * 4 * 255 * 0.18;
   }
   g.putImageData(img, 0, 0);
@@ -170,7 +170,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     ctx.fillStyle = TRACE; ctx.shadowColor = TRACE;
     ctx.globalAlpha = 0.35; ctx.shadowBlur = 18 * s; ctx.fill();
     ctx.globalAlpha = 0.8; ctx.shadowBlur = 6 * s; ctx.fill();
-    ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = '#c8ffe6'; ctx.fill();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = '#ffffff'; ctx.fill();
     ctx.restore();
   };
   const badge = () => {
@@ -217,7 +217,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     // the print window: dark olive, a soft vignette, the field, then grain over all of it
     ctx.fillStyle = SCREEN; ctx.fillRect(X, Y, D, DH);
     const vig = ctx.createRadialGradient(X + D / 2, Y + DH / 2, Math.min(D, DH) * 0.2, X + D / 2, Y + DH / 2, Math.max(D, DH) * 0.75);
-    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(10,16,8,0.45)');
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.45)');
     ctx.fillStyle = vig; ctx.fillRect(X, Y, D, DH);
     field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
     // the stack's transport is the StationBar's: no badge, just the state in the corner

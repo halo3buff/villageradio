@@ -5,9 +5,9 @@
  * animation frame with a Pen in those units.
  */
 
-export const PAPER = '#eef8f1', INK = '#2b3626', SCREEN = '#36442e', YEL = '#f0c02c';
-export const TRACE = '#62f2b6', CORE = '#c8ffe6';
-export const SCREEN_INK = 'rgba(98,242,182,0.8)', SCREEN_DIM = 'rgba(98,242,182,0.3)';
+export const PAPER = '#eef8f1', INK = '#2b3626', SCREEN = '#1e1e1e', YEL = '#f0c02c';
+export const TRACE = '#e6e6e6', CORE = '#ffffff';
+export const SCREEN_INK = 'rgba(230,230,230,0.8)', SCREEN_DIM = 'rgba(230,230,230,0.3)';
 
 export type Pen = {
   ctx: CanvasRenderingContext2D;
@@ -48,7 +48,7 @@ const C = {   // aeronautical chart inks
   paper: '#fbfaf6', ink: '#1a1a1a', grey: '#6b6b6b', magenta: '#b0127f', blue: '#1f4e9c', pale: '#c9d8ee',
   ochre: '#a8650f', sand: '#d9b27a', red: '#c8102e', mute: '#9a9a9a',
 };
-const TRACE_RGB = '98,242,182', YEL_RGB = '240,192,44', INK_RGB = '43,54,38', VIG_RGB = '10,16,8';
+const TRACE_RGB = '230,230,230', YEL_RGB = '240,192,44', INK_RGB = '43,54,38', VIG_RGB = '0,0,0';
 let vga = 'monospace';
 const LOOKS: Record<string, Look> = {
   ega: {
@@ -127,7 +127,7 @@ export function themeAware(ctx: CanvasRenderingContext2D) {
   // plain type in two colours, as charts and trackers print it: the label, then its value; a telex time
   const fillText = proto.fillText;
   ctx.fillText = (text: string, x: number, y: number, maxWidth?: number) => {
-    const L = look(), plain = fill === INK || fill === 'rgba(98,242,182,0.8)';
+    const L = look(), plain = fill === INK || fill === 'rgba(230,230,230,0.8)';
     const m = L && plain && (text.match(STAMP) ?? text.match(LABEL_VALUE));
     if (!L || !m) return fillText.call(ctx, text, x, y, maxWidth);
     const [, a, b] = m, stamp = STAMP.test(text);
@@ -150,7 +150,7 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
   const gc = g.getContext('2d')!, img = gc.createImageData(160, 160);
   for (let i = 0; i < img.data.length; i += 4) {
     const v = Math.random(), light = v > 0.5;
-    img.data[i] = light ? 120 : 10; img.data[i + 1] = light ? 255 : 18; img.data[i + 2] = light ? 190 : 12;
+    img.data[i] = light ? 220 : 10; img.data[i + 1] = light ? 220 : 10; img.data[i + 2] = light ? 220 : 10;
     img.data[i + 3] = Math.abs(v - 0.5) ** 2 * 4 * 255 * 0.18;
   }
   gc.putImageData(img, 0, 0);
@@ -172,7 +172,7 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
       const L = look();
       if (L) { if (L.frame) { ctx.strokeStyle = L.frame; ctx.lineWidth = 0.6; ctx.strokeRect(x, y, w, h); } return; }
       const vig = ctx.createRadialGradient(x + w / 2, y + h / 2, Math.min(w, h) * 0.2, x + w / 2, y + h / 2, Math.max(w, h) * 0.75);
-      vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(10,16,8,0.45)');
+      vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.45)');
       ctx.fillStyle = vig; ctx.fillRect(x, y, w, h);
     },
     grain: (x, y, w, h) => {

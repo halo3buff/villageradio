@@ -109,7 +109,7 @@ export function Airspace() {
         ctx.beginPath(); rings(ctx, geo.coast, p, false);
         ctx.strokeStyle = SCREEN_INK; ctx.lineWidth = 0.7; ctx.stroke();
         ctx.beginPath(); rings(ctx, [...geo.wb, ...geo.gaza], p);
-        ctx.fillStyle = 'rgba(98,242,182,0.14)'; ctx.fill('evenodd');
+        ctx.fillStyle = 'rgba(230,230,230,0.14)'; ctx.fill('evenodd');
         ctx.strokeStyle = TRACE; ctx.lineWidth = 0.7; ctx.stroke();
         const [gx, gy] = p(34.05, 31.42), [wx, wy] = p(35.42, 32.05);
         t('GAZA', gx, gy, 4.5, SCREEN_INK, 'right');

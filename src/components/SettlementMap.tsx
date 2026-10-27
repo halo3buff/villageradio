@@ -50,8 +50,8 @@ export function SettlementMap() {
           ctx.beginPath(); rings(ctx, rs, p); ctx.fillStyle = color; ctx.fill('evenodd');
         };
         fill(geo.wb, 'rgba(240,192,44,0.10)');          // all of it Area C, until A and B are laid over
-        fill(geo.areaB, 'rgba(98,242,182,0.16)');
-        fill(geo.areaA, 'rgba(98,242,182,0.34)');
+        fill(geo.areaB, 'rgba(230,230,230,0.16)');
+        fill(geo.areaA, 'rgba(230,230,230,0.34)');
         fill(geo.juris, 'rgba(240,192,44,0.16)');
         ctx.beginPath(); rings(ctx, geo.barrier, p, false);
         ctx.strokeStyle = CORE; ctx.lineWidth = 0.6; ctx.setLineDash([2, 1.5]); ctx.globalAlpha = 0.7; ctx.stroke();
@@ -100,8 +100,8 @@ export function SettlementMap() {
           t(label, X0 + 17, ly + i * 9, 4.5, SCREEN_INK);
         };
         const swatch = (c: string) => (x: number, y: number) => { ctx.fillStyle = c; ctx.fillRect(x - 2.5, y - 2, 5, 4); };
-        key(0, 'AREA A', swatch('rgba(98,242,182,0.5)'));
-        key(1, 'AREA B', swatch('rgba(98,242,182,0.25)'));
+        key(0, 'AREA A', swatch('rgba(230,230,230,0.5)'));
+        key(1, 'AREA B', swatch('rgba(230,230,230,0.25)'));
         key(2, 'AREA C', swatch('rgba(240,192,44,0.25)'));
         key(3, 'JURISDICTION', swatch('rgba(240,192,44,0.45)'));
         key(4, 'BARRIER', (x, y) => { ctx.setLineDash([2, 1.5]); line(x - 3, y, x + 3, y, CORE); ctx.setLineDash([]); });
