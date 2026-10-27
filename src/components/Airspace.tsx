@@ -20,7 +20,10 @@ const X0 = 10, Y0 = 22, SW = 240, SH = 328;
 const POLL = FIX_EVERY;     // asks the server for its latest fix as often as it takes one
 const TRAIL = 30;          // positions kept per contact
 
-type Track = { a: Aircraft; at: number; trail: [number, number][] };
+/** Each new fix's aircraft, for the radar to plot the military ones. */
+export const AIR_EVENT = 'vlg:air';
+
+type Track ={ a: Aircraft; at: number; trail: [number, number][] };
 
 const name = (a: Aircraft) => a.flight || a.reg || a.hex;
 const fl = (a: Aircraft) => (a.alt == null ? '---' : a.alt === 0 ? 'GND' : `FL${String(Math.round(a.alt / 100)).padStart(3, '0')}`);
@@ -47,6 +50,7 @@ export function Airspace() {
         ok = r.ok && Array.isArray(j.ac);
         if (!ok || j.t === fixT) return;
         fixT = j.t;
+        window.dispatchEvent(new CustomEvent(AIR_EVENT, { detail: j.ac }));
         // the fix's moment on this page's clock, so dead reckoning starts from when it was taken
         const now = performance.now() - Math.max(0, Date.now() - j.t);
         const seen = new Set<string>();

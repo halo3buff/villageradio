@@ -32,7 +32,7 @@ export function telex(text: string) {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: `${utc()} ${text}` }));
 }
 
-const alarm = (text: string) => text.includes('OUTAGE') || text.includes(' MIL ') || text.includes('TRAFFIC DROP');
+const alarm = (text: string) => text.includes('OUTAGE') || text.includes(' MIL ') || text.includes('TRAFFIC DROP') || text.includes(' FIRE ');
 
 export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -113,7 +113,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
         `WB REPORTS ${count(' WB ')}  (OCHA, 365 D)`,
         `GAZA REPORTS ${count(' GAZA ')}  (MOH, 45 D)`,
         `NET OUTAGES ${count('OUTAGE')}  (IODA / CLOUDFLARE, 30 D)`,
-        `MIL AIRCRAFT ${count(' MIL ')}  (ADS-B, LIVE)`,
+        `SAT FIRES ${count(' FIRE ')}  MIL AIRCRAFT ${count(' MIL ')}  (7 D / LIVE)`,
         live.current
           ? `PS NET TRAFFIC ${Math.round(live.current.pct * 100)}% OF USUAL  (${live.current.at.slice(11, 16)}Z)`
           : `LAST RX ${r.received.at(-1)?.slice(0, 14) ?? '--'}`,
