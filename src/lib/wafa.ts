@@ -102,12 +102,43 @@ export function parsePage(html: string): { id: number; t: number; text: string; 
   });
 }
 
-/** A WAFA article's headline and lede, which name the place a caption often leaves out. */
-async function article(url: string) {
-  const r = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': UA } });
-  if (!r.ok) return '';
+const ARTICLE = 'https://www.wafa.ps/news/';
+type Article = { head: string; words: Set<string> };
+const words = (s: string) => new Set(fold(s).split(/[^ء-ي]+/).filter(w => w.length >= 3));
+const articles = new Map<number, Article>();   // wafa.ps article id → its headline + lede, and every word on the page
+
+/** A WAFA article: its headline and lede name the place a caption often leaves out. */
+async function article(n: number): Promise<Article | null> {
+  const got = articles.get(n);
+  if (got) return got;
+  const r = await fetch(`${ARTICLE}${n}`, { cache: 'no-store', headers: { 'User-Agent': UA } });
+  if (!r.ok) return null;   // not published yet, or gone: asked again next round
   const h = await r.text();
-  return `${h.match(/<title>([^<]*)/)?.[1] ?? ''} ${h.match(/og:description" content="([^"]*)/)?.[1] ?? ''}`;
+  const a = {
+    head: `${h.match(/<title>([^<]*)/)?.[1] ?? ''} ${h.match(/og:description" content="([^"]*)/)?.[1] ?? ''}`,
+    words: words(h.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, ' ')),
+  };
+  articles.set(n, a);
+  if (articles.size > 1000) articles.delete(articles.keys().next().value!);
+  return a;
+}
+
+/** Photo posts carry a sentence paraphrased from their article and no link to it. Of the articles
+ *  published around the post, the one with most of the caption's rarer words (weighted by how few
+ *  of the candidates have them, so every page's menu counts for nothing), if it stands clear. */
+export function bestMatch(text: string, cands: [number, Article][]): number | null {
+  const q = [...words(text)]
+    .map(w => [w, Math.log(cands.length / Math.max(1, cands.filter(([, a]) => a.words.has(w)).length))] as const)
+    .filter(([, x]) => x > 0);
+  const total = q.reduce((s, [, x]) => s + x, 0);
+  if (!total) return null;
+  const sc = cands.map(([n, a]) => ({ n, size: a.words.size, s: q.reduce((s, [w, x]) => s + (a.words.has(w) ? x : 0), 0) / total }))
+    .sort((a, b) => b.s - a.s);
+  // a daily roundup quotes every incident: on a near-tie the report itself is the shorter page, and
+  // pages far longer than it (roundups) don't count as rivals
+  const pick = sc.filter(c => c.s >= sc[0].s - 0.1).sort((a, b) => a.size - b.size)[0];
+  const rival = sc.find(c => c !== pick && c.size * 0.7 < pick.size)?.s ?? 0;
+  return pick.s >= 0.6 && pick.s - rival >= 0.3 ? pick.n : null;
 }
 
 async function page(before?: number) {
@@ -117,16 +148,32 @@ async function page(before?: number) {
 }
 
 const held = new Map<number, Incident>();
-const looked = new Set<number>();   // posts whose article has been read
-const LOOKUPS = 12;                 // article reads per round; a cold start's backlog clears over the next rounds
+const links = new Map<number, number>();   // post id → the article id it links
+const tries = new Map<number, number>();   // unplaced post → rounds spent looking for its article
+const FETCHES = 30;                        // article reads per round; a cold start's backlog clears over the next rounds
+const TRIES = 5;
 let lastPoll = 0, filled = false;
 let inflight: Promise<void> | null = null;
 const at = (p: Place) => ({ en: p[0], ar: p[1], lon: p[2], lat: p[3] });
+
+/** Article ids published around a post: articles are numbered in order, so they lie between those
+ *  linked by the nearest posts either side (with a margin; to +30 for the newest posts). */
+function around(post: number): number[] {
+  let before: [number, number] | null = null, after: [number, number] | null = null;
+  for (const [p, n] of links) {
+    if (p < post && (!before || p > before[0])) before = [p, n];
+    if (p > post && (!after || p < after[0])) after = [p, n];
+  }
+  if (!before && !after) return [];
+  const lo = (before?.[1] ?? after![1] - 30) - 3, hi = Math.min((after?.[1] ?? before![1] + 30) + 3, lo + 60);
+  return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+}
 
 async function refresh() {
   const places = await loadPlaces();
   const add = (posts: Awaited<ReturnType<typeof page>>) => {
     for (const p of posts) {
+      if (p.url) links.set(p.id, Number(p.url.slice(ARTICLE.length)));
       if (held.has(p.id)) continue;
       const tags = tagsOf(p.text);
       if (!tags.length) continue;
@@ -144,16 +191,31 @@ async function refresh() {
     add(posts);
   }
   filled = true;
-  // posts that don't name the place: the article's headline and lede usually do; newest first
-  const todo = [...held.values()].filter(x => !x.place && x.url && !looked.has(x.id)).sort((a, b) => b.t - a.t).slice(0, LOOKUPS);
-  await Promise.all(todo.map(async x => {
-    looked.add(x.id);
-    const more = locate(await article(x.url!).catch(() => ''), places);
+  // posts that don't name the place: their article's headline and lede usually do; newest first
+  let budget = FETCHES;
+  for (const x of [...held.values()].filter(x => !x.place && (tries.get(x.id) ?? 0) < TRIES).sort((a, b) => b.t - a.t)) {
+    if (budget <= 0) break;
+    tries.set(x.id, (tries.get(x.id) ?? 0) + 1);
+    let n = x.url ? Number(x.url.slice(ARTICLE.length)) : null;
+    if (!n) {
+      const ids = around(x.id);
+      const missing = ids.filter(i => !articles.has(i));
+      budget -= missing.length;
+      await Promise.all(missing.map(i => article(i).catch(() => null)));
+      n = bestMatch(x.text, ids.flatMap(i => (articles.has(i) ? [[i, articles.get(i)!] as [number, Article]] : [])));
+      if (n) x.url = `${ARTICLE}${n}`;
+    } else budget--;
+    const a = n ? await article(n).catch(() => null) : null;
+    if (!a) continue;
+    tries.set(x.id, TRIES);   // found its article: done, placed or not
+    const more = locate(a.head, places);
     if (more.place) x.place = at(more.place);
     x.gaza ||= more.gaza;
-  }));
+  }
   lastPoll = Date.now();
-  for (const [id, x] of held) if (x.t < Date.now() / 1000 - KEEP_H * 3600) { held.delete(id); looked.delete(id); }
+  for (const [id, x] of held) if (x.t < Date.now() / 1000 - KEEP_H * 3600) { held.delete(id); tries.delete(id); }
+  const oldest = Math.min(...held.keys());
+  if (held.size) for (const p of links.keys()) if (p < oldest - 100) links.delete(p);
 }
 
 // ponytail: per-instance memory; reports seen by one instance only reach its viewers after its own poll.

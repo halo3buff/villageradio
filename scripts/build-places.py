@@ -80,7 +80,7 @@ AMBIGUOUS = {'Tell', 'Salim', 'Muscat', 'Seida', 'Sika', 'Karma', 'Zibdah', '`nz
              'Zeitoun', 'Tuffah', 'Daraj', 'Rimal', 'Nasr', 'Sabra'}
 DROP = {'City Center'}
 # how WAFA spells some places OSM spells otherwise
-ALIASES = {'Jerusalem': ['القدس'], 'Deir Istiya': ['دير استيا'], 'Beit Hanina Al-Balad': ['بيت حنينا'], 'Um Safa': ['أم صفا']}
+ALIASES = {'Jerusalem': ['القدس', 'الأقصى'], 'Deir Istiya': ['دير استيا'], 'Beit Hanina Al-Balad': ['بيت حنينا'], 'Um Safa': ['أم صفا']}
 rows = [r for r in {(r[0], r[5]): r for r in rows if r[0] not in DROP}.values() if r[5]]   # one per name and governorate; none outside Palestine
 
 def km(lon, lat, c):

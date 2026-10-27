@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { toAlerts } from './alerts';
 import type { Place } from './places';
-import { locate, parsePage, tagsOf } from './wafa';
+import { bestMatch, fold, locate, parsePage, tagsOf } from './wafa';
 
 const P = (en: string, ar: string, rank: number, gaza: 0 | 1 = 0): Place => [en, ar, 35, 32, rank, 'X', gaza];
 const places = [P('Hebron', 'الخليل', 0), P('Dura', 'دورا', 1), P('As Samu\'', 'السموع‎', 2), P('Gaza', 'غزة', 0, 1), P('Noa', 'نوع', 2)];
@@ -33,6 +33,21 @@ describe('wafa', () => {
     expect(locate('منعوهم من قطف الزيتون', more).place).toBeNull();
     expect(locate('قصف منزلا في حي الزيتون', more).place?.[0]).toBe('Zeitoun');
     expect(locate('قصف منزلا بحي الزيتون', more).place?.[0]).toBe('Zeitoun');
+  });
+
+  it('finds the article a photo caption was paraphrased from, only when it stands clear', () => {
+    const menu = 'الرئيسية اخبار محلية الاحتلال يقتحم';
+    const art = (s: string) => ({ head: '', words: new Set(fold(`${menu} ${s}`).split(/[^ء-ي]+/).filter(w => w.length >= 3)) });
+    const cands: [number, ReturnType<typeof art>][] = [
+      [1, art('حولت قوات الاحتلال منزلا إلى ثكنة عسكرية في دير شرف واقتحموا منزل المواطن رفيق صبحي نوفل')],
+      [2, art('هدمت قوات الاحتلال منزلا في مدينة قلقيلية')],
+      [3, art('مستعمرون يسيجون أراضي في الأغوار الشمالية')],
+    ];
+    expect(bestMatch('اقتحم جنود الاحتلال منزل المواطن رفيق صبحي نوفل وحولوه إلى ثكنة عسكرية', cands)).toBe(1);
+    expect(bestMatch('وفاة طفل بحادث دهس', cands)).toBeNull();
+    // the day's roundup repeats the report among many others: the report wins
+    const roundup: [number, ReturnType<typeof art>] = [4, art(`تواصل عدوان الاحتلال ${'شهيد إصابات تهجير اعتقالات بيت فجار تقوع قلقيلية طولكرم جنين نابلس سلفيت أريحا طوباس '.repeat(1)} واقتحموا منزل المواطن رفيق صبحي نوفل حولت ثكنة عسكرية دير شرف هدم منزل مدينة قلقيلية مستعمرون يسيجون أراضي الأغوار الشمالية مخيم بلاطة عسكر الجديد الفارعة نور شمس`)];
+    expect(bestMatch('اقتحم جنود الاحتلال منزل المواطن رفيق صبحي نوفل وحولوه إلى ثكنة عسكرية', [...cands, roundup])).toBe(1);
   });
 
   it('marks "Gaza Strip" as Gaza without placing it at Gaza City', () => {
