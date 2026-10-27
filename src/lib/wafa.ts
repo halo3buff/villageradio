@@ -153,6 +153,8 @@ const tries = new Map<number, number>();   // unplaced post → rounds spent loo
 const FETCHES = 30;                        // article reads per round; a cold start's backlog clears over the next rounds
 const TRIES = 5;
 let lastPoll = 0, filled = false;
+let markFilled = () => {};
+const filledOnce = new Promise<void>(r => { markFilled = r; });
 let inflight: Promise<void> | null = null;
 const at = (p: Place) => ({ en: p[0], ar: p[1], lon: p[2], lat: p[3] });
 
@@ -191,6 +193,7 @@ async function refresh() {
     add(posts);
   }
   filled = true;
+  markFilled();
   // posts that don't name the place: their article's headline and lede usually do; newest first
   let budget = FETCHES;
   for (const x of [...held.values()].filter(x => !x.place && (tries.get(x.id) ?? 0) < TRIES).sort((a, b) => b.t - a.t)) {
@@ -223,7 +226,7 @@ async function refresh() {
 export async function getIncidents(): Promise<Incident[]> {
   if (Date.now() - lastPoll >= POLL) {
     inflight ??= refresh().catch(e => { console.error('wafa', e); lastPoll = Date.now() - POLL / 2; }).finally(() => { inflight = null; });
-    if (!filled) await inflight;
+    if (!filled) await Promise.race([inflight, filledOnce]);   // a cold start waits for the channel, not the article look-ups
   }
   return [...held.values()].sort((a, b) => a.t - b.t);
 }
