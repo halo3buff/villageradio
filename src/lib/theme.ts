@@ -88,6 +88,17 @@ export const THEMES: Record<string, Theme> = {
     hover_bg:'rgba(42,161,152,0.08)', sel_bg:'rgba(211,54,130,0.12)',
     exp_comment:'#2aa198', exp_num:'#586e75', exp_text:'#93a1a1', exp_border:'#0a4055',
   },
+  ega: {
+    // a DOS satellite tracker's screen: black, the 16-colour EGA palette (cyan text, yellow
+    // values, green labels, blue grid), the VGA bitmap face (globals.css)
+    bg:'#000000', ts:'#55ff55', uid_palette:['#55ffff','#55ff55','#ffff55','#ff55ff','#5555ff','#ff5555','#00aaaa','#aa5500'], uid_real:'#ffff55', col_host:'#ff55ff', col_data:'#55ffff',
+    bar_bg:'#000000', bar_border:'#5555ff', bar_dim:'#00aaaa', bar_bright:'#ffff55',
+    filter_col:'#55ff55',
+    tab_bg:'#000000', tab_fg:'#00aaaa', tab_active_bg:'#55ffff', tab_active_fg:'#000000',
+    cmd_bg:'#000000', cmd_fg:'#55ff55', cmd_cursor:'#55ff55',
+    hover_bg:'rgba(85,85,255,0.15)', sel_bg:'rgba(85,85,255,0.3)',
+    exp_comment:'#55ff55', exp_num:'#5555ff', exp_text:'#55ffff', exp_border:'#5555ff',
+  },
   'solarized-light': {
     bg:'#fdf6e3', ts:'#b58900', uid_palette:['#2aa198','#268bd2','#859900','#6c71c4'], uid_real:'#d33682', col_host:'#dc322f', col_data:'#586e75',
     bar_bg:'#eee8d5', bar_border:'#d8d0b8', bar_dim:'#93a1a1', bar_bright:'#b58900',
@@ -101,11 +112,11 @@ export const THEMES: Record<string, Theme> = {
 
 // Full palette set (used internally, e.g. by the news log). Admin only exposes a subset — see
 // THEME_NAMES below — the rest stay defined so re-enabling one later is a one-line change.
-export const ALL_THEME_NAMES = ['default', 'black', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light'];
+export const ALL_THEME_NAMES = ['default', 'black', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light', 'ega'];
 
 // Admin-selectable site-wide themes. Trimmed to 2 for now at the user's request.
 // 'default' is the mint stock; 'black' keeps the old white-on-black one a click away.
-export const THEME_NAMES = ['default', 'black', 'solarized-dark'];
+export const THEME_NAMES = ['default', 'black', 'solarized-dark', 'ega'];
 
 export const DEFAULT_THEME = 'default';
 

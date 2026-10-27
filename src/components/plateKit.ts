@@ -21,9 +21,47 @@ export type Pen = {
   grain: (x: number, y: number, w: number, h: number) => void;
 };
 
+/**
+ * The EGA theme (DOS satellite-tracker look): black, the 16-colour EGA palette, no glow or grain,
+ * the VGA bitmap face. Rather than every instrument carrying two palettes, the plate's own colours
+ * are translated as they're set on the context: each mint/olive value to its EGA counterpart.
+ */
+const EGA: Record<string, string> = {
+  [PAPER]: '#000000', [INK]: '#55ffff', [SCREEN]: '#000000', [YEL]: '#ffff55', [TRACE]: '#55ff55', [CORE]: '#ffffff',
+  '#7a2a10': '#ff5555', '#ff8a6a': '#ff55ff', '#fff': '#ffffff', 'rgba(255,255,255,0.18)': 'rgba(0,0,0,0)',
+};
+function egaColor(c: string): string {
+  if (EGA[c]) return EGA[c];
+  const m = c.match(/^rgba\((\d+),(\d+),(\d+),([\d.]+)\)$/);
+  if (!m) return c;
+  const [r, g, b, a] = [+m[1], +m[2], +m[3], +m[4]];
+  if (r === 98 && g === 242 && b === 182) return a < 0.5 ? `rgba(85,85,255,${Math.min(1, a * 2.5)})` : `rgba(85,255,85,${a})`;   // screen trace: dim → blue grid, bright → green
+  if (r === 240 && g === 192 && b === 44) return `rgba(255,255,85,${a})`;
+  if (r === 43 && g === 54 && b === 38) return `rgba(85,255,255,${a})`;
+  return c;
+}
+const isEga = () => document.documentElement.dataset.theme === 'ega';
+
+/** Route the context's colour and glow through the EGA translation while that theme is on. */
+function egaAware(ctx: CanvasRenderingContext2D) {
+  const proto = CanvasRenderingContext2D.prototype;
+  for (const key of ['fillStyle', 'strokeStyle', 'shadowColor'] as const) {
+    const d = Object.getOwnPropertyDescriptor(proto, key)!;
+    Object.defineProperty(ctx, key, {
+      get() { return d.get!.call(ctx); },
+      set(v) { d.set!.call(ctx, typeof v === 'string' && isEga() ? egaColor(v) : v); },
+    });
+  }
+  const blur = Object.getOwnPropertyDescriptor(proto, 'shadowBlur')!;
+  Object.defineProperty(ctx, 'shadowBlur', { get() { return blur.get!.call(ctx); }, set(v) { blur.set!.call(ctx, isEga() ? 0 : v); } });
+}
+
 export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (p: Pen, now: number) => void) {
   const ctx = cv.getContext('2d')!;
-  const plex = getComputedStyle(document.documentElement).getPropertyValue('--font-ibm-plex-mono').trim();
+  egaAware(ctx);
+  const css = getComputedStyle(document.documentElement);
+  const plex = css.getPropertyValue('--font-ibm-plex-mono').trim();
+  const vga = css.getPropertyValue('--font-vt323').trim();
   const g = document.createElement('canvas');
   g.width = g.height = 160;
   const gc = g.getContext('2d')!, img = gc.createImageData(160, 160);
@@ -38,7 +76,8 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
   const p: Pen = {
     ctx, s: 1, mono: `${plex || 'Consolas'}, Consolas, monospace`,
     t: (str, x, y, size = 6.5, color = INK, align = 'left') => {
-      ctx.font = `700 ${size}px ${p.mono}`;
+      // VT323 sits small in its em: a third larger fills the same line
+      ctx.font = isEga() ? `400 ${size * 1.35}px ${vga || 'monospace'}, monospace` : `700 ${size}px ${p.mono}`;
       ctx.fillStyle = color; ctx.textAlign = align;
       ctx.fillText(str.toUpperCase(), x, y);
     },
@@ -48,12 +87,13 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
     },
     screen: (x, y, w, h) => {
       ctx.fillStyle = SCREEN; ctx.fillRect(x, y, w, h);
+      if (isEga()) return;
       const vig = ctx.createRadialGradient(x + w / 2, y + h / 2, Math.min(w, h) * 0.2, x + w / 2, y + h / 2, Math.max(w, h) * 0.75);
       vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(10,16,8,0.45)');
       ctx.fillStyle = vig; ctx.fillRect(x, y, w, h);
     },
     grain: (x, y, w, h) => {
-      if (!pattern) return;
+      if (!pattern || isEga()) return;
       const k = 1.6 / p.s;   // a grain is ~1.6 device pixels
       pattern.setTransform(new DOMMatrix([k, 0, 0, k, Math.random() * 160 * k, Math.random() * 160 * k]));
       ctx.fillStyle = pattern; ctx.fillRect(x, y, w, h);
@@ -71,7 +111,7 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
   let raf = 0;
   const loop = (now: number) => {
     ctx.setTransform(p.s, 0, 0, p.s, 0, 0);
-    (ctx as unknown as { letterSpacing: string }).letterSpacing = '0.5px';
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = isEga() ? '0px' : '0.5px';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
     frame(p, now);

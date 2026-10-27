@@ -98,6 +98,13 @@ img[src*="left-arrow"] {
   filter: invert(var(--vlg-invert, 0));
 }
 
+/* EGA theme: the VGA bitmap face everywhere the site sets type in mono, unsmoothed. */
+html[data-theme="ega"] {
+  --font-ibm-plex-mono: var(--font-vt323);
+  --font-space-mono: var(--font-vt323);
+}
+html[data-theme="ega"] body { -webkit-font-smoothing: none; font-smooth: never; }
+
 /* The rotating mark is baked grey: on the mint stock, multiply it into the paper so it
    prints as a dark green ink instead of sitting on top as grey. */
 html[data-theme="default"] [src*="logo_roto"] {
