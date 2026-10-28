@@ -215,7 +215,8 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   if (!plate) {
     if (stack) header(10, 180, 351); else header(10, 291, 568);
     // ── the small screen: the stereo field, far left / on top, on the stock ──
-    const X = 22, Y = 22 + hdr, D = stack ? LISS_MAX : 156, DH = stack ? lissH : D;
+    // the stack's screen is square, as tall as it fits, centred over the readout table
+    const D = stack ? lissH : 156, DH = D, X = stack ? S_X0 + (LISS_MAX - D) / 2 : 22, Y = 22 + hdr;
     // the print window: dark olive, a soft vignette, the field, then grain over all of it
     ctx.fillStyle = SCREEN; ctx.fillRect(X, Y, D, DH);
     const vig = ctx.createRadialGradient(X + D / 2, Y + DH / 2, Math.min(D, DH) * 0.2, X + D / 2, Y + DH / 2, Math.max(D, DH) * 0.75);
