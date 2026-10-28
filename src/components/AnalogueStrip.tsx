@@ -320,7 +320,7 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
         const stack = PLATE || cssW < STACK_MAX_CSS;
         if (stack !== stackedRef.current) { stackedRef.current = stack; setStacked(stack); }
         if (PLATE && stack && fitRef.current) {
-          fitStack(fitRef.current() / cssW);
+          fitStack(fitRef.current() / cssW, window.innerWidth < 716);   // HomeDesktop's phone breakpoint
           setPlateH(plateDims(true).h);
         }
         const cw = PLATE ? plateDims(stack).w : (stack ? STACK_W : GRID_W) + RULE;

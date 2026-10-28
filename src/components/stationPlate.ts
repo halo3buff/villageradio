@@ -41,29 +41,33 @@ const ROW_PIECES = [
 // in drawPlate); the spectrum dots live on the StationBar.
 const S_X0 = 22, S_X1 = 339;                // content edges
 const S_TOP = HDR_STACK + 22;               // the screen's top edge
-const READ_Y = 8, READ_H = 97;              // the readout table, below the screen: eight rows
-const STACK_REST = READ_Y + READ_H + 7;
+const READ_Y = 8;                           // the readout table, below the screen
+// six rows on desktop; eight on a phone, where the table is cut to the smaller screen's width
+const READ_H_DESK = 70, READ_H_PHONE = 97;
+let phone = false, readH = READ_H_DESK;
+const rest = () => READ_Y + readH + 7;
 // The screen is as tall as the phone allows: fitStack sizes it so the whole
 // stack fills the space it's given exactly. The field inside stays round.
-// The screen is a fixed 250 square (the table under it is cut to the same width); on a phone
-// too short for it, HomeDesktop's width cap scales the whole plate down instead.
-const LISS_MIN = 250, LISS_MAX = S_X1 - S_X0;
-const LISS_CAP = 250;
-let lissH = LISS_CAP;
-export const STACK_MIN_H = S_TOP + LISS_MIN + STACK_REST;
+// On a phone the screen is a fixed 250 square (a phone too short for it gets the whole plate
+// scaled down by HomeDesktop's width cap instead).
+const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0, LISS_PHONE = 250;
+let lissH = LISS_MAX;
+/** The phone stack's height: what HomeDesktop's width cap fits to (below 716px only). */
+export const STACK_MIN_H = S_TOP + LISS_PHONE + READ_Y + READ_H_PHONE + 7;
 
 // Plate units. btn is the badge on the screen; AnalogueStrip docks the play
 // button on it.
 export type PlateDims = { w: number; h: number; btn: { x: number; y: number; w: number; h: number } };
 const FULL: PlateDims = { w: 600, h: 600, btn: { x: 198, y: 67, w: 49, h: 32 } };
 const WIDE: PlateDims = { w: 598, h: 200 + HDR, btn: { x: 27, y: 27 + HDR, w: 24, h: 15 } };
-const TALL: PlateDims = { w: 372, h: S_TOP + lissH + STACK_REST, btn: { x: 27, y: 27 + HDR_STACK, w: 36, h: 22 } };
+const TALL: PlateDims = { w: 372, h: S_TOP + lissH + rest(), btn: { x: 27, y: 27 + HDR_STACK, w: 36, h: 22 } };
 export const plateDims = (stack: boolean) => (stack ? TALL : ROW ? WIDE : FULL);
-/** Size the stack to an available height / width ratio. */
-export function fitStack(ratio: number) {
-  // capped short of square: on a phone the screen reads better a little smaller than the width
-  lissH = Math.round(clamp(ratio * TALL.w - S_TOP - STACK_REST, LISS_MIN, LISS_CAP));
-  TALL.h = S_TOP + lissH + STACK_REST;
+/** Size the stack to an available height / width ratio; isPhone: the phone's smaller square. */
+export function fitStack(ratio: number, isPhone = false) {
+  phone = isPhone;
+  readH = phone ? READ_H_PHONE : READ_H_DESK;
+  lissH = phone ? LISS_PHONE : Math.round(clamp(ratio * TALL.w - S_TOP - rest(), LISS_MIN, LISS_MAX));
+  TALL.h = S_TOP + lissH + rest();
 }
 
 // The mint report-cover stock: dark olive ink on mint, and the screen a dark
@@ -217,8 +221,9 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   if (!plate) {
     if (stack) header(10, 180, 351); else header(10, 291, 568);
     // ── the small screen: the stereo field, far left / on top, on the stock ──
-    // the stack's screen is square, as tall as it fits, centred over the readout table
-    const D = stack ? lissH : 156, DH = D, X = stack ? S_X0 + (LISS_MAX - D) / 2 : 22, Y = 22 + hdr;
+    // a phone's screen is a smaller square, centred over its table
+    const D = stack ? (phone ? lissH : LISS_MAX) : 156, DH = stack ? lissH : D;
+    const X = stack && phone ? S_X0 + (LISS_MAX - D) / 2 : 22, Y = 22 + hdr;
     // the print window: dark olive, a soft vignette, the field, then grain over all of it
     ctx.fillStyle = SCREEN; ctx.fillRect(X, Y, D, DH);
     const vig = ctx.createRadialGradient(X + D / 2, Y + DH / 2, Math.min(D, DH) * 0.2, X + D / 2, Y + DH / 2, Math.max(D, DH) * 0.75);
@@ -296,11 +301,12 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   function readouts(top: number) {
     const mid = m.rms + 20 * Math.log10(Math.max(0.05, (1 + m.corr) / 2));
     const side = m.rms + 20 * Math.log10(Math.max(0.05, (1 - m.corr) / 2));
+    const two = (a: string, b: string) => (phone ? [a, b] : [`${a} ${b}`]);   // split on a phone
     const cols: [string, string[]][] = [
       ['LOUDNESS', [
         `PGM ${f1(m.mom)} LUFS`, `INT ${f1(m.integ)}`, `TPL ${f1(m.tpL)}`, `TPR ${f1(m.tpR)}`,
         `PLR ${f1(m.plr)} PSR ${f1(m.psr)}`,
-        `HDRM ${f1(-1 - tp)}`, `TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`,
+        ...two(`HDRM ${f1(-1 - tp)}`, `TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`),
       ]],
       ['SPECT', [
         `CREST ${f1(m.crest)} DB`,
@@ -308,18 +314,19 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
         `SLOPE ${f1(m.slope)} /OCT`, 'FFT 8192', `BIN ${(m.sr / 8192).toFixed(1)} HZ`, 'WINDOW 43 MS',
       ]],
       ['MID/SIDE', [
-        `MID ${f1(mid)}`, `SIDE ${f1(side)} DB`, `RMS ${f1(m.rms)}`, `PK ${f1(Math.max(m.pkL, m.pkR))}`,
-        `SILENCE ${m.silence ? 'Y' : 'N'}`, `OVERS ${m.overs}`, `UPTIME ${f0(m.since)} S`,
+        `MID ${f1(mid)}`, `SIDE ${f1(side)} DB`, ...two(`RMS ${f1(m.rms)}`, `PK ${f1(Math.max(m.pkL, m.pkR))}`),
+        ...(phone ? [`SILENCE ${m.silence ? 'Y' : 'N'}`, `OVERS ${m.overs}`] : [`SILENCE ${m.silence ? 'Y' : 'N'}, OVERS ${m.overs}.`]),
+        `UPTIME ${f0(m.since)} S`,
         `> ${m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL'} <`,
       ]],
     ];
-    // as wide as the screen above it, so set tight: no tracking, short rows
-    const PAD = 7, X0 = S_X0 + (LISS_MAX - lissH) / 2;
-    const cw = (lissH - 2 * PAD) / 3;
-    (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
+    // on a phone as wide as the smaller screen above it, so set tight: no tracking, short rows
+    const TW = phone ? lissH : LISS_MAX, PAD = 7, X0 = S_X0 + (LISS_MAX - TW) / 2;
+    const cw = (TW - 2 * PAD) / 3;
+    if (phone) (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
     cols.forEach(([tag, rows], c) => {
       const x = X0 + PAD + c * cw + (c ? 7 : 0);
-      if (c) line(x - 7, top, x - 7, top + READ_H);
+      if (c) line(x - 7, top, x - 7, top + readH);
       const w = tag.length * 4 + 9;
       box(x, top, w, 9.5);
       t(tag, x + w / 2, top + 7, 5.5, INK, 'center');
@@ -331,7 +338,8 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   if (stack) {
     const base = S_TOP + lissH;
     // enclosed in the screen's own border, its bottom edge doubling as this box's top
-    box(S_X0 + (LISS_MAX - lissH) / 2, base, lissH, READ_Y + READ_H + 4, INK, 0.6);
+    const TW = phone ? lissH : LISS_MAX;
+    box(S_X0 + (LISS_MAX - TW) / 2, base, TW, READ_Y + readH + 4, INK, 0.6);
     readouts(base + READ_Y);
   } else {
     ctx.save();
