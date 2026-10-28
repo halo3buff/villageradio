@@ -9,14 +9,11 @@ import { useTrail } from '@/components/BackLink';
 import type { NavCommand } from '@/lib/types';
 
 /**
- * Wraps the global site chrome (nav, news strip, persistent audio player). The
- * redesigned homepage ("/") and listen page ("/listen") are full-bleed,
- * chromeless compositions, so all chrome is hidden there. The old footer
- * (news strip + audio player) is retired in the redesign and no longer renders
- * on any public route — only /admin keeps the full legacy chrome, exactly as
- * before.
+ * Wraps the global site chrome. The old chrome (nav, news strip, audio player) is
+ * retired from every public route: they carry only the command prompt, and the
+ * station's pages the station bar. Only /admin keeps the legacy chrome, exactly
+ * as before.
  */
-const CHROMELESS = new Set(['/', '/listen', '/transmit', '/station', '/station/radar']);
 
 // /admin is a different machine and keeps the legacy chrome.
 // The station's top bar belongs to the station and its README (README_1) only.
@@ -45,11 +42,6 @@ export function SiteFrame({
 
   const prompt = NO_PROMPT(pathname) ? null : <CommandPrompt commands={commands} />;
 
-  if (CHROMELESS.has(pathname)) {
-    // Not on the landing page: the rotating logo has the screen to itself.
-    return <>{children}{HAS_BAR(pathname) && <StationBar />}{prompt}</>;
-  }
-
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
     return (
       <>
@@ -62,7 +54,6 @@ export function SiteFrame({
 
   return (
     <>
-      {nav}
       {children}
       {HAS_BAR(pathname) && <StationBar />}
       {prompt}
