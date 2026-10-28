@@ -31,22 +31,15 @@ export function RadarDesktop({ initial }: { initial: Live }) {
       <style>{`
         .console { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 12px;
                    padding: 64px 8px ${PROMPT_BAND + 24}px; overflow-y: auto; overscroll-behavior: contain; }
-        /* phones: the column scrolls the whole screen, under the clock bar and the prompt; behind
-           each, a fade from the page's stock instead of a solid strip, just enough to read them by */
-        .console-band { position: fixed; left: 0; right: 0; z-index: 4; pointer-events: none; }
-        .console-band.top { top: 0; height: 64px; background: linear-gradient(to bottom, var(--vlg-bg, #fff) 45%, transparent); }
-        .console-band.bottom { bottom: 0; height: ${PROMPT_BAND + 8}px; background: linear-gradient(to top, var(--vlg-bg, #fff) 50%, transparent); }
+        /* phones: the column scrolls the whole screen, straight under the clock bar and the prompt */
         .console .plate { display: block; width: min(100%, 480px); flex: none; }
         .console .radar, .console .map, .console .air { order: -1; }   /* phones: the roll last */
         @media (min-width: 900px) {
           .console { inset: 0 0 ${PROMPT_BAND}px 0; flex-direction: row; justify-content: center; gap: 0; padding: 0; overflow: hidden; }
           .console .plate { width: auto; height: min(calc(100dvh - 140px), calc((100vw - 48px) * ${ROW_H} / ${ROW_W}), 720px); }
           .console .radar, .console .map, .console .air { order: 0; }
-          .console-band { display: none; }
         }
       `}</style>
-      <div className="console-band top" aria-hidden />
-      <div className="console-band bottom" aria-hidden />
       <Teleprinter lines={telex} net={net} />
       <RadarScope feed={feed} fires={fires} incidents={incidents} alerts={alerts} />
       <SettlementMap />
