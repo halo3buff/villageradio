@@ -16,7 +16,7 @@ import type { NavCommand } from '@/lib/types';
  * on any public route — only /admin keeps the full legacy chrome, exactly as
  * before.
  */
-const CHROMELESS = new Set(['/', '/listen', '/transmit', '/station']);
+const CHROMELESS = new Set(['/', '/listen', '/transmit', '/station', '/station/radar']);
 
 // /admin is a different machine and keeps the legacy chrome.
 // The station's top bar belongs to the station and its README (README_1) only.
