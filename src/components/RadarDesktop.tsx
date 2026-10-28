@@ -29,13 +29,20 @@ export function RadarDesktop({ initial }: { initial: Live }) {
   return (
     <div className="console" style={{ background: 'var(--vlg-bg, #fff)' }}>
       <style>{`
-        .console { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 12px;
-                   padding: 64px 8px ${PROMPT_BAND + 24}px; overflow-y: auto; overscroll-behavior: contain; }
-        /* phones: the column scrolls the whole screen, straight under the clock bar and the prompt */
+        /* phones: an ordinary page, so scrolling it also tucks Safari's address bar away. The clock
+           bar and BACK sit at the very top of it and the prompt at the very end, and scroll away
+           with it, rather than staying pinned over the instruments. */
+        .console { display: flex; flex-direction: column; align-items: center; gap: 12px;
+                   padding: 64px 8px ${PROMPT_BAND + 8}px; }
+        @media (max-width: 899px) {
+          body { position: relative; }   /* what the bars below are placed against: the whole page */
+          .station-bar, .radar-back { position: absolute !important; }
+          .cmd-prompt { position: absolute !important; }
+        }
         .console .plate { display: block; width: min(100%, 480px); flex: none; }
         .console .radar, .console .map, .console .air { order: -1; }   /* phones: the roll last */
         @media (min-width: 900px) {
-          .console { inset: 0 0 ${PROMPT_BAND}px 0; flex-direction: row; justify-content: center; gap: 0; padding: 0; overflow: hidden; }
+          .console { position: fixed; inset: 0 0 ${PROMPT_BAND}px 0; flex-direction: row; justify-content: center; gap: 0; padding: 0; overflow: hidden; }
           .console .plate { width: auto; height: min(calc(100dvh - 140px), calc((100vw - 48px) * ${ROW_H} / ${ROW_W}), 720px); }
           .console .radar, .console .map, .console .air { order: 0; }
         }
@@ -44,7 +51,7 @@ export function RadarDesktop({ initial }: { initial: Live }) {
       <RadarScope feed={feed} fires={fires} incidents={incidents} alerts={alerts} />
       <SettlementMap />
       <Airspace />
-      <BackLink href="/station" style={{
+      <BackLink href="/station" className="radar-back" style={{
         position: 'fixed', top: 24, right: 24, zIndex: 5,
         fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',
         color: 'var(--vlg-fg, #000)', textDecoration: 'none',

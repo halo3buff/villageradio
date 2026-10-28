@@ -116,7 +116,7 @@ export function StationBar() {
 
   return (
     <div
-      className="fixed left-1/2 -translate-x-1/2 z-[2100] flex items-center gap-3"
+      className="station-bar fixed left-1/2 -translate-x-1/2 z-[2100] flex items-center gap-3"
       style={{ top: 31 - H / 2, height: H, fontFamily: MONO, color: 'var(--vlg-fg, #fff)' }}
     >
       <button

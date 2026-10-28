@@ -84,6 +84,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
 
   return (
     <div
+      className="cmd-prompt"
       onClick={() => inputRef.current?.focus()}
       style={{
         // lower on phones (10px up), where the screen is short; 24px on desktop as before
