@@ -41,11 +41,13 @@ const ROW_PIECES = [
 // in drawPlate); the spectrum dots live on the StationBar.
 const S_X0 = 22, S_X1 = 339;                // content edges
 const S_TOP = HDR_STACK + 22;               // the screen's top edge
-const READ_Y = 8, READ_H = 70;              // the readout table, below the screen
+const READ_Y = 8, READ_H = 97;              // the readout table, below the screen: eight rows
 const STACK_REST = READ_Y + READ_H + 7;
 // The screen is as tall as the phone allows: fitStack sizes it so the whole
 // stack fills the space it's given exactly. The field inside stays round.
-const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0;
+// The screen is a fixed 250 square (the table under it is cut to the same width); on a phone
+// too short for it, HomeDesktop's width cap scales the whole plate down instead.
+const LISS_MIN = 250, LISS_MAX = S_X1 - S_X0;
 const LISS_CAP = 250;
 let lissH = LISS_CAP;
 export const STACK_MIN_H = S_TOP + LISS_MIN + STACK_REST;
@@ -298,7 +300,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
       ['LOUDNESS', [
         `PGM ${f1(m.mom)} LUFS`, `INT ${f1(m.integ)}`, `TPL ${f1(m.tpL)}`, `TPR ${f1(m.tpR)}`,
         `PLR ${f1(m.plr)} PSR ${f1(m.psr)}`,
-        `HDRM ${f1(-1 - tp)} TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`,
+        `HDRM ${f1(-1 - tp)}`, `TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`,
       ]],
       ['SPECT', [
         `CREST ${f1(m.crest)} DB`,
@@ -306,27 +308,30 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
         `SLOPE ${f1(m.slope)} /OCT`, 'FFT 8192', `BIN ${(m.sr / 8192).toFixed(1)} HZ`, 'WINDOW 43 MS',
       ]],
       ['MID/SIDE', [
-        `MID ${f1(mid)}`, `SIDE ${f1(side)} DB`, `RMS ${f1(m.rms)} PK ${f1(Math.max(m.pkL, m.pkR))}`,
-        `SILENCE ${m.silence ? 'Y' : 'N'}, OVERS ${m.overs}.`, `UPTIME ${f0(m.since)} S`,
+        `MID ${f1(mid)}`, `SIDE ${f1(side)} DB`, `RMS ${f1(m.rms)}`, `PK ${f1(Math.max(m.pkL, m.pkR))}`,
+        `SILENCE ${m.silence ? 'Y' : 'N'}`, `OVERS ${m.overs}`, `UPTIME ${f0(m.since)} S`,
         `> ${m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL'} <`,
       ]],
     ];
-    const PAD = 7;   // inside the box that encloses the table
-    const cw = (S_X1 - S_X0 - 2 * PAD) / 3;
+    // as wide as the screen above it, so set tight: no tracking, short rows
+    const PAD = 7, X0 = S_X0 + (LISS_MAX - lissH) / 2;
+    const cw = (lissH - 2 * PAD) / 3;
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
     cols.forEach(([tag, rows], c) => {
-      const x = S_X0 + PAD + c * cw + (c ? 7 : 0);
+      const x = X0 + PAD + c * cw + (c ? 7 : 0);
       if (c) line(x - 7, top, x - 7, top + READ_H);
       const w = tag.length * 4 + 9;
       box(x, top, w, 9.5);
       t(tag, x + w / 2, top + 7, 5.5, INK, 'center');
       rows.forEach((r, i) => t(r, x, top + 21 + i * 9.8, 6.5));
     });
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = '0.5px';
   }
   const px = (v: number) => Math.round(v * s) / s;
   if (stack) {
     const base = S_TOP + lissH;
     // enclosed in the screen's own border, its bottom edge doubling as this box's top
-    box(S_X0, base, S_X1 - S_X0, READ_Y + READ_H + 4, INK, 0.6);
+    box(S_X0 + (LISS_MAX - lissH) / 2, base, lissH, READ_Y + READ_H + 4, INK, 0.6);
     readouts(base + READ_Y);
   } else {
     ctx.save();
