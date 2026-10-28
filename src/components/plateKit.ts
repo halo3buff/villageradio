@@ -90,7 +90,11 @@ const LABEL_VALUE = /^([A-Z][A-Z .'/&()+-]*?[A-Z):]\s+)([-+]?\d[\s\S]*)$/;
 const STAMP = /^(\d\d\.\d\d\.\d\d \d\d:\d\dZ )([\s\S]*)$/;   // a telex line's time
 
 /** Route a context's colours, gradients, glow, face and plain type through the page's look. */
+const routed = new WeakSet<CanvasRenderingContext2D>();
 export function themeAware(ctx: CanvasRenderingContext2D) {
+  // once per context: a remount (React's dev double effect, a resize) hands back the same one
+  if (routed.has(ctx)) return;
+  routed.add(ctx);
   const proto = CanvasRenderingContext2D.prototype;
   vga = getComputedStyle(document.documentElement).getPropertyValue('--font-vt323').trim() || vga;
   let fill = '';   // the fill colour as the instrument set it, before translation
@@ -208,7 +212,10 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
 }
 
 /** Pointer position in plate units. */
-export function platePoint(cv: HTMLCanvasElement, W: number, H: number, e: PointerEvent) {
+/** A pick's reach, squared plate units: a fingertip gets two and a half times a cursor's. */
+export const reach = (e: PointerEvent, d2: number) => (e.pointerType === 'touch' ? d2 * 6.25 : d2);
+
+export function platePoint(cv: HTMLCanvasElement, W: number, H: number, e: { clientX: number; clientY: number }) {
   const r = cv.getBoundingClientRect();
   return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H };
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { Airspace } from '@/components/Airspace';
-import { BackLink } from '@/components/BackLink';
 import { RadarScope } from '@/components/RadarScope';
 import { SettlementMap } from '@/components/SettlementMap';
 import { Teleprinter } from '@/components/Teleprinter';
@@ -14,7 +13,7 @@ const POLL = 15000;       // the console's state from /api/radar/live; the instr
 const ROW_W = 260 + 372 + 260 + 260, ROW_H = 446;   // the four plates side by side, plate units
 
 /** The radar console: teleprinter | radar | settlement map | airspace in a row above the
- *  prompt; on phones a scrolling column, the roll last. BACK where the station keeps README. */
+ *  prompt; on phones a scrolling column, the roll last. README where the station keeps its own. */
 export function RadarDesktop({ initial }: { initial: Live }) {
   const [live, setLive] = useState(initial);
   useEffect(() => {
@@ -30,7 +29,7 @@ export function RadarDesktop({ initial }: { initial: Live }) {
     <div className="console" style={{ background: 'var(--vlg-bg, #fff)' }}>
       <style>{`
         /* phones: an ordinary page, so scrolling it also tucks Safari's address bar away. The clock
-           bar and BACK sit at the very top of it and the prompt at the very end, and scroll away
+           bar and README sit at the very top of it and the prompt at the very end, and scroll away
            with it, rather than staying pinned over the instruments. */
         .console { display: flex; flex-direction: column; align-items: center; gap: 12px;
                    padding: 64px 8px ${PROMPT_BAND + 8}px; }
@@ -51,13 +50,14 @@ export function RadarDesktop({ initial }: { initial: Live }) {
       <RadarScope feed={feed} fires={fires} incidents={incidents} alerts={alerts} />
       <SettlementMap />
       <Airspace />
-      <BackLink href="/station" className="radar-back" style={{
+      {/* README where the station keeps its own; a placeholder for now, it leads nowhere */}
+      <a className="radar-back" style={{
         position: 'fixed', top: 24, right: 24, zIndex: 5,
         fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',
-        color: 'var(--vlg-fg, #000)', textDecoration: 'none',
+        color: 'var(--vlg-fg, #000)', textDecoration: 'none', cursor: 'default',
       }}>
-        BACK
-      </BackLink>
+        README
+      </a>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { CORE, INK, mountPlate, platePoint, SCREEN_DIM, SCREEN_INK, YEL } from './plateKit';
+import { CORE, INK, mountPlate, platePoint, reach, SCREEN_DIM, SCREEN_INK, YEL } from './plateKit';
 import { extent, fit, loadGeo, rings, type Geo, type Site } from './geo';
 
 /**
@@ -141,7 +141,7 @@ export function SettlementMap() {
     const pick = (e: PointerEvent) => {
       if (!geo || !proj) return;
       const { x: px, y: py } = platePoint(cv, W, H, e);
-      let best: Site | null = null, bd = 25;   // within 5 units
+      let best: Site | null = null, bd = reach(e, 25);   // within 5 units
       for (const x of geo.sites) {
         const [cx, cy] = proj.p(x.c[0], x.c[1]);
         const d = (cx - px) ** 2 + (cy - py) ** 2;
@@ -151,7 +151,9 @@ export function SettlementMap() {
     };
     cv.addEventListener('pointermove', pick);
     cv.addEventListener('pointerdown', pick);
-    return () => { alive = false; stop(); cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick); };
+    const drop = () => { hover = null; };   // a scroll that began here: not a pick
+    cv.addEventListener('pointercancel', drop);
+    return () => { alive = false; stop(); cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick); cv.removeEventListener('pointercancel', drop); };
   }, []);
 
   return (

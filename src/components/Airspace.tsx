@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { AIR_BOX, FIX_EVERY, type Aircraft } from '@/lib/air';
-import { CORE, INK, mountPlate, platePoint, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
+import { CORE, INK, mountPlate, platePoint, reach, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
 import { fit, loadGeo, rings, type Geo } from './geo';
 import { telex } from './Teleprinter';
 
@@ -171,7 +171,7 @@ export function Airspace() {
     const pick = (e: PointerEvent) => {
       const { x: px, y: py } = platePoint(cv, W, H, e);
       const now = performance.now();
-      let best: Track | null = null, bd = 36;
+      let best: Track | null = null, bd = reach(e, 36);
       for (const tr of tracks.values()) {
         const [x, y] = p(...at(tr, now));
         const d = (x - px) ** 2 + (y - py) ** 2;
@@ -181,7 +181,9 @@ export function Airspace() {
     };
     cv.addEventListener('pointermove', pick);
     cv.addEventListener('pointerdown', pick);
-    return () => { alive = false; clearInterval(iv); stop(); cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick); };
+    const drop = () => { hover = null; };   // a scroll that began here: not a pick
+    cv.addEventListener('pointercancel', drop);
+    return () => { alive = false; clearInterval(iv); stop(); cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick); cv.removeEventListener('pointercancel', drop); };
   }, []);
 
   return (

@@ -9,7 +9,7 @@ import { INK, mountPlate, platePoint } from './plateKit';
  * printed on tractor-feed paper in the stock's own ink as it arrives. The page
  * refreshes its reports in the background and other instruments wire live
  * events in through telex(); anything new joins the queue and types itself in.
- * Wheel / drag scrolls back through the roll.
+ * Wheel / drag on the paper scrolls back through the roll.
  */
 
 export const W = 260, H = 446;
@@ -151,31 +151,59 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
       t('RED: KILLED / STRIKE / SIRENS / OUTAGE / MIL', X0, H - 3, 5);
     });
 
-    // scroll the roll: wheel on desktop, drag on touch
+    // scroll the roll: wheel on desktop, drag on touch — only over the paper itself, so a swipe
+    // on the footer or the margins (or a pinch anywhere) moves the page as usual
     const max = () => Math.max(0, r.rows.length - VISIBLE);
+    const onPaper = (e: PointerEvent | WheelEvent) => {
+      const { x, y } = platePoint(cv, W, H, e);
+      return x >= X0 && x <= X0 + PW && y >= Y0 && y <= Y0 + PH;
+    };
     const wheel = (e: WheelEvent) => {
+      if (!onPaper(e)) return;
       e.preventDefault();
       back = Math.min(max(), Math.max(0, back + Math.sign(e.deltaY) * -3));
     };
-    let dragY: number | null = null;
-    const down = (e: PointerEvent) => { dragY = platePoint(cv, W, H, e).y; };
+    // dragY: the roll owns this drag. Its direction is settled on the first move (browsers fix
+    // a gesture's scrolling there): one toward an end the roll has already reached goes to the page.
+    let dragY: number | null = null, startY = 0, decided = false, fingers = 0;
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') fingers++;
+      dragY = fingers < 2 && onPaper(e) ? platePoint(cv, W, H, e).y : null;
+      startY = e.clientY; decided = false;
+    };
+    const decide = (clientY: number) => {
+      if (decided || dragY == null || clientY === startY) return;
+      decided = true;
+      if ((clientY > startY && back >= max()) || (clientY < startY && back <= 0)) dragY = null;
+    };
     const move = (e: PointerEvent) => {
+      decide(e.clientY);
       if (dragY == null) return;
       const y = platePoint(cv, W, H, e).y, steps = Math.trunc((y - dragY) / LH);
       if (steps) { back = Math.min(max(), Math.max(0, back + steps)); dragY = y; }
     };
-    const up = () => { dragY = null; };
+    const up = (e: PointerEvent) => { if (e.pointerType === 'touch') fingers = Math.max(0, fingers - 1); dragY = null; };
+    // the browser's own scroll is held off only while the roll owns the drag
+    const touchmove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) { dragY = null; return; }   // a pinch: the page's
+      decide(e.touches[0].clientY);
+      if (dragY != null) e.preventDefault();
+    };
     cv.addEventListener('wheel', wheel, { passive: false });
     cv.addEventListener('pointerdown', down);
     cv.addEventListener('pointermove', move);
+    cv.addEventListener('touchmove', touchmove, { passive: false });
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
     return () => {
       stop();
       window.removeEventListener(EVENT, onEvent);
       cv.removeEventListener('wheel', wheel);
       cv.removeEventListener('pointerdown', down);
       cv.removeEventListener('pointermove', move);
+      cv.removeEventListener('touchmove', touchmove);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
     };
   }, []);
 
@@ -185,7 +213,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
       className="plate"
       role="img"
       aria-label={`Teleprinter: ${lines.slice(-5).map(l => l.text).join('; ')}`}
-      style={{ aspectRatio: `${W} / ${H}`, touchAction: 'pan-x' }}
+      style={{ aspectRatio: `${W} / ${H}`, touchAction: 'manipulation' }}
     />
   );
 }

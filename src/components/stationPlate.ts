@@ -46,7 +46,8 @@ const STACK_REST = READ_Y + READ_H + 7;
 // The screen is as tall as the phone allows: fitStack sizes it so the whole
 // stack fills the space it's given exactly. The field inside stays round.
 const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0;
-let lissH = LISS_MAX;
+const LISS_CAP = 250;
+let lissH = LISS_CAP;
 export const STACK_MIN_H = S_TOP + LISS_MIN + STACK_REST;
 
 // Plate units. btn is the badge on the screen; AnalogueStrip docks the play
@@ -58,7 +59,8 @@ const TALL: PlateDims = { w: 372, h: S_TOP + lissH + STACK_REST, btn: { x: 27, y
 export const plateDims = (stack: boolean) => (stack ? TALL : ROW ? WIDE : FULL);
 /** Size the stack to an available height / width ratio. */
 export function fitStack(ratio: number) {
-  lissH = Math.round(clamp(ratio * TALL.w - S_TOP - STACK_REST, LISS_MIN, LISS_MAX));
+  // capped short of square: on a phone the screen reads better a little smaller than the width
+  lissH = Math.round(clamp(ratio * TALL.w - S_TOP - STACK_REST, LISS_MIN, LISS_CAP));
   TALL.h = S_TOP + lissH + STACK_REST;
 }
 

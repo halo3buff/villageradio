@@ -8,7 +8,7 @@ import type { RadarFeed } from '@/lib/radar';
 import type { Incident } from '@/lib/wafa';
 
 const sourcesOf = (x: Incident) => [...new Set([x.src, ...(x.also ?? []).map(a => a.src)])];   // as in lib/wafa, which is server-only
-import { CORE, INK, look, mountPlate, platePoint, SCREEN, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
+import { CORE, INK, look, mountPlate, platePoint, reach, SCREEN, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
 import { loadGeo, rings, type Geo } from './geo';
 import { AIR_EVENT } from './Airspace';
 
@@ -226,7 +226,7 @@ export function RadarScope(props: Props) {
         draw(X0 + 3, y - 1.8);
         t(label, X0 + 8, y, 4.5);
       });
-      t(hover ? 'READING ↓' : 'HOVER A CONTACT', X0 + SCR, Y0 + SCR - 2, 4.5, INK, 'right');
+      t(hover ? 'READING ↓' : matchMedia('(hover: none)').matches ? 'TAP A CONTACT' : 'HOVER A CONTACT', X0 + SCR, Y0 + SCR - 2, 4.5, INK, 'right');
 
       // ── the table: the hovered contact read out, else the running totals ─────
       const ty = Y0 + SCR + 8, th = TABLE_H - 20;
@@ -301,7 +301,7 @@ export function RadarScope(props: Props) {
     const pick = (e: PointerEvent) => {
       const { x: px, y: py } = platePoint(cv, W, H, e);
       if (!inScope(px, py)) { hover = null; return; }
-      let best: Blip | null = null, bd = 36;   // within 6 units; field reports and sirens win ties
+      let best: Blip | null = null, bd = reach(e, 36);   // within 6 units; field reports and sirens win ties
       for (const b of [...airBlips, ...fireBlips, ...alertBlips, ...incBlips]) {
         const d = (b.x - px) ** 2 + (b.y - py) ** 2;
         if (d <= bd) { bd = d; best = b; }
@@ -310,9 +310,11 @@ export function RadarScope(props: Props) {
     };
     cv.addEventListener('pointermove', pick);
     cv.addEventListener('pointerdown', pick);
+    const drop = () => { hover = null; };   // a scroll that began here: not a pick
+    cv.addEventListener('pointercancel', drop);
     return () => {
       alive = false; stop(); window.removeEventListener(AIR_EVENT, onAir);
-      cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick);
+      cv.removeEventListener('pointermove', pick); cv.removeEventListener('pointerdown', pick); cv.removeEventListener('pointercancel', drop);
     };
   }, []);
 

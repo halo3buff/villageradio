@@ -16,7 +16,7 @@ const COLS = 16, ROWS = 3;
 const DX = 7, DY = 5.5, GAP = 3.5; // column pitch, row pitch, half-gap at the centre line
 const W = COLS * DX, H = Math.ceil(2 * (GAP + (ROWS - 1) * DY) + 8);
 const BW = 2 ** (1 / 6); // half a third-octave
-const CLOCK_W = 88;
+const CLOCK_W = 88;   // desktop; the span's sm:w-[88px] matches
 /** Desktop: outer edge of the far-left dots to the far-right ones, centred on the clock. */
 export const DOTS_SPAN = 2 * (W + 12) + CLOCK_W - 2 * (DX / 2 - 0.75);
 
@@ -123,26 +123,26 @@ export function StationBar() {
         onClick={() => (live ? pause() : broadcastPlay())}
         aria-label={live ? 'Pause the station' : 'Play the station'}
         title={live ? 'Pause' : 'Play'}
-        className="grid place-items-center w-[22px] h-[22px] border border-current active:scale-[0.94] transition-transform duration-100"
+        className="grid place-items-center w-[28px] h-[28px] sm:w-[22px] sm:h-[22px] border border-current active:scale-[0.94] transition-transform duration-100"
       >
         {live ? (
-          <svg width="8" height="9" viewBox="0 0 8 9" fill="currentColor" aria-hidden>
+          <svg viewBox="0 0 8 9" fill="currentColor" aria-hidden className="w-[10px] h-[11px] sm:w-[8px] sm:h-[9px]">
             <rect x="0" y="0" width="2.5" height="9" />
             <rect x="5.5" y="0" width="2.5" height="9" />
           </svg>
         ) : (
-          <svg width="8" height="9" viewBox="0 0 8 9" fill="currentColor" aria-hidden>
+          <svg viewBox="0 0 8 9" fill="currentColor" aria-hidden className="w-[10px] h-[11px] sm:w-[8px] sm:h-[9px]">
             <path d="M0 0 L8 4.5 L0 9 Z" />
           </svg>
         )}
       </button>
       {canvas(left)}
-      <span className="border border-current h-[22px] leading-[20px] text-center text-[12px] tracking-[0.08em] tabular-nums" style={{ width: CLOCK_W }}>
+      <span className="border border-current h-[28px] leading-[26px] text-[14px] w-[102px] sm:h-[22px] sm:leading-[20px] sm:text-[12px] sm:w-[88px] text-center tracking-[0.08em] tabular-nums">
         {clock ?? '--:--:--'}
       </span>
       {canvas(right)}
-      {/* Mirrors the button's width so the clock stays dead centre. */}
-      <span aria-hidden className="w-[22px]" />
+      {/* Mirrors the button's width so the clock stays dead centre. Both a touch bigger on phones. */}
+      <span aria-hidden className="w-[28px] sm:w-[22px]" />
     </div>
   );
 }
