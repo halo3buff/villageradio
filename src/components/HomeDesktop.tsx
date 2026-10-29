@@ -1,42 +1,48 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { AnalogueStrip, type Metrics } from '@/components/AnalogueStrip';
 import { stationClock } from '@/components/StationBar';
 import { useAudio } from '@/lib/audio-context';
 import { useEffect, useRef, useState } from 'react';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-const INK = 'var(--vlg-fg, #111)';
+const SANS = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
-const DESKTOP = 'var(--vlg-bg, #fff)';
-// the readout's highlighter pens, see-through so they read on any theme
-const LAV = '#e2e2e2', MINT = '#1e1e1e';   // grey pen, black pen: the scope's own print
+// the Sapporo '72 poster's three inks, sampled
+const BLUE = '#0160ac', WHITE = '#fbfcfe', RED = '#c20408';
 
 const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : '--.-');
-const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
 
-type Read = { mom: number; integ: number; tp: number; corr: number; live: boolean };
+type Read = { mom: number; tp: number; corr: number };
 
 /**
- * The station, laid out as a system monitor's readout: the clock as its headline, the Lissajous
- * square at left with a rule beside it, and at right the programme (what's playing) and the
- * signal (loudness, stereo), highlighted as a printout marked up by pen; ON AIR or TEST last.
- * README and RADAR top-right; the prompt is global (see SiteFrame), the transport the StationBar.
+ * The station as a poster, after Sapporo '72: on blue, the clock as its title, then two stacked
+ * squares in one white frame: the Lissajous on white (where the poster's sun is), the tree on blue
+ * (where its snowflake is). The transport and ON AIR / TEST sit in the scope's top-left corner,
+ * a line of metrics and what's playing under the frame. README and RADAR top-right.
  */
 export function HomeDesktop() {
-  const { currentTrack } = useAudio();
+  const { currentTrack, isPlaying, mode, broadcastPlay, pause } = useAudio();
+  const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
   const [read, setRead] = useState<Read | null>(null);
   const latest = useRef<Metrics | null>(null);
 
   // the body's min-h-screen is iOS's LARGE viewport, taller than what's visible with the URL bar
-  // up: drop it while the station is up, so the page has nothing to scroll (as HomeTemp does)
+  // up: drop it while the station is up, so the page has nothing to scroll (as HomeTemp does).
+  // And the page's ink goes white on the poster's blue, the global prompt with it.
   useEffect(() => {
     const body = document.body;
-    const prev = body.style.minHeight;
+    const prev = [body.style.minHeight, body.style.background];
     body.style.minHeight = '0';
-    return () => { body.style.minHeight = prev; };
+    body.style.background = BLUE;
+    body.style.setProperty('--vlg-fg', WHITE);
+    return () => {
+      [body.style.minHeight, body.style.background] = prev;
+      body.style.removeProperty('--vlg-fg');
+    };
   }, []);
 
   // the clock and the readout four times a second, the readout off the scope's latest frame
@@ -44,75 +50,72 @@ export function HomeDesktop() {
     const tick = () => {
       setClock(stationClock());
       const m = latest.current;
-      if (m) setRead({ mom: m.mom, integ: m.integ, tp: Math.max(m.tpL, m.tpR), corr: m.corr, live: m.live });
+      if (m) setRead({ mom: m.mom, tp: Math.max(m.tpL, m.tpR), corr: m.corr });
     };
     tick();
     const t = setInterval(tick, 250);
     return () => clearInterval(t);
   }, []);
 
-  const r = read;
-  const corr = r?.corr ?? NaN;
+  const corr = read?.corr ?? NaN;
   const width = Number.isFinite(corr) ? Math.round((1 - corr) * 50) : '--';
-  const phase = Number.isFinite(corr) ? Math.round(Math.acos(Math.max(-1, Math.min(1, corr))) * 57.2958) : '--';
-  const status = r?.live ? (r.tp > -1 ? 'HOT' : 'ON AIR') : 'TEST';
-  const track = currentTrack;
 
   return (
     <div style={{
       // fixed, so on iOS it tracks the visible viewport, not the large one
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: PROMPT_BAND,
+      position: 'fixed', inset: 0, paddingBottom: PROMPT_BAND,
       overflow: 'hidden', overscrollBehavior: 'contain',
-      fontFamily: MONO, color: INK, background: DESKTOP,
+      background: BLUE, color: WHITE, fontFamily: MONO,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <style>{`
-        .monitor { display: flex; flex-direction: column; gap: 18px; padding: 72px 24px 16px; max-width: 100%; }
-        .monitor .hl { background: ${LAV}; padding: 1px 5px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-        .monitor .mint { background: ${MINT}; color: #fff; }
-        /* the reference's proportions: the square about as tall as the readout, the headline ~1.4x its text */
-        .monitor { --sq: 184px; }
-        .monitor .head { font-size: 19px; letter-spacing: 0.04em; white-space: nowrap; }
-        .monitor .row { display: flex; gap: 18px; align-items: flex-start; }
-        .monitor .scope { width: var(--sq); flex: none; }
-        .monitor .rule { width: 9px; height: var(--sq); background: ${MINT}; flex: none; margin-left: -12px; }
-        /* a fixed width, so changing readouts never re-centre the whole monitor */
-        .monitor .info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.55; letter-spacing: 0.03em; flex: none; width: 46ch; max-width: 100%; }
-        .monitor .info .gap { height: 10px; }
-        /* phones: the square on top, its rule under it, the readout below */
-        @media (max-width: 715px) {
-          .monitor { gap: 14px; padding-top: 64px; --sq: min(56vw, 220px); }
-          .monitor .head { font-size: 16px; }
-          .monitor .row { flex-direction: column; gap: 10px; }
-          .monitor .scope, .monitor .rule { width: var(--sq); }
-          .monitor .rule { height: 6px; margin: -4px 0 0; }
-          .monitor .info { font-size: 12px; gap: 4px; }
-        }
+        /* one square's side: two of them, the title and the metrics fit the visible height */
+        .poster { --sq: min(78vw, 320px, calc((100dvh - ${PROMPT_BAND + 130}px) / 2.25)); width: var(--sq);
+          display: flex; flex-direction: column; align-items: stretch; }
+        .poster .title { font-family: ${SANS}; font-weight: 700; font-size: calc(var(--sq) * 0.19); line-height: 1;
+          text-align: center; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; margin-bottom: calc(var(--sq) * 0.06); white-space: nowrap; }
+        .poster .title sup { font-size: 0.42em; vertical-align: 0.95em; margin-left: 0.08em; }
+        .poster .frame { border: calc(var(--sq) * 0.035) solid ${WHITE}; background: ${WHITE}; }
+        .poster .sun { position: relative; background: ${WHITE}; }
+        .poster .snow { position: relative; aspect-ratio: 1; background: ${BLUE}; }
+        .poster .ctl { position: absolute; top: 6px; left: 6px; display: flex; align-items: center; gap: 6px;
+          color: ${BLUE}; font-size: 10px; letter-spacing: 0.08em; font-weight: 700; }
+        .poster .ctl button { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid currentColor; }
+        .poster .ctl button:active { transform: scale(0.94); }
+        .poster .meta { margin-top: calc(var(--sq) * 0.07); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .poster .meta .small { font-size: 10px; letter-spacing: 0.08em; }
+        .poster .meta .big { font-family: ${SANS}; font-weight: 700; font-size: calc(var(--sq) * 0.075); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; }
       `}</style>
-      <div className="monitor">
-        <div className="head"><span className="hl">STATION: {clock ?? '--:--:--'} ET</span></div>
-        <div className="row">
-          <div className="scope">
+      <div className="poster">
+        <div className="title">{clock ?? '--:--:--'}<sup>ET</sup></div>
+        <div className="frame">
+          <div className="sun">
             <AnalogueStrip scope onMetrics={(m) => { latest.current = m; }} />
+            <div className="ctl">
+              <button onClick={() => (live ? pause() : broadcastPlay())} aria-label={live ? 'Pause the station' : 'Play the station'}>
+                <svg viewBox="0 0 8 9" fill="currentColor" aria-hidden width={8} height={9}>
+                  {live ? <><rect x="0" y="0" width="2.5" height="9" /><rect x="5.5" y="0" width="2.5" height="9" /></> : <path d="M0 0 L8 4.5 L0 9 Z" />}
+                </svg>
+              </button>
+              <span style={{ color: live ? RED : BLUE }}>{live ? 'ON AIR' : 'TEST'}</span>
+            </div>
           </div>
-          <div className="rule" aria-hidden />
-          <div className="info">
-            <div><span className="hl">NOW PLAYING: {track ? track.title : '--'}</span></div>
-            <div>{track ? `${track.artist}, ${track.kind === 'inter' ? 'BREAK' : 'MIX'}` : 'PRESS ▶ TO TUNE IN'}</div>
-            <div className="gap" />
-            <div><span className="hl">RUNTIME: {track?.duration || '--:--'}{track?.date ? `, ${track.date}` : ''}</span></div>
-            <div><span className="hl mint">LOUDNESS: {f1(r?.mom ?? NaN)} LUFS, {f1(r?.integ ?? NaN)} INT, {f1(r?.tp ?? NaN)} TP</span></div>
-            <div>STEREO: {width}% WIDTH, r {f2(corr)}, {phase}° PHASE</div>
-            <div className="gap" />
-            <div><span className={r?.live ? 'hl mint' : 'hl'}>{status}</span></div>
+          <div className="snow">
+            <Image src="/images/tree_8bit.png" alt="Village Radio" fill sizes="320px"
+              style={{ objectFit: 'contain', padding: '14%', filter: 'brightness(0) invert(1)' }} />
           </div>
+        </div>
+        <div className="meta">
+          <div className="small">{f1(read?.mom ?? NaN)} LUFS · TP {f1(read?.tp ?? NaN)} · WIDTH {width}%</div>
+          <div className="big">{currentTrack ? currentTrack.title : 'VILLAGE RADIO'}</div>
         </div>
       </div>
 
       {/* README and RADAR — top-right corner */}
-      <Link href="/station/readme" style={{ position: 'absolute', top: 24, right: 24, zIndex: 5, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)', textDecoration: 'none' }}>
+      <Link href="/station/readme" style={{ position: 'absolute', top: 24, right: 24, zIndex: 5, fontSize: 12, letterSpacing: '0.08em', color: WHITE, textDecoration: 'none' }}>
         README
       </Link>
-      <Link href="/station/radar" style={{ position: 'absolute', top: 44, right: 24, zIndex: 5, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)', textDecoration: 'none' }}>
+      <Link href="/station/radar" style={{ position: 'absolute', top: 44, right: 24, zIndex: 5, fontSize: 12, letterSpacing: '0.08em', color: WHITE, textDecoration: 'none' }}>
         RADAR
       </Link>
     </div>
