@@ -84,6 +84,8 @@ export function HomeDesktop() {
         .poster .ctl button:active { transform: scale(0.94); }
         .poster .meta { margin-top: calc(var(--sq) * 0.07); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .poster .meta .small { font-size: 10px; letter-spacing: 0.08em; }
+        /* phones: clear of README / RADAR in the corner */
+        @media (max-width: 715px) { .poster { margin-top: 48px; } }
         .poster .meta .big { font-family: ${SANS}; font-weight: 700; font-size: calc(var(--sq) * 0.075); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; }
       `}</style>
       <div className="poster">
@@ -101,7 +103,7 @@ export function HomeDesktop() {
             </div>
           </div>
           <div className="snow">
-            <Image src="/images/tree_8bit.png" alt="Village Radio" fill sizes="320px"
+            <Image src="/images/tree_8bit.png" alt="Village Radio" fill sizes="320px" priority
               style={{ objectFit: 'contain', padding: '14%', filter: 'brightness(0) invert(1)' }} />
           </div>
         </div>
