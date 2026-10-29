@@ -70,12 +70,12 @@ export function HomeDesktop() {
     }}>
       <style>{`
         /* one square's side: two of them, the title and the metrics fit the visible height */
-        .poster { --sq: min(78vw, 320px, calc((100dvh - ${PROMPT_BAND + 130}px) / 2.25)); width: var(--sq);
+        .poster { --sq: min(70vw, 270px, calc((100dvh - ${PROMPT_BAND + 130}px) / 2.3)); width: var(--sq);
           display: flex; flex-direction: column; align-items: stretch; }
-        .poster .title { font-family: ${SANS}; font-weight: 700; font-size: calc(var(--sq) * 0.19); line-height: 1;
-          text-align: center; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; margin-bottom: calc(var(--sq) * 0.06); white-space: nowrap; }
-        .poster .title sup { font-size: 0.42em; vertical-align: 0.95em; margin-left: 0.08em; }
-        .poster .frame { border: calc(var(--sq) * 0.035) solid ${WHITE}; background: ${WHITE}; }
+        /* the clock set to the frame's exact width (an SVG text stretched edge to edge) */
+        .poster .title { display: block; width: 100%; margin-bottom: calc(var(--sq) * 0.06); }
+        .poster .frame { border: calc(var(--sq) * 0.014) solid ${WHITE}; background: ${WHITE};
+          outline: 1px solid rgba(170, 210, 245, 0.55); outline-offset: 3px; }
         .poster .sun { position: relative; background: ${WHITE}; }
         .poster .snow { position: relative; aspect-ratio: 1; background: ${BLUE}; }
         .poster .ctl { position: absolute; top: 6px; left: 6px; display: flex; align-items: center; gap: 6px;
@@ -89,7 +89,10 @@ export function HomeDesktop() {
         .poster .meta .big { font-family: ${SANS}; font-weight: 700; font-size: calc(var(--sq) * 0.075); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; }
       `}</style>
       <div className="poster">
-        <div className="title">{clock ?? '--:--:--'}<sup>ET</sup></div>
+        <svg className="title" viewBox="0 0 390 73" aria-label={clock ?? undefined}>
+          <text x="0" y="72" textLength="390" lengthAdjust="spacingAndGlyphs" fontSize="100" fontWeight="700"
+            fontFamily={SANS} fill={WHITE} style={{ fontVariantNumeric: 'tabular-nums' }}>{clock ?? '--:--:--'}</text>
+        </svg>
         <div className="frame">
           <div className="sun">
             <AnalogueStrip scope onMetrics={(m) => { latest.current = m; }} />
@@ -104,7 +107,7 @@ export function HomeDesktop() {
           </div>
           <div className="snow">
             <Image src="/images/tree_8bit.png" alt="Village Radio" fill sizes="320px" priority
-              style={{ objectFit: 'contain', padding: '14%', filter: 'brightness(0) invert(1)' }} />
+              style={{ objectFit: 'contain', transform: 'scale(1.18)', filter: 'brightness(0) invert(1)' }} />
           </div>
         </div>
         <div className="meta">
