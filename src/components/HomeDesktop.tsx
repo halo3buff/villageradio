@@ -11,7 +11,7 @@ const INK = 'var(--vlg-fg, #111)';
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const DESKTOP = 'var(--vlg-bg, #fff)';
 // the readout's highlighter pens, see-through so they read on any theme
-const LAV = 'rgba(176, 140, 255, 0.38)', MINT = 'rgba(70, 225, 160, 0.42)';
+const LAV = '#dccdef', MINT = '#7cffd4';   // sampled off the reference
 
 const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : '--.-');
 const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
@@ -76,7 +76,8 @@ export function HomeDesktop() {
         .monitor .row { display: flex; gap: 18px; align-items: flex-start; }
         .monitor .scope { width: var(--sq); flex: none; }
         .monitor .rule { width: 9px; height: var(--sq); background: ${MINT}; flex: none; margin-left: -12px; }
-        .monitor .info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.55; letter-spacing: 0.03em; min-width: 0; max-width: 60ch; }
+        /* a fixed width, so changing readouts never re-centre the whole monitor */
+        .monitor .info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.55; letter-spacing: 0.03em; flex: none; width: 46ch; max-width: 100%; }
         .monitor .info .gap { height: 10px; }
         /* phones: the square on top, its rule under it, the readout below */
         @media (max-width: 715px) {
