@@ -11,7 +11,7 @@ const INK = 'var(--vlg-fg, #111)';
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const DESKTOP = 'var(--vlg-bg, #fff)';
 // the readout's highlighter pens, see-through so they read on any theme
-const LAV = '#efe8f9', MINT = '#cdfbe9';   // the reference's pens, washed out
+const LAV = '#e2e2e2', MINT = '#1e1e1e';   // grey pen, black pen: the scope's own print
 
 const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : '--.-');
 const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
@@ -64,12 +64,11 @@ export function HomeDesktop() {
       position: 'fixed', top: 0, left: 0, right: 0, bottom: PROMPT_BAND,
       overflow: 'hidden', overscrollBehavior: 'contain',
       fontFamily: MONO, color: INK, background: DESKTOP,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <style>{`
-        .monitor { display: flex; flex-direction: column; gap: 18px; padding: 72px 16px 16px; max-width: 100%; }
+        .monitor { display: flex; flex-direction: column; gap: 18px; padding: 72px 24px 16px; max-width: 100%; }
         .monitor .hl { background: ${LAV}; padding: 1px 5px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-        .monitor .mint { background: ${MINT}; }
+        .monitor .mint { background: ${MINT}; color: #fff; }
         /* the reference's proportions: the square about as tall as the readout, the headline ~1.4x its text */
         .monitor { --sq: 184px; }
         .monitor .head { font-size: 19px; letter-spacing: 0.04em; white-space: nowrap; }
