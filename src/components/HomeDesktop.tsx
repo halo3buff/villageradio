@@ -51,10 +51,10 @@ export function HomeDesktop() {
           screen. The page never scrolls. margin:auto centres it. */}
       <style>{`
         .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + PAD_TOP + PAD_BOTTOM}px) * 372 / ${STACK_MIN_H})); margin: auto; }
-        /* desktop: hung straight under the StationBar, the Lissajous (plate x 22..339 of 372)
-           spanning the bar from its far-left dots to its far-right ones */
+        /* desktop: centred on the screen, the content (plate x 22..339 of 372) sized off the
+           StationBar's dots and nudged so its centre, not the plate's, is the screen's */
         @media (min-width: 716px) {
-          .station-fit { width: ${Math.round((DOTS_SPAN * 372) / 317)}px; margin: -${PAD_TOP}px auto 0; translate: ${(5.5 / 372) * 100}% 0; }
+          .station-fit { width: ${Math.round((DOTS_SPAN * 372) / 317)}px; margin: auto; translate: ${(5.5 / 372) * 100}% 0; }
         }
       `}</style>
       <div style={{

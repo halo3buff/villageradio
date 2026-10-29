@@ -221,7 +221,8 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   };
 
   if (!plate) {
-    if (stack) header(10, 180, 351); else header(10, 291, 568);
+    // desktop's STEREO hugs the screen's right edge; the phone's stays out at the plate's
+    if (stack) header(10, 180, phone ? 351 : S_X0 + (LISS_MAX + lissW) / 2 + 12); else header(10, 291, 568);
     // ── the small screen: the stereo field, far left / on top, on the stock ──
     // the stack's screen is centred over its table, the field's axes running to its edges
     const D = stack ? lissW : 156, DH = stack ? lissH : D;
