@@ -47,14 +47,16 @@ const READ_Y = 8;                           // the readout table, below the scre
 const ROW_H = 9.8, band = (rows: number) => 21 + (rows - 1) * ROW_H + 6;
 const READ_H_DESK = Math.ceil(band(8)), READ_H_PHONE = Math.ceil(band(7) + 6 + band(4));
 let phone = false, readH = READ_H_DESK;
-const rest = () => READ_Y + readH + 7;
+// the stack's screen is a sight: black bars above (tape, readouts) and below (a two-line log)
+const HUD_T = 20, HUD_B = 22;
+const rest = () => HUD_T + HUD_B + READ_Y + readH + 7;
 // The screen ends where its axes do, centred over the content edges: on desktop 254 wide and as
 // tall as fits (up to square), on a phone a fixed 200 square (a phone too short for it gets the
 // whole plate scaled down by HomeDesktop's width cap instead).
 const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0, LISS_DESK = 254, LISS_PHONE = 200;
 let lissW = LISS_DESK, lissH = LISS_DESK;
 /** The phone stack's height: what HomeDesktop's width cap fits to (below 716px only). */
-export const STACK_MIN_H = S_TOP + LISS_PHONE + READ_Y + READ_H_PHONE + 7;
+export const STACK_MIN_H = S_TOP + LISS_PHONE + HUD_T + HUD_B + READ_Y + READ_H_PHONE + 7;
 
 // Plate units. btn is the badge on the screen; AnalogueStrip docks the play
 // button on it.
@@ -183,6 +185,100 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = '#ffffff'; ctx.fill();
     ctx.restore();
   };
+  // ── the stack's sight, after a thermal scope's: the field framed by black bars, a balance tape
+  // and readouts above, a two-line log below, icon boxes down both edges, a green reticle on the
+  // trace's centre. (X, Y, D, DH) is the field; the bars sit just outside it.
+  const sight = (X: number, Y: number, D: number, DH: number) => {
+    const GREEN = '#46e04a', ink = SCREEN_INK, dim = SCREEN_DIM, sz = 5.5;
+    const cx = X + D / 2, cy = Y + DH / 2;
+    // the trace's centre and spread, and the left/right balance (x = right, y = left)
+    let sx = 0, sy = 0, ax = 0, ay = 0;
+    const n = Math.max(1, m.lHead);
+    for (let k = 0; k < m.lHead; k++) {
+      const x = clamp(m.lx[k], -1, 1), y = clamp(m.ly[k], -1, 1);
+      sx += x; sy += y; ax += Math.abs(x); ay += Math.abs(y);
+    }
+    const mx = sx / n, my = sy / n, bal = ax + ay > 1e-6 ? (ax - ay) / (ax + ay) : 0;
+    let spread = 0;
+    for (let k = 0; k < m.lHead; k++) spread += (clamp(m.lx[k], -1, 1) - mx) ** 2 + (clamp(m.ly[k], -1, 1) - my) ** 2;
+    spread = Math.sqrt(spread / n);
+    // the bars
+    ctx.fillStyle = '#000'; ctx.fillRect(X, Y - HUD_T, D, HUD_T); ctx.fillRect(X, Y + DH, D, HUD_B);
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
+    // top: the balance tape, L to R, a caret under the balance; the date at the right
+    const tx0 = X + D * 0.3, tx1 = X + D * 0.7, ty = Y - HUD_T + 7;
+    line(tx0, ty, tx1, ty, ink, 0.6);
+    for (let i = 0; i <= 10; i++) {
+      const x = tx0 + ((tx1 - tx0) * i) / 10;
+      line(x, ty - (i % 5 ? 1.5 : 3), x, ty, ink, 0.6);
+    }
+    t('L', tx0 - 4, ty + 1, 4.5, ink, 'right'); t('R', tx1 + 4, ty + 1, 4.5, ink);
+    const bx = (tx0 + tx1) / 2 + (bal * (tx1 - tx0)) / 2;
+    ctx.fillStyle = ink; ctx.beginPath(); ctx.moveTo(bx, ty + 1); ctx.lineTo(bx - 2, ty + 4); ctx.lineTo(bx + 2, ty + 4); ctx.fill();
+    t(iso.slice(0, 10).split('-').reverse().join('/'), X + D - 4, Y - HUD_T + 7, 4.5, ink, 'right');
+    // top readouts: loudness at left, level pips at centre, phase and correlation at right
+    const ry = Y - 4;
+    t(`PGM ${f1(m.mom)} LUFS`, X + 4, ry, sz, ink);
+    const lit = Math.round(clamp((m.mom + 40) / 30, 0, 1) * 5);
+    for (let i = 0; i < 5; i++) t('+', cx - 10 + i * 5, ry, sz, i < lit ? ink : dim, 'center');
+    t(`PH ${phase}°  ${m.corr < 0 ? '↗' : '↘'} ${f2(m.corr)}`, X + D - 4, ry, sz, ink, 'right');
+    // left edge: a level gauge, then three boxes: transport, left peak, mono check
+    const gx = X + 5, lvl = f0(clamp((m.mom + 60) / 60, 0, 1) * 100);
+    ctx.strokeStyle = ink; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.arc(gx + 3, Y + 10, 2.5, 0, Math.PI * 2); ctx.stroke();
+    line(gx + 3, Y + 7.5, gx + 3, Y + 12.5, ink, 0.6); line(gx + 0.5, Y + 10, gx + 5.5, Y + 10, ink, 0.6);
+    line(gx + 6.5, Y + 10, gx + 10, Y + 10, ink, 0.6);
+    t(lvl, gx + 5, Y + 20, sz, ink, 'center'); t('%', gx + 5, Y + 26, 4.5, ink, 'center');
+    const BW = 15, BH = 12, gap = 5;
+    const col = (x: number, draws: ((bx: number, by: number) => void)[]) => draws.forEach((d, i) => {
+      const by = Y + DH - 6 - (draws.length - i) * (BH + gap) + gap;
+      box(x, by, BW, BH, ink, 0.6); d(x, by);
+    });
+    col(gx - 1, [
+      (bx, by) => {   // transport: two bars when on air, a triangle when not
+        ctx.fillStyle = ink;
+        if (m.live) { ctx.fillRect(bx + 5, by + 3, 1.6, 6); ctx.fillRect(bx + 8.4, by + 3, 1.6, 6); }
+        else { ctx.beginPath(); ctx.moveTo(bx + 5.5, by + 3); ctx.lineTo(bx + 10.5, by + 6); ctx.lineTo(bx + 5.5, by + 9); ctx.fill(); }
+      },
+      (bx, by) => t(`L${f0(m.pkL)}`, bx + BW / 2, by + 8, 4.5, ink, 'center'),
+      (bx, by) => {   // mono check: a half disc, a whole green one when out of phase
+        ctx.fillStyle = m.corr < 0 ? GREEN : ink;
+        ctx.beginPath(); ctx.arc(bx + BW / 2, by + BH / 2, 3, m.corr < 0 ? 0 : Math.PI, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = ink; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.arc(bx + BW / 2, by + BH / 2, 3, 0, Math.PI * 2); ctx.stroke();
+      },
+    ]);
+    // right edge: a headroom cell, then three boxes: silence, right peak, overs
+    const hx = X + D - 9, room = clamp((-1 - tp) / 20, 0, 1);
+    t('HDRM', X + D - 4, Y + 9, 4.5, ink, 'right');
+    box(hx - 1.5, Y + 13, 6, 12, ink, 0.6); ctx.fillStyle = ink; ctx.fillRect(hx, Y + 11.5, 3, 1.5);
+    ctx.fillRect(hx - 0.5, Y + 14 + 10 * (1 - room), 3, 10 * room);
+    col(X + D - 4 - BW, [
+      (bx, by) => {   // silence: a moon when the line is quiet, a dot beside it with signal
+        ctx.fillStyle = ink;
+        ctx.beginPath(); ctx.arc(bx + 5, by + BH / 2, 2.5, 0, Math.PI * 2); ctx.fill();
+        if (m.silence) { ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(bx + 6.2, by + BH / 2 - 0.8, 2.2, 0, Math.PI * 2); ctx.fill(); }
+        else dot(bx + 10.5, by + BH / 2, 1.2, ink);
+      },
+      (bx, by) => t(`R${f0(m.pkR)}`, bx + BW / 2, by + 8, 4.5, ink, 'center'),
+      (bx, by) => t(`OV${m.overs > 99 ? '++' : m.overs}`, bx + BW / 2, by + 8, 4.5, m.overs ? GREEN : ink, 'center'),
+    ]);
+    // the reticle: a green cross on the trace's centre, a wire globe round its spread
+    const rx = cx + mx * (D / 2), rcy = cy - my * (DH / 2), rr = Math.max(9, (Math.min(D, DH) / 2) * spread * 2.2);
+    ctx.strokeStyle = 'rgba(230,230,230,0.55)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.arc(rx, rcy, rr, 0, Math.PI * 2); ctx.stroke();
+    for (const k of [0.35, 0.75]) { ctx.beginPath(); ctx.ellipse(rx, rcy, rr * k, rr, 0, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.beginPath(); ctx.ellipse(rx, rcy, rr, rr * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) line(rx + dx * 2, rcy + dy * 2, rx + dx * 6, rcy + dy * 6, GREEN, 1.2);
+    // bottom: the log, two lines
+    const mid = m.rms + 20 * Math.log10(Math.max(0.05, (1 + m.corr) / 2));
+    const side = m.rms + 20 * Math.log10(Math.max(0.05, (1 - m.corr) / 2));
+    const ly = Y + DH + 9;
+    t(`1 MID ${f1(mid)}  SIDE ${f1(side)}`, X + 4, ly, sz, ink);
+    t(`W ${width}%  BAL ${bal >= 0 ? '+' : ''}${f2(bal)}`, X + D - 4, ly, sz, ink, 'right');
+    t(`2 TP ${f1(tp)}  RMS ${f1(m.rms)}`, X + 4, ly + 8, sz, ink);
+    t(m.live ? (tp > -1 ? 'HOT ●' : 'ON AIR ●') : 'TEST ○', X + D - 4, ly + 8, sz, m.live ? GREEN : ink, 'right');
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = '0.5px';
+  };
   const badge = () => {
     // transport badge — the play button sits over this
     ctx.fillStyle = INK; ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
@@ -226,7 +322,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     // ── the small screen: the stereo field, far left / on top, on the stock ──
     // the stack's screen is centred over its table, the field's axes running to its edges
     const D = stack ? lissW : 156, DH = stack ? lissH : D;
-    const X = stack ? S_X0 + (LISS_MAX - D) / 2 : 22, Y = 22 + hdr;
+    const X = stack ? S_X0 + (LISS_MAX - D) / 2 : 22, Y = 22 + hdr + (stack ? HUD_T : 0);
     // the print window: dark olive, a soft vignette, the field, then grain over all of it
     ctx.fillStyle = SCREEN; ctx.fillRect(X, Y, D, DH);
     const vig = ctx.createRadialGradient(X + D / 2, Y + DH / 2, Math.min(D, DH) * 0.2, X + D / 2, Y + DH / 2, Math.max(D, DH) * 0.75);
@@ -234,14 +330,14 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     ctx.fillStyle = vig; ctx.fillRect(X, Y, D, DH);
     if (stack) field(X + D / 2, Y + DH / 2, D / 2, DH / 2);
     else field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
-    // the stack's transport is the StationBar's: no badge, just the state in the corner
-    if (stack) t(m.live ? '[ ON AIR ]' : '[ PLAY ]', X + 6, Y + 13, 8.5, SCREEN_INK);
+    // the stack's transport is the StationBar's; its screen is framed as a sight instead
+    if (stack) sight(X, Y, D, DH);
     else {
       badge();
       t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2.5, 6.5, SCREEN_INK);
+      t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5, SCREEN_INK);
+      t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, SCREEN_INK, 'right');
     }
-    t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5, SCREEN_INK);
-    t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, SCREEN_INK, 'right');
     const gp = grainPattern(ctx);
     if (gp) {
       const k = 1.6 / s;   // a grain is ~1.6 device pixels
@@ -347,7 +443,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   }
   const px = (v: number) => Math.round(v * s) / s;
   if (stack) {
-    const base = S_TOP + lissH;
+    const base = S_TOP + HUD_T + lissH + HUD_B;
     // enclosed in the screen's own border, its bottom edge doubling as this box's top
     box(S_X0 + (LISS_MAX - lissW) / 2, base, lissW, READ_Y + readH + 4, INK, 0.6);
     readouts(base + READ_Y);
