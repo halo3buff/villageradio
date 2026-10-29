@@ -74,7 +74,7 @@ export function HomeDesktop() {
         .monitor .row { display: flex; gap: 18px; align-items: flex-start; }
         .monitor .scope { width: clamp(220px, 24vw, 320px); flex: none; }
         .monitor .rule { width: 12px; height: clamp(220px, 24vw, 320px); background: ${MINT}; flex: none; }
-        .monitor .info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.55; letter-spacing: 0.03em; min-width: 0; max-width: 46ch; }
+        .monitor .info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.55; letter-spacing: 0.03em; min-width: 0; max-width: 60ch; }
         .monitor .info .gap { height: 10px; }
         /* phones: the square on top, its rule under it, the readout below */
         @media (max-width: 715px) {
@@ -97,7 +97,7 @@ export function HomeDesktop() {
             <div>{track ? `${track.artist}, ${track.kind === 'inter' ? 'BREAK' : 'MIX'}` : 'PRESS ▶ TO TUNE IN'}</div>
             <div className="gap" />
             <div><span className="hl">RUNTIME: {track?.duration || '--:--'}{track?.date ? `, ${track.date}` : ''}</span></div>
-            <div><span className="hl mint">LOUDNESS: {f1(r?.mom ?? NaN)} LUFS, {f1(r?.integ ?? NaN)} INT, {f1(r?.tp ?? NaN)} DBTP.</span></div>
+            <div><span className="hl mint">LOUDNESS: {f1(r?.mom ?? NaN)} LUFS, {f1(r?.integ ?? NaN)} INT, {f1(r?.tp ?? NaN)} TP</span></div>
             <div>STEREO: {width}% WIDTH, r {f2(corr)}, {phase}° PHASE</div>
             <div className="gap" />
             <div><span className={r?.live ? 'hl mint' : 'hl'}>{status}</span></div>
