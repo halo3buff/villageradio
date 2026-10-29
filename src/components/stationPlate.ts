@@ -186,7 +186,10 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     const bal = ax + ay > 1e-6 ? (ax - ay) / (ax + ay) : 0;
     const mid = m.rms + 20 * Math.log10(Math.max(0.05, (1 + m.corr) / 2));
     const side = m.rms + 20 * Math.log10(Math.max(0.05, (1 - m.corr) / 2));
-    ctx.fillStyle = '#000'; ctx.fillRect(X, Y + DH, D, HUD_B);
+    // the field's own print, a shade darker and ruled off; the grain falls over both alike
+    ctx.fillStyle = SCREEN; ctx.fillRect(X, Y + DH, D, HUD_B);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(X, Y + DH, D, HUD_B);
+    line(X, Y + DH, X + D, Y + DH, SCREEN_DIM, 0.6);
     (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
     const ly = Y + DH + 9;
     t(`1 MID ${f1(mid)}  SIDE ${f1(side)}`, X + 4, ly, sz, ink);
@@ -246,14 +249,17 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     ctx.fillStyle = vig; ctx.fillRect(X, Y, D, DH);
     if (stack) field(X + D / 2, Y + DH / 2, D / 2, DH / 2);
     else field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
-    // the stack's transport is the StationBar's; under its screen, the log bar
-    if (stack) logBar(X, Y, D, DH);
-    else {
+    // the stack's transport is the StationBar's: no badge, just the state in the corner; under
+    // its screen, the log bar
+    if (stack) {
+      t(m.live ? '[ ON AIR ]' : '[ PLAY ]', X + 6, Y + 13, 8.5, SCREEN_INK);
+      logBar(X, Y, D, DH);
+    } else {
       badge();
       t(m.live ? '[ ON AIR ]' : '[ PLAY ]', btn.x + btn.w + 4, btn.y + btn.h / 2 + 2.5, 6.5, SCREEN_INK);
-      t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5, SCREEN_INK);
-      t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, SCREEN_INK, 'right');
     }
+    t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5, SCREEN_INK);
+    t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, SCREEN_INK, 'right');
     const gp = grainPattern(ctx);
     if (gp) {
       const k = 1.6 / s;   // a grain is ~1.6 device pixels
