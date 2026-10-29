@@ -70,18 +70,21 @@ export function HomeDesktop() {
         .monitor { display: flex; flex-direction: column; gap: 18px; padding: 72px 16px 16px; max-width: 100%; }
         .monitor .hl { background: ${LAV}; padding: 1px 5px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
         .monitor .mint { background: ${MINT}; }
-        .monitor .head { font-size: clamp(18px, 2.4vw, 26px); letter-spacing: 0.04em; white-space: nowrap; }
+        /* the reference's proportions: the square about as tall as the readout, the headline ~1.4x its text */
+        .monitor { --sq: 184px; }
+        .monitor .head { font-size: 19px; letter-spacing: 0.04em; white-space: nowrap; }
         .monitor .row { display: flex; gap: 18px; align-items: flex-start; }
-        .monitor .scope { width: clamp(220px, 24vw, 320px); flex: none; }
-        .monitor .rule { width: 12px; height: clamp(220px, 24vw, 320px); background: ${MINT}; flex: none; }
+        .monitor .scope { width: var(--sq); flex: none; }
+        .monitor .rule { width: 9px; height: var(--sq); background: ${MINT}; flex: none; margin-left: -12px; }
         .monitor .info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.55; letter-spacing: 0.03em; min-width: 0; max-width: 60ch; }
         .monitor .info .gap { height: 10px; }
         /* phones: the square on top, its rule under it, the readout below */
         @media (max-width: 715px) {
-          .monitor { gap: 14px; padding-top: 64px; }
+          .monitor { gap: 14px; padding-top: 64px; --sq: min(56vw, 220px); }
+          .monitor .head { font-size: 16px; }
           .monitor .row { flex-direction: column; gap: 10px; }
-          .monitor .scope, .monitor .rule { width: min(78vw, 300px); }
-          .monitor .rule { height: 6px; }
+          .monitor .scope, .monitor .rule { width: var(--sq); }
+          .monitor .rule { height: 6px; margin: -4px 0 0; }
           .monitor .info { font-size: 12px; gap: 4px; }
         }
       `}</style>
