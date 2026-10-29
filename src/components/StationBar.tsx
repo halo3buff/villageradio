@@ -7,18 +7,19 @@ import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 
 /**
  * The universal transport, pinned top-centre on every public page: the station clock (the
- * broadcast day's Eastern time, as the admin timeline uses) flanked by the plate's growing-dot third-octave matrix, mirrored so low
- * frequencies hug the clock, and a play/pause so the broadcast can be stopped from anywhere.
+ * broadcast day's Eastern time, as the admin timeline uses) set in a balance tape, as a thermal
+ * sight's heading tape: L on the far left, R on the far right, the clock the centre, a caret
+ * under the tape where the stereo image leans and each channel's level as five pips beneath its
+ * half. And a play/pause so the broadcast can be stopped from anywhere.
  */
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-const COLS = 16, ROWS = 3;
-const DX = 7, DY = 5.5, GAP = 3.5; // column pitch, row pitch, half-gap at the centre line
-const W = COLS * DX, H = Math.ceil(2 * (GAP + (ROWS - 1) * DY) + 8);
-const BW = 2 ** (1 / 6); // half a third-octave
+const W = 112, H = 37;   // each half of the tape
+const END = 10;          // room for the L / R at the tape's outer end
+const TAPE_Y = 14, PIPS_Y = 27;
 const CLOCK_W = 88;   // desktop; the span's sm:w-[88px] matches
-/** Desktop: outer edge of the far-left dots to the far-right ones, centred on the clock. */
-export const DOTS_SPAN = 2 * (W + 12) + CLOCK_W - 2 * (DX / 2 - 0.75);
+/** Desktop: the tape's far-left end to its far-right one, centred on the clock. */
+export const DOTS_SPAN = 2 * (W + 12) + CLOCK_W - 5;
 
 /** The broadcast day's clock (Eastern) — the same time the admin timeline schedules against. */
 function stationClock() {
@@ -27,15 +28,15 @@ function stationClock() {
 }
 
 export function StationBar() {
-  const { isPlaying, mode, analyserFreq, broadcastPlay, pause } = useAudio();
+  const { isPlaying, mode, analyserL, analyserR, broadcastPlay, pause } = useAudio();
   const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
   const left = useRef<HTMLCanvasElement>(null);
   const right = useRef<HTMLCanvasElement>(null);
   const liveRef = useRef(live);
-  const freqRef = useRef(analyserFreq);
+  const chRef = useRef([analyserL, analyserR]);
   liveRef.current = live;
-  freqRef.current = analyserFreq;
+  chRef.current = [analyserL, analyserR];
 
   useEffect(() => {
     const tick = () => setClock(stationClock());
@@ -47,7 +48,9 @@ export function StationBar() {
   useEffect(() => {
     let raf = 0;
     let buf = new Float32Array(0);
-    const level = new Float32Array(COLS); // dots lit per column, 0..ROWS, with a slow fall
+    const lvl = [0, 0];   // each channel's level, 0..1, rising fast and falling slow
+    let bal = 0;          // -1 hard left .. 1 hard right
+    let lastSum = NaN, still = 0;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const ctxs = [left.current, right.current].map((c) => {
       if (!c) return null;
@@ -57,52 +60,71 @@ export function StationBar() {
       ctx?.scale(dpr, dpr);
       return ctx;
     });
-    let ink = '#fff', frame = 0, lastSum = NaN, still = 0;
+    let ink = '#fff', face = 'monospace', frame = 0;
+    const snap = (v: number) => (Math.floor(v * dpr) + 0.5) / dpr;   // hairlines on the pixel grid
 
     const loop = () => {
-      const a = freqRef.current;
-      if (liveRef.current && a) {
-        if (buf.length !== a.frequencyBinCount) buf = new Float32Array(a.frequencyBinCount);
-        a.getFloatFrequencyData(buf);
-        // A frozen spectrum means no audio is actually flowing (e.g. a suspended context):
-        // let the dots fall instead of holding a stale frame.
-        let sum = 0;
-        for (let i = 0; i < buf.length; i += 16) sum += buf[i];
+      const [aL, aR] = chRef.current;
+      const rms = [0, 0];
+      if (liveRef.current && aL && aR) {
+        [aL, aR].forEach((a, ch) => {
+          if (buf.length !== a.fftSize) buf = new Float32Array(a.fftSize);
+          a.getFloatTimeDomainData(buf);
+          let e = 0;
+          for (let i = 0; i < buf.length; i++) e += buf[i] * buf[i];
+          rms[ch] = Math.sqrt(e / buf.length);
+        });
+        // a frozen signal means no audio is actually flowing (e.g. a suspended context): let it all fall
+        const sum = rms[0] + rms[1];
         still = sum === lastSum ? still + 1 : 0;
         lastSum = sum;
-        if (still > 10) buf.fill(-Infinity);
-        const hz = a.context.sampleRate / 2 / buf.length;
-        for (let c = 0; c < COLS; c++) {
-          const f = 20 * Math.pow(1000, c / (COLS - 1));
-          const i0 = Math.max(1, Math.floor(f / BW / hz)), i1 = Math.max(i0, Math.min(buf.length - 1, Math.ceil(f * BW / hz)));
-          let p = 0;
-          for (let i = i0; i <= i1; i++) p += Math.pow(10, buf[i] / 10);
-          // same scale as the plate: -72 dB dark, -20 dB all three dots full
-          const target = Math.min(Math.max((10 * Math.log10(p || 1e-12) + VISUAL_TRIM_DB + 72) / 52, 0), 1) * ROWS;
-          level[c] = target > level[c] ? target : Math.max(target, level[c] - 0.08);
-        }
-      } else {
-        for (let c = 0; c < COLS; c++) level[c] = Math.max(0, level[c] - 0.08);
+        if (still > 10) rms[0] = rms[1] = 0;
       }
+      rms.forEach((r, ch) => {
+        // -40 dB dark, -10 dB all five pips, on the plate's visual trim
+        const target = Math.min(Math.max((20 * Math.log10(r || 1e-9) + VISUAL_TRIM_DB + 40) / 30, 0), 1);
+        lvl[ch] = target > lvl[ch] ? target : Math.max(target, lvl[ch] - 0.02);
+      });
+      const tb = rms[0] + rms[1] > 1e-5 ? (rms[1] - rms[0]) / (rms[0] + rms[1]) : 0;
+      bal += (tb - bal) * 0.15;
 
-      if (frame++ % 30 === 0 && left.current) ink = getComputedStyle(left.current).color;
+      if (frame++ % 30 === 0 && left.current) {
+        const cs = getComputedStyle(left.current);
+        ink = cs.color; face = cs.fontFamily;
+      }
       ctxs.forEach((ctx, side) => {
         if (!ctx) return;
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = ink;
-        for (let c = 0; c < COLS; c++) {
-          const x = (side === 0 ? COLS - 1 - c : c) * DX + DX / 2; // low end next to the clock
-          for (let r = 0; r < ROWS; r++) {
-            const on = Math.min(Math.max(level[c] - r, 0), 1);
-            const rad = 0.75 + on * 1.75;
-            ctx.globalAlpha = 0.7 + on * 0.3; // resting dots a touch darker; lit dots still reach full ink
-            const dy = GAP + r * DY;
-            // Every centre on a pixel centre: rows on half-pixels drew crisp and brighter than the rest.
-            const snap = (v: number) => (Math.floor(v * dpr) + 0.5) / dpr;
-            ctx.beginPath(); ctx.arc(snap(x), snap(H / 2 - dy), rad, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(snap(x), snap(H / 2 + dy), rad, 0, Math.PI * 2); ctx.fill();
-          }
+        ctx.strokeStyle = ink; ctx.fillStyle = ink; ctx.lineWidth = 1;
+        // the half's tape: from the outer end (L or R) to the clock
+        const x0 = side === 0 ? END : 2, x1 = side === 0 ? W - 2 : W - END;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.moveTo(x0, snap(TAPE_Y)); ctx.lineTo(x1, snap(TAPE_Y)); ctx.stroke();
+        for (let i = 0; i <= 10; i++) {
+          const x = snap(x0 + ((x1 - x0) * i) / 10);
+          const h = i % 5 ? 2 : 4;
+          ctx.beginPath(); ctx.moveTo(x, TAPE_Y); ctx.lineTo(x, TAPE_Y - h); ctx.stroke();
         }
+        ctx.font = `600 7px ${face}`; ctx.textBaseline = 'middle';
+        ctx.textAlign = side === 0 ? 'left' : 'right';
+        ctx.fillText(side === 0 ? 'L' : 'R', side === 0 ? 1 : W - 1, TAPE_Y - 1);
+        // the caret, under whichever half the balance falls in (both inner ends when centred)
+        const inner = side === 0 ? x1 : x0;
+        const caret = Math.abs(bal) < 0.02 ? inner
+          : side === 0 && bal < 0 ? x1 + bal * (x1 - x0)
+          : side === 1 && bal > 0 ? x0 + bal * (x1 - x0) : null;
+        ctx.globalAlpha = 1;
+        if (caret != null) {
+          ctx.beginPath(); ctx.moveTo(caret, TAPE_Y + 2); ctx.lineTo(caret - 2.5, TAPE_Y + 6); ctx.lineTo(caret + 2.5, TAPE_Y + 6); ctx.fill();
+        }
+        // five pips, lit from the clock outward with this half's channel
+        const lit = Math.round(lvl[side] * 5);
+        for (let i = 0; i < 5; i++) {
+          const x = snap(inner + (side === 0 ? -1 : 1) * (12 + i * 9)), y = snap(PIPS_Y);
+          ctx.globalAlpha = i < lit ? 1 : 0.3;
+          ctx.beginPath(); ctx.moveTo(x - 2.5, y); ctx.lineTo(x + 2.5, y); ctx.moveTo(x, y - 2.5); ctx.lineTo(x, y + 2.5); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
       });
       raf = requestAnimationFrame(loop);
     };
@@ -111,7 +133,7 @@ export function StationBar() {
   }, []);
 
   const canvas = (ref: React.RefObject<HTMLCanvasElement | null>) => (
-    <canvas ref={ref} aria-hidden className="hidden sm:block" style={{ width: W, height: H, color: 'var(--vlg-fg, #fff)' }} />
+    <canvas ref={ref} aria-hidden className="hidden sm:block" style={{ width: W, height: H, color: 'var(--vlg-fg, #fff)', fontFamily: MONO }} />
   );
 
   return (
