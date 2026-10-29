@@ -59,6 +59,8 @@ const FULL: PlateDims = { w: 600, h: 600, btn: { x: 198, y: 67, w: 49, h: 32 } }
 const WIDE: PlateDims = { w: 598, h: 200 + HDR, btn: { x: 27, y: 27 + HDR, w: 24, h: 15 } };
 const TALL: PlateDims = { w: 372, h: S_TOP + lissH + rest(), btn: { x: 27, y: 27 + HDR_STACK, w: 36, h: 22 } };
 export const plateDims = (stack: boolean) => (stack ? TALL : ROW ? WIDE : FULL);
+/** The bare scope: the Lissajous square alone, in plate units. */
+export const SCOPE = 200;
 /** Size the stack to an available height / width ratio; isPhone: the phone's smaller square. */
 export function fitStack(ratio: number, isPhone = false) {
   phone = isPhone;
@@ -113,7 +115,7 @@ let lastRow = 0;
 
 type Align = 'left' | 'right' | 'center';
 
-export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, mono: string, stack = false) {
+export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, mono: string, stack = false, scope = false) {
   const { w: W, h: H, btn } = plateDims(stack);
   const plate = !stack && !ROW;
   const hdr = stack ? HDR_STACK : HDR;
@@ -198,6 +200,30 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     t(m.live ? (tp > -1 ? 'HOT ●' : 'ON AIR ●') : 'TEST ○', X + D - 4, ly + 8, sz, m.live ? '#46e04a' : ink, 'right');
     (ctx as unknown as { letterSpacing: string }).letterSpacing = '0.5px';
   };
+  // the print's grain over a region: ~1.6 device pixels a grain, a look's own strength
+  const grainOver = (x: number, y: number, w: number, h: number) => {
+    const gp = grainPattern(ctx);
+    if (!gp) return;
+    const k = 1.6 / s;
+    gp.setTransform(new DOMMatrix([k, 0, 0, k, Math.random() * 160 * k, Math.random() * 160 * k]));
+    ctx.save(); ctx.globalAlpha = look()?.grain ?? 1;   // faint on EGA, none on the chart
+    ctx.fillStyle = gp; ctx.fillRect(x, y, w, h);
+    ctx.restore();
+  };
+
+  // the bare scope: the dark print, its vignette, the field to the edges, the grain; nothing else
+  if (scope) {
+    const c = SCOPE / 2;
+    ctx.fillStyle = SCREEN; ctx.fillRect(0, 0, SCOPE, SCOPE);
+    const vig = ctx.createRadialGradient(c, c, SCOPE * 0.2, c, c, SCOPE * 0.75);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, SCOPE, SCOPE);
+    field(c, c, c);
+    grainOver(0, 0, SCOPE, SCOPE);
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
+    return;
+  }
+
   const badge = () => {
     // transport badge — the play button sits over this
     ctx.fillStyle = INK; ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
@@ -260,14 +286,7 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     }
     t(`r ${f2(m.corr)}`, X + 5, Y + DH - 5, 5.5, SCREEN_INK);
     t(`WIDTH ${width}%`, X + D - 5, Y + DH - 5, 5.5, SCREEN_INK, 'right');
-    const gp = grainPattern(ctx);
-    if (gp) {
-      const k = 1.6 / s;   // a grain is ~1.6 device pixels
-      gp.setTransform(new DOMMatrix([k, 0, 0, k, Math.random() * 160 * k, Math.random() * 160 * k]));
-      ctx.save(); ctx.globalAlpha = look()?.grain ?? 1;   // a look's own grain (faint on EGA, none on the chart)
-      ctx.fillStyle = gp; ctx.fillRect(X, Y, D, DH + (stack ? HUD_B : 0));   // the log bar too
-      ctx.restore();
-    }
+    grainOver(X, Y, D, DH + (stack ? HUD_B : 0));   // the log bar too
   } else {
     header(35, 298, 563);
 

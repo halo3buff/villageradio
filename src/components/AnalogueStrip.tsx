@@ -7,7 +7,7 @@ import {
   bandCoherence, bandLevelDb, spectralSlopeDbPerOct,
   correlation, peakDb, truePeakDb, rmsDb,
 } from '@/lib/dsp';
-import { drawPlate, fitStack, plateDims } from './stationPlate';
+import { drawPlate, fitStack, plateDims, SCOPE } from './stationPlate';
 import { themeAware } from './plateKit';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 
@@ -152,10 +152,17 @@ function noiseFloor(lx: Float32Array, ly: Float32Array): number {
   return FLOOR_N;
 }
 
-/** fitHeight: the height the stacked (phone) plate may fill, in CSS px. */
-export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) {
+/** fitHeight: the height the stacked (phone) plate may fill, in CSS px. scope: the Lissajous
+ *  square alone. onMetrics: handed each frame's measurements (the same object, refilled). */
+export function AnalogueStrip({ fitHeight, scope = false, onMetrics }: {
+  fitHeight?: () => number; scope?: boolean; onMetrics?: (m: Metrics) => void;
+} = {}) {
   const fitRef = useRef(fitHeight);
   fitRef.current = fitHeight;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const metricsRef = useRef(onMetrics);
+  metricsRef.current = onMetrics;
   const { analyserL, analyserR, isPlaying, broadcastPlay, pause } = useAudio();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -319,12 +326,13 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
         // the plate is vertical everywhere now: Lissajous on top, readouts under it
         const stack = PLATE || cssW < STACK_MAX_CSS;
         if (stack !== stackedRef.current) { stackedRef.current = stack; setStacked(stack); }
-        if (PLATE && stack && fitRef.current) {
+        const bare = scopeRef.current;
+        if (PLATE && stack && fitRef.current && !bare) {
           fitStack(fitRef.current() / cssW, window.innerWidth < 716);   // HomeDesktop's phone breakpoint
           setPlateH(plateDims(true).h);
         }
-        const cw = PLATE ? plateDims(stack).w : (stack ? STACK_W : GRID_W) + RULE;
-        const ch = PLATE ? plateDims(stack).h : (stack ? STACK_H : GRID_H) + RULE;
+        const cw = bare ? SCOPE : PLATE ? plateDims(stack).w : (stack ? STACK_W : GRID_W) + RULE;
+        const ch = bare ? SCOPE : PLATE ? plateDims(stack).h : (stack ? STACK_H : GRID_H) + RULE;
         const s = (cssW / cw) * (window.devicePixelRatio || 1);
         if (el.width !== Math.round(cw * s) || el.height !== Math.round(ch * s)) {
           el.width = Math.round(cw * s); el.height = Math.round(ch * s);
@@ -337,7 +345,8 @@ export function AnalogueStrip({ fitHeight }: { fitHeight?: () => number } = {}) 
         const want = `${-fx / dpr}px 0`;
         if (el.style.translate !== want) el.style.translate = want;
         ctx.setTransform(s, 0, 0, s, 0, 0);
-        if (PLATE) drawPlate(ctx, s, m, NUM_FONT, stack); else draw(ctx, s, m, stack);
+        if (PLATE) drawPlate(ctx, s, m, NUM_FONT, stack, bare); else draw(ctx, s, m, stack);
+        metricsRef.current?.(m);
       }
       raf = requestAnimationFrame(tick);
     };

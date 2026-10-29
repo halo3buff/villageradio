@@ -1,32 +1,37 @@
 'use client';
 
 import Link from 'next/link';
-import { AnalogueStrip } from '@/components/AnalogueStrip';
-import { STACK_MIN_H } from '@/components/stationPlate';
-import { DOTS_SPAN } from '@/components/StationBar';
-import { useEffect, useRef } from 'react';
+import { AnalogueStrip, type Metrics } from '@/components/AnalogueStrip';
+import { stationClock } from '@/components/StationBar';
+import { useAudio } from '@/lib/audio-context';
+import { useEffect, useRef, useState } from 'react';
 
-const SYS  = "'Geneva', Tahoma, 'MS Sans Serif', Verdana, sans-serif";
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-
 const INK = 'var(--vlg-fg, #111)';
-// The command prompt is fixed at bottom-left (24px up, 40px tall). The station
-// scrolls INSIDE the space above it, so nothing ever slides underneath.
-const PROMPT_BAND = 72;
-const PAD_TOP = 16, PAD_BOTTOM = 12;
-const DESKTOP = 'var(--vlg-bg, #fff)';   // same ground as the blocker screen
+const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
+const DESKTOP = 'var(--vlg-bg, #fff)';
+// the readout's highlighter pens, see-through so they read on any theme
+const LAV = 'rgba(176, 140, 255, 0.38)', MINT = 'rgba(70, 225, 160, 0.42)';
+
+const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : '--.-');
+const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
+
+type Read = { mom: number; integ: number; tp: number; corr: number; live: boolean };
 
 /**
- * Desktop homepage — a super-outdated early-2000s Mac desktop. A small classic
- * Mac window sits centred, holding the dot-matrix LCD broadcast. LIVE tag above
- * it, PLAY/STOP below, README top-right.
- * The command prompt is global — see SiteFrame.
+ * The station, laid out as a system monitor's readout: the clock as its headline, the Lissajous
+ * square at left with a rule beside it, and at right the programme (what's playing) and the
+ * signal (loudness, stereo), highlighted as a printout marked up by pen; ON AIR or TEST last.
+ * README and RADAR top-right; the prompt is global (see SiteFrame), the transport the StationBar.
  */
 export function HomeDesktop() {
-  const outerRef = useRef<HTMLDivElement>(null);
-  // the body's min-h-screen is iOS's LARGE viewport, taller than what's
-  // visible with the URL bar up: drop it while the station is up, so the
-  // page has nothing to scroll (as HomeTemp does)
+  const { currentTrack } = useAudio();
+  const [clock, setClock] = useState<string | null>(null);
+  const [read, setRead] = useState<Read | null>(null);
+  const latest = useRef<Metrics | null>(null);
+
+  // the body's min-h-screen is iOS's LARGE viewport, taller than what's visible with the URL bar
+  // up: drop it while the station is up, so the page has nothing to scroll (as HomeTemp does)
   useEffect(() => {
     const body = document.body;
     const prev = body.style.minHeight;
@@ -34,68 +39,79 @@ export function HomeDesktop() {
     return () => { body.style.minHeight = prev; };
   }, []);
 
+  // the clock and the readout four times a second, the readout off the scope's latest frame
+  useEffect(() => {
+    const tick = () => {
+      setClock(stationClock());
+      const m = latest.current;
+      if (m) setRead({ mom: m.mom, integ: m.integ, tp: Math.max(m.tpL, m.tpR), corr: m.corr, live: m.live });
+    };
+    tick();
+    const t = setInterval(tick, 250);
+    return () => clearInterval(t);
+  }, []);
+
+  const r = read;
+  const corr = r?.corr ?? NaN;
+  const width = Number.isFinite(corr) ? Math.round((1 - corr) * 50) : '--';
+  const phase = Number.isFinite(corr) ? Math.round(Math.acos(Math.max(-1, Math.min(1, corr))) * 57.2958) : '--';
+  const status = r?.live ? (r.tp > -1 ? 'HOT' : 'ON AIR') : 'TEST';
+  const track = currentTrack;
+
   return (
-    <div
-      ref={outerRef}
-      style={{
-        // fixed, so on iOS it tracks the visible viewport, not the large one
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: PROMPT_BAND,
-        overflow: 'hidden', overscrollBehavior: 'contain',
-        fontFamily: SYS, color: INK, background: DESKTOP,
-      }}
-    >
-      {/* The radio itself — the analogue summary strip */}
-      {/* The station's width. Below 716px it's the phone stack, whose screen
-          stretches to fill the height given by fitHeight (see stationPlate);
-          this cap only bites on phones too short for even its smallest
-          screen. The page never scrolls. margin:auto centres it. */}
+    <div style={{
+      // fixed, so on iOS it tracks the visible viewport, not the large one
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: PROMPT_BAND,
+      overflow: 'hidden', overscrollBehavior: 'contain',
+      fontFamily: MONO, color: INK, background: DESKTOP,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
       <style>{`
-        .station-fit { width: min(calc(100% - 16px), calc((100dvh - ${PROMPT_BAND + PAD_TOP + PAD_BOTTOM}px) * 372 / ${STACK_MIN_H})); margin: auto; }
-        /* desktop: centred on the screen, the content (plate x 22..339 of 372) sized off the
-           StationBar's dots and nudged so its centre, not the plate's, is the screen's */
-        @media (min-width: 716px) {
-          .station-fit { width: ${Math.round((DOTS_SPAN * 372) / 317)}px; margin: auto; translate: ${(5.5 / 372) * 100}% 0; }
+        .monitor { display: flex; flex-direction: column; gap: 18px; padding: 72px 16px 16px; max-width: 100%; }
+        .monitor .hl { background: ${LAV}; padding: 1px 5px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+        .monitor .mint { background: ${MINT}; }
+        .monitor .head { font-size: clamp(18px, 2.4vw, 26px); letter-spacing: 0.04em; white-space: nowrap; }
+        .monitor .row { display: flex; gap: 18px; align-items: flex-start; }
+        .monitor .scope { width: clamp(220px, 24vw, 320px); flex: none; }
+        .monitor .rule { width: 12px; height: clamp(220px, 24vw, 320px); background: ${MINT}; flex: none; }
+        .monitor .info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.55; letter-spacing: 0.03em; min-width: 0; max-width: 46ch; }
+        .monitor .info .gap { height: 10px; }
+        /* phones: the square on top, its rule under it, the readout below */
+        @media (max-width: 715px) {
+          .monitor { gap: 14px; padding-top: 64px; }
+          .monitor .row { flex-direction: column; gap: 10px; }
+          .monitor .scope, .monitor .rule { width: min(78vw, 300px); }
+          .monitor .rule { height: 6px; }
+          .monitor .info { font-size: 12px; gap: 4px; }
         }
       `}</style>
-      <div style={{
-        minHeight: '100%', display: 'flex',
-        padding: `${PAD_TOP}px 0 ${PAD_BOTTOM}px`, boxSizing: 'border-box',
-      }}>
-        <div className="station-fit">
-          <AnalogueStrip fitHeight={() => (outerRef.current?.clientHeight ?? 0) - PAD_TOP - PAD_BOTTOM} />
+      <div className="monitor">
+        <div className="head"><span className="hl">STATION: {clock ?? '--:--:--'} ET</span></div>
+        <div className="row">
+          <div className="scope">
+            <AnalogueStrip scope onMetrics={(m) => { latest.current = m; }} />
+          </div>
+          <div className="rule" aria-hidden />
+          <div className="info">
+            <div><span className="hl">NOW PLAYING: {track ? track.title : '--'}</span></div>
+            <div>{track ? `${track.artist}, ${track.kind === 'inter' ? 'BREAK' : 'MIX'}` : 'PRESS ▶ TO TUNE IN'}</div>
+            <div className="gap" />
+            <div><span className="hl">RUNTIME: {track?.duration || '--:--'}{track?.date ? `, ${track.date}` : ''}</span></div>
+            <div><span className="hl mint">LOUDNESS: {f1(r?.mom ?? NaN)} LUFS, {f1(r?.integ ?? NaN)} INT, {f1(r?.tp ?? NaN)} DBTP.</span></div>
+            <div>STEREO: {width}% WIDTH, r {f2(corr)}, {phase}° PHASE</div>
+            <div className="gap" />
+            <div><span className={r?.live ? 'hl mint' : 'hl'}>{status}</span></div>
+          </div>
         </div>
       </div>
 
-      {/* the prompt's band, painted so the page reads as one surface */}
-      <div aria-hidden style={{
-        position: 'fixed', left: 0, right: 0, bottom: 0, height: PROMPT_BAND,
-        background: DESKTOP, zIndex: 4, pointerEvents: 'none',
-      }} />
-
       {/* README and RADAR — top-right corner */}
-      <Link
-        href="/station/readme"
-        style={{
-          position: 'absolute', top: 24, right: 24, zIndex: 5,
-          fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',
-          color: 'var(--vlg-fg, #000)', textDecoration: 'none',
-          pointerEvents: 'auto',
-        }}
-      >
+      <Link href="/station/readme" style={{ position: 'absolute', top: 24, right: 24, zIndex: 5, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)', textDecoration: 'none' }}>
         README
       </Link>
-      <Link
-        href="/station/radar"
-        style={{
-          position: 'absolute', top: 44, right: 24, zIndex: 5,
-          fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',
-          color: 'var(--vlg-fg, #000)', textDecoration: 'none',
-          pointerEvents: 'auto',
-        }}
-      >
+      <Link href="/station/radar" style={{ position: 'absolute', top: 44, right: 24, zIndex: 5, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)', textDecoration: 'none' }}>
         RADAR
       </Link>
-
     </div>
   );
 }

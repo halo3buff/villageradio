@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAudio } from '@/lib/audio-context';
 import { secondsIntoDay } from '@/lib/content/broadcast';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
@@ -17,12 +18,9 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const W = 112, H = 37;   // each half of the tape
 const END = 10;          // room for the L / R at the tape's outer end
 const TAPE_Y = 14, PIPS_Y = 27;
-const CLOCK_W = 88;   // desktop; the span's sm:w-[88px] matches
-/** Desktop: the tape's far-left end to its far-right one, centred on the clock. */
-export const DOTS_SPAN = 2 * (W + 12) + CLOCK_W - 5;
 
 /** The broadcast day's clock (Eastern) — the same time the admin timeline schedules against. */
-function stationClock() {
+export function stationClock() {
   const s = Math.floor(secondsIntoDay(Date.now()));
   return [s / 3600, (s / 60) % 60, s % 60].map((v) => String(Math.floor(v)).padStart(2, '0')).join(':');
 }
@@ -30,6 +28,7 @@ function stationClock() {
 export function StationBar() {
   const { isPlaying, mode, analyserL, analyserR, broadcastPlay, pause } = useAudio();
   const live = isPlaying && mode === 'broadcast';
+  const home = usePathname() === '/station';   // the station's own header carries the clock
   const [clock, setClock] = useState<string | null>(null);
   const left = useRef<HTMLCanvasElement>(null);
   const right = useRef<HTMLCanvasElement>(null);
@@ -159,9 +158,9 @@ export function StationBar() {
         )}
       </button>
       {canvas(left)}
-      <span className="border border-current h-[28px] leading-[26px] text-[14px] w-[102px] sm:h-[22px] sm:leading-[20px] sm:text-[12px] sm:w-[88px] text-center tracking-[0.08em] tabular-nums">
+      {!home && <span className="border border-current h-[28px] leading-[26px] text-[14px] w-[102px] sm:h-[22px] sm:leading-[20px] sm:text-[12px] sm:w-[88px] text-center tracking-[0.08em] tabular-nums">
         {clock ?? '--:--:--'}
-      </span>
+      </span>}
       {canvas(right)}
       {/* Mirrors the button's width so the clock stays dead centre. Both a touch bigger on phones. */}
       <span aria-hidden className="w-[28px] sm:w-[22px]" />
