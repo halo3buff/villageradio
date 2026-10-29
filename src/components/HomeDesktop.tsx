@@ -11,7 +11,7 @@ const INK = 'var(--vlg-fg, #111)';
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const DESKTOP = 'var(--vlg-bg, #fff)';
 // the readout's highlighter pens, see-through so they read on any theme
-const LAV = '#dccdef', MINT = '#7cffd4';   // sampled off the reference
+const LAV = '#efe8f9', MINT = '#cdfbe9';   // the reference's pens, washed out
 
 const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : '--.-');
 const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');

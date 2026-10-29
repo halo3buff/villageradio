@@ -80,7 +80,7 @@ const TRACE = '#e6e6e6';   // the Lissajous trace, mint light through the print
 const SCREEN_INK = 'rgba(230,230,230,0.8)';   // type on the screen
 const SCREEN_DIM = 'rgba(230,230,230,0.3)';   // the screen's graticule
 // the bare scope's own print: periwinkle under a mint trace (the monitor reference's square)
-const BLUE = { bg: '#92a8dc', dim: 'rgba(255,255,255,0.35)', ink: 'rgba(30,45,95,0.7)', trace: '#74d8ae', core: '#b4f7d8' };
+const BLUE = { bg: '#d3ddf2', dim: 'rgba(255,255,255,0.6)', ink: 'rgba(30,45,95,0.5)', trace: '#9fe6c6', core: '#d6fbea' };
 
 // film grain over the screen: one random tile, drawn at a fresh offset each frame
 let grain: CanvasPattern | null = null;
