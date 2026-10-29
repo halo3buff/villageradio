@@ -42,16 +42,17 @@ const ROW_PIECES = [
 const S_X0 = 22, S_X1 = 339;                // content edges
 const S_TOP = HDR_STACK + 22;               // the screen's top edge
 const READ_Y = 8;                           // the readout table, below the screen
-// six rows on desktop; eight on a phone, where the table is cut to the smaller screen's width
-const READ_H_DESK = 70, READ_H_PHONE = 97;
+// the table is cut to the screen's width: three columns of eight rows on desktop; on a phone two
+// columns in two bands (loudness | spectrum, then mid/side across both)
+const ROW_H = 9.8, band = (rows: number) => 21 + (rows - 1) * ROW_H + 6;
+const READ_H_DESK = Math.ceil(band(8)), READ_H_PHONE = Math.ceil(band(7) + 6 + band(4));
 let phone = false, readH = READ_H_DESK;
 const rest = () => READ_Y + readH + 7;
-// The screen is as tall as the phone allows: fitStack sizes it so the whole
-// stack fills the space it's given exactly. The field inside stays round.
-// On a phone the screen is a fixed 250 square (a phone too short for it gets the whole plate
-// scaled down by HomeDesktop's width cap instead).
-const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0, LISS_PHONE = 250;
-let lissH = LISS_MAX;
+// The screen ends where its axes do, centred over the content edges: on desktop 254 wide and as
+// tall as fits (up to square), on a phone a fixed 200 square (a phone too short for it gets the
+// whole plate scaled down by HomeDesktop's width cap instead).
+const LISS_MIN = 120, LISS_MAX = S_X1 - S_X0, LISS_DESK = 254, LISS_PHONE = 200;
+let lissW = LISS_DESK, lissH = LISS_DESK;
 /** The phone stack's height: what HomeDesktop's width cap fits to (below 716px only). */
 export const STACK_MIN_H = S_TOP + LISS_PHONE + READ_Y + READ_H_PHONE + 7;
 
@@ -66,7 +67,8 @@ export const plateDims = (stack: boolean) => (stack ? TALL : ROW ? WIDE : FULL);
 export function fitStack(ratio: number, isPhone = false) {
   phone = isPhone;
   readH = phone ? READ_H_PHONE : READ_H_DESK;
-  lissH = phone ? LISS_PHONE : Math.round(clamp(ratio * TALL.w - S_TOP - rest(), LISS_MIN, LISS_MAX));
+  lissW = phone ? LISS_PHONE : LISS_DESK;
+  lissH = phone ? LISS_PHONE : Math.round(clamp(ratio * TALL.w - S_TOP - rest(), LISS_MIN, LISS_DESK));
   TALL.h = S_TOP + lissH + rest();
 }
 
@@ -221,15 +223,16 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   if (!plate) {
     if (stack) header(10, 180, 351); else header(10, 291, 568);
     // ── the small screen: the stereo field, far left / on top, on the stock ──
-    // a phone's screen is a smaller square, centred over its table
-    const D = stack ? (phone ? lissH : LISS_MAX) : 156, DH = stack ? lissH : D;
-    const X = stack && phone ? S_X0 + (LISS_MAX - D) / 2 : 22, Y = 22 + hdr;
+    // the stack's screen is centred over its table, the field's axes running to its edges
+    const D = stack ? lissW : 156, DH = stack ? lissH : D;
+    const X = stack ? S_X0 + (LISS_MAX - D) / 2 : 22, Y = 22 + hdr;
     // the print window: dark olive, a soft vignette, the field, then grain over all of it
     ctx.fillStyle = SCREEN; ctx.fillRect(X, Y, D, DH);
     const vig = ctx.createRadialGradient(X + D / 2, Y + DH / 2, Math.min(D, DH) * 0.2, X + D / 2, Y + DH / 2, Math.max(D, DH) * 0.75);
     vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.45)');
     ctx.fillStyle = vig; ctx.fillRect(X, Y, D, DH);
-    field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
+    if (stack) field(X + D / 2, Y + DH / 2, D / 2, DH / 2);
+    else field(X + D / 2, Y + DH / 2 + DH / 39, Math.min(D, DH) * 0.4);
     // the stack's transport is the StationBar's: no badge, just the state in the corner
     if (stack) t(m.live ? '[ ON AIR ]' : '[ PLAY ]', X + 6, Y + 13, 8.5, SCREEN_INK);
     else {
@@ -301,12 +304,11 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
   function readouts(top: number) {
     const mid = m.rms + 20 * Math.log10(Math.max(0.05, (1 + m.corr) / 2));
     const side = m.rms + 20 * Math.log10(Math.max(0.05, (1 - m.corr) / 2));
-    const two = (a: string, b: string) => (phone ? [a, b] : [`${a} ${b}`]);   // split on a phone
     const cols: [string, string[]][] = [
       ['LOUDNESS', [
         `PGM ${f1(m.mom)} LUFS`, `INT ${f1(m.integ)}`, `TPL ${f1(m.tpL)}`, `TPR ${f1(m.tpR)}`,
         `PLR ${f1(m.plr)} PSR ${f1(m.psr)}`,
-        ...two(`HDRM ${f1(-1 - tp)}`, `TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`),
+        `HDRM ${f1(-1 - tp)}`, `TGT ${Number.isFinite(m.integ) ? f1(m.integ + 14) : '--.-'}`,
       ]],
       ['SPECT', [
         `CREST ${f1(m.crest)} DB`,
@@ -314,32 +316,39 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
         `SLOPE ${f1(m.slope)} /OCT`, 'FFT 8192', `BIN ${(m.sr / 8192).toFixed(1)} HZ`, 'WINDOW 43 MS',
       ]],
       ['MID/SIDE', [
-        `MID ${f1(mid)}`, `SIDE ${f1(side)} DB`, ...two(`RMS ${f1(m.rms)}`, `PK ${f1(Math.max(m.pkL, m.pkR))}`),
-        ...(phone ? [`SILENCE ${m.silence ? 'Y' : 'N'}`, `OVERS ${m.overs}`] : [`SILENCE ${m.silence ? 'Y' : 'N'}, OVERS ${m.overs}.`]),
-        `UPTIME ${f0(m.since)} S`,
+        `MID ${f1(mid)}`, `SIDE ${f1(side)} DB`, `RMS ${f1(m.rms)}`, `PK ${f1(Math.max(m.pkL, m.pkR))}`,
+        `SILENCE ${m.silence ? 'Y' : 'N'}`, `OVERS ${m.overs}`, `UPTIME ${f0(m.since)} S`,
         `> ${m.live ? (tp > -1 ? 'HOT' : 'ON AIR') : 'TEST SIGNAL'} <`,
       ]],
     ];
-    // on a phone as wide as the smaller screen above it, so set tight: no tracking, short rows
-    const TW = phone ? lissH : LISS_MAX, PAD = 7, X0 = S_X0 + (LISS_MAX - TW) / 2;
-    const cw = (TW - 2 * PAD) / 3;
-    if (phone) (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
-    cols.forEach(([tag, rows], c) => {
-      const x = X0 + PAD + c * cw + (c ? 7 : 0);
-      if (c) line(x - 7, top, x - 7, top + readH);
-      const w = tag.length * 4 + 9;
-      box(x, top, w, 9.5);
-      t(tag, x + w / 2, top + 7, 5.5, INK, 'center');
-      rows.forEach((r, i) => t(r, x, top + 21 + i * 9.8, 6.5));
-    });
+    // cells [tag, rows, column, top]; a phone runs mid/side across both columns of a second band
+    const [loud, spect, ms] = cols;
+    const b0 = band(7);
+    const cells: [string, string[], number, number][] = phone
+      ? [[loud[0], loud[1], 0, 0], [spect[0], spect[1], 1, 0], [ms[0], ms[1].slice(0, 4), 0, b0], ['', ms[1].slice(4), 1, b0]]
+      : cols.map(([tag, rows], c) => [tag, rows, c, 0]);
+    const n = phone ? 2 : 3, PAD = 7, X0 = S_X0 + (LISS_MAX - lissW) / 2;
+    const cw = (lissW - 2 * PAD) / n;
+    (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';   // set tight: no tracking
+    if (phone) line(X0, top + b0, X0 + lissW, top + b0);
+    for (const [tag, rows, c, y0] of cells) {
+      const x = X0 + PAD + c * cw + (c ? 7 : 0), y = top + y0;
+      const h = phone ? (y0 ? readH - b0 : b0) : readH;
+      if (c) line(x - 7, y, x - 7, y + h);
+      if (tag) {
+        const w = tag.length * 4 + 9;
+        box(x, y + (y0 ? 6 : 0), w, 9.5);
+        t(tag, x + w / 2, y + (y0 ? 6 : 0) + 7, 5.5, INK, 'center');
+      }
+      rows.forEach((r, i) => t(r, x, y + (y0 ? 6 : 0) + 21 + i * ROW_H, 6.5));
+    }
     (ctx as unknown as { letterSpacing: string }).letterSpacing = '0.5px';
   }
   const px = (v: number) => Math.round(v * s) / s;
   if (stack) {
     const base = S_TOP + lissH;
     // enclosed in the screen's own border, its bottom edge doubling as this box's top
-    const TW = phone ? lissH : LISS_MAX;
-    box(S_X0 + (LISS_MAX - TW) / 2, base, TW, READ_Y + readH + 4, INK, 0.6);
+    box(S_X0 + (LISS_MAX - lissW) / 2, base, lissW, READ_Y + readH + 4, INK, 0.6);
     readouts(base + READ_Y);
   } else {
     ctx.save();
