@@ -17,7 +17,7 @@ const stationDate = () => new Intl.DateTimeFormat('en-GB', {
   timeZone: 'America/New_York', day: '2-digit', month: '2-digit', year: '2-digit',
 }).format(new Date()).replace(/\//g, '.');
 
-/** The live spectrum: a yellow dashed trace over a red dotted peak hold, on a dark grid. */
+/** The live spectrum: a dark dashed trace over a red dotted peak hold, on the page's white, framed as the card is. */
 function Spectrum() {
   const { analyserFreq } = useAudio();
   const ref = useRef<HTMLCanvasElement>(null);
@@ -33,23 +33,23 @@ function Spectrum() {
       const W = cv.clientWidth, H = cv.clientHeight;
       if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      ctx.clearRect(0, 0, W, H);
       const L = 30, B = H - 14, T = 14;   // plot box: left gutter for dB, bottom for Hz
       const x = (f: number) => L + (f / F_MAX) * (W - L);
       const y = (db: number) => T + ((DB_HI - Math.max(DB_LO, Math.min(DB_HI, db))) / (DB_HI - DB_LO)) * (B - T);
       // the grid: every 500 Hz, every 12.5 dB; the labelled lines a touch brighter
       ctx.lineWidth = 1; ctx.font = `10px ${MONO}`; ctx.textBaseline = 'middle';
       for (let f = 0; f <= F_MAX; f += 500) {
-        ctx.strokeStyle = f % 1000 ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.22)';
+        ctx.strokeStyle = f % 1000 ? 'rgba(127,178,229,0.18)' : 'rgba(127,178,229,0.45)';
         ctx.beginPath(); ctx.moveTo(Math.round(x(f)) + 0.5, T); ctx.lineTo(Math.round(x(f)) + 0.5, B); ctx.stroke();
-        if (f % 1000 === 0) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.textAlign = 'center'; ctx.fillText(String(f), Math.min(x(f), W - 14), H - 6); }
+        if (f % 1000 === 0) { ctx.fillStyle = 'rgba(17,17,17,0.6)'; ctx.textAlign = 'center'; ctx.fillText(String(f), Math.min(x(f), W - 14), H - 6); }
       }
       for (let db = -100; db <= -25; db += 12.5) {
-        ctx.strokeStyle = db % 25 ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.22)';
+        ctx.strokeStyle = db % 25 ? 'rgba(127,178,229,0.18)' : 'rgba(127,178,229,0.45)';
         ctx.beginPath(); ctx.moveTo(L, Math.round(y(db)) + 0.5); ctx.lineTo(W, Math.round(y(db)) + 0.5); ctx.stroke();
-        if (db % 25 === 0) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.textAlign = 'right'; ctx.fillText(String(db), L - 4, y(db)); }
+        if (db % 25 === 0) { ctx.fillStyle = 'rgba(17,17,17,0.6)'; ctx.textAlign = 'right'; ctx.fillText(String(db), L - 4, y(db)); }
       }
-      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillText('dB', 3, 7);
+      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(17,17,17,0.6)'; ctx.fillText('dB', 3, 7);
 
       const a = an.current;
       if (a) {
@@ -65,7 +65,7 @@ function Spectrum() {
           ctx.stroke(); ctx.setLineDash([]);
         };
         trace(peak, '#c0392b', [1.5, 1.5], 1.2);
-        trace(buf, '#f2d14b', [3, 2], 1.2);
+        trace(buf, '#111', [3, 2], 1.1);
       }
       raf = requestAnimationFrame(loop);
     };
@@ -73,7 +73,7 @@ function Spectrum() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  return <canvas ref={ref} aria-hidden style={{ display: 'block', width: '100%', aspectRatio: '10 / 3' }} />;
+  return <canvas ref={ref} aria-hidden style={{ display: 'block', width: '100%', aspectRatio: '10 / 3', border: `1px solid ${FRAME}` }} />;
 }
 
 /**
