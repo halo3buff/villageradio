@@ -54,7 +54,7 @@ export function HomeDesktop() {
         .lcd .icon { flex: none; width: 2.6em; border: 3px solid ${LCD}; border-radius: 6px; border-right-width: 7px;
           box-shadow: 0 0 4px rgba(61,255,90,0.45); display: grid; place-items: center; }
         .lcd .icon i { width: 100%; aspect-ratio: 1; background: ${LCD};
-          -webkit-mask: url(/images/tree_8bit.png) center / 165% no-repeat; mask: url(/images/tree_8bit.png) center / 165% no-repeat; }
+          -webkit-mask: url(/images/tree_8bit.png) center / 140% no-repeat; mask: url(/images/tree_8bit.png) center / 140% no-repeat; }
         .lcd .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
         .lcd .text > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .lcd .head { border-bottom: 3px solid ${LCD}; padding-bottom: 3px; margin-bottom: 2px; }
