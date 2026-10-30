@@ -357,7 +357,7 @@ export function AnalogueStrip({ fitHeight, scope = false, onMetrics }: {
   const pd = plateDims(stacked);
   return (
     <div ref={wrapRef} style={{ width: '100%', position: 'relative' }}>
-      <canvas ref={canvasRef} style={{ display: 'block', width: '100%', background: scope ? 'transparent' : BG }} />
+      <canvas ref={canvasRef} style={{ display: 'block', width: '100%', background: BG }} />
       {/* the plate's transport is the StationBar's play button */}
       {!PLATE && <button
         type="button"
