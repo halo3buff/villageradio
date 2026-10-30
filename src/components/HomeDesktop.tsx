@@ -9,7 +9,7 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const PIXEL = "var(--font-vt323), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const DESKTOP = '#ffffff';
-const LCD = '#3dff5a';    // a green phosphor LCD on black
+const LCD = '#1fb83a';    // the LCD's green, deep enough to read on the page's white
 
 /**
  * The station as a kiosk's green LCD in the top-left corner: the tree in an icon box at left, then
@@ -61,12 +61,10 @@ export function HomeDesktop() {
       fontFamily: MONO, color: '#111', background: DESKTOP,
     }}>
       <style>{`
-        .lcd { position: absolute; top: 72px; left: 24px; width: min(300px, calc(100vw - 48px)); background: #000;
-          color: ${LCD}; font-family: ${PIXEL}; font-size: 18px; line-height: 1; padding: 6px 8px; display: flex; gap: 8px;
-          text-shadow: 0 0 4px rgba(61,255,90,0.55); }
+        .lcd { position: absolute; top: 72px; left: 24px; width: min(300px, calc(100vw - 48px));
+          color: ${LCD}; font-family: ${PIXEL}; font-size: 18px; line-height: 1; padding: 6px 8px; display: flex; gap: 8px; }
         /* the icon box: the tree, lit green through a mask, a bar down its right side */
-        .lcd .icon { flex: none; width: 2.6em; border: 2px solid ${LCD}; border-radius: 5px; border-right-width: 5px;
-          box-shadow: 0 0 4px rgba(61,255,90,0.45); display: grid; place-items: center; }
+        .lcd .icon { flex: none; width: 2.6em; border: 2px solid ${LCD}; border-radius: 5px; border-right-width: 5px; display: grid; place-items: center; }
         .lcd .icon i { width: 100%; aspect-ratio: 1; background: ${LCD};
           -webkit-mask: url(/images/tree_8bit.png) center / 140% no-repeat; mask: url(/images/tree_8bit.png) center / 140% no-repeat; }
         .lcd .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
