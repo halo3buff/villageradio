@@ -34,7 +34,7 @@ function Spectrum() {
       if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      const L = 30, B = H - 14, T = 6;   // plot box: left gutter for dB, bottom for Hz
+      const L = 30, B = H - 14, T = 14;   // plot box: left gutter for dB, bottom for Hz
       const x = (f: number) => L + (f / F_MAX) * (W - L);
       const y = (db: number) => T + ((DB_HI - Math.max(DB_LO, Math.min(DB_HI, db))) / (DB_HI - DB_LO)) * (B - T);
       // the grid: every 500 Hz, every 12.5 dB; the labelled lines a touch brighter
@@ -49,7 +49,7 @@ function Spectrum() {
         ctx.beginPath(); ctx.moveTo(L, Math.round(y(db)) + 0.5); ctx.lineTo(W, Math.round(y(db)) + 0.5); ctx.stroke();
         if (db % 25 === 0) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.textAlign = 'right'; ctx.fillText(String(db), L - 4, y(db)); }
       }
-      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillText('dB', 3, T + 4);
+      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillText('dB', 3, 7);
 
       const a = an.current;
       if (a) {
