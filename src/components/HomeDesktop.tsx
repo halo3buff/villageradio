@@ -78,14 +78,15 @@ export function HomeDesktop() {
         .tag .spine { flex: none; display: grid; place-items: center; padding: 0 6px;
           writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 0.14em; white-space: nowrap; }
         /* a fixed width, so changing readouts never shift the label */
-        .tag .body { flex: none; width: 33ch; display: flex; flex-direction: column; padding: 10px 12px; }
+        .tag .body { flex: none; width: 37ch; display: flex; flex-direction: column; padding: 10px 12px; }
         .tag .body > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
         .tag .dots { border-top: 1.5px dotted ${WHITE}; margin: 10px -12px auto; }
         @media (max-width: 715px) {
-          .tag { --sq: 104px; top: 64px; font-size: 11px; max-width: calc(100vw - 48px); }
+          .tag { --sq: 104px; top: 80px; font-size: 11px; max-width: calc(100vw - 48px); }
           .tag .spine { padding: 0 4px; }
           .tag .body { width: auto; flex: 1; min-width: 0; padding: 7px 8px; }
           .tag .dots { margin: 7px -8px auto; }
+          .tag .wide { display: none; }
         }
       `}</style>
       <div className="tag">
@@ -98,7 +99,7 @@ export function HomeDesktop() {
           <div className="dots" aria-hidden />
           <div>{track ? track.title : 'PRESS ▶ TO TUNE IN'}</div>
           <div>{track ? `${track.artist} · ${track.kind === 'inter' ? 'BREAK' : 'MIX'} · ${track.duration || '--:--'}` : 'NOTHING PLAYING'}</div>
-          <div>{f1(r?.mom ?? NaN)} LUFS · TP {f1(r?.tp ?? NaN)} · W {width}%</div>
+          <div>{f1(r?.mom ?? NaN)} LUFS · TP {f1(r?.tp ?? NaN)}<span className="wide"> · W {width}%</span></div>
         </div>
       </div>
 
