@@ -67,7 +67,7 @@ export function HomeDesktop() {
   return (
     <div style={{
       // fixed, so on iOS it tracks the visible viewport, not the large one
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: PROMPT_BAND,
+      position: 'fixed', inset: 0, paddingBottom: PROMPT_BAND,   // the blue under the prompt too
       overflow: 'hidden', overscrollBehavior: 'contain',
       fontFamily: MONO, color: INK, background: DESKTOP,
     }}>
