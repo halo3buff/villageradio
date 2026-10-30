@@ -5,6 +5,10 @@ import { AnalogueStrip, type Metrics } from '@/components/AnalogueStrip';
 import { stationClock } from '@/components/StationBar';
 import { useAudio } from '@/lib/audio-context';
 import { useEffect, useRef, useState } from 'react';
+import { Share_Tech_Mono } from 'next/font/google';
+
+// the label's type: a squared technical mono, as on the reference spec plate
+const plate = Share_Tech_Mono({ weight: '400', subsets: ['latin'] });
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const INK = 'var(--vlg-fg, #111)';
@@ -70,36 +74,35 @@ export function HomeDesktop() {
       <style>{`
         /* a label, as on a rack's spec plate: the scope, a spine with the status set sideways,
            then the clock over a dotted rule and three lines; one white outline round it all */
-        .tag { --sq: 150px; position: absolute; top: 72px; left: 24px; display: flex; height: var(--sq);
-          border: 1.5px solid ${WHITE}; border-radius: 8px; overflow: hidden; color: ${WHITE};
-          font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; }
+        .tag { --sq: 128px; position: absolute; top: 72px; left: 24px; display: flex; height: var(--sq);
+          border: 1.5px solid ${WHITE}; overflow: hidden; color: ${WHITE};
+          font-size: 18px; line-height: 1.12; text-transform: uppercase; }
         .tag > * + * { border-left: 1.5px solid ${WHITE}; }
         .tag .scope { width: var(--sq); flex: none; }
-        .tag .spine { flex: none; display: grid; place-items: center; padding: 0 6px;
-          writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 0.14em; white-space: nowrap; }
+        .tag .spine { flex: none; display: grid; place-items: center; padding: 0 4px;
+          writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 0.06em; white-space: nowrap; }
         /* a fixed width, so changing readouts never shift the label */
-        .tag .body { flex: none; width: 37ch; display: flex; flex-direction: column; padding: 10px 12px; }
-        .tag .body > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
-        .tag .dots { border-top: 1.5px dotted ${WHITE}; margin: 10px -12px auto; }
+        .tag .body { flex: none; width: calc(30ch + 16px); display: flex; flex-direction: column; padding: 7px 8px 8px; }
+        .tag .body > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tag .dots { border-top: 1.5px dotted ${WHITE}; margin: 9px -8px auto; }
         @media (max-width: 715px) {
-          .tag { --sq: 104px; top: 80px; font-size: 11px; max-width: calc(100vw - 48px); }
-          .tag .spine { padding: 0 4px; }
-          .tag .body { width: auto; flex: 1; min-width: 0; padding: 7px 8px; }
-          .tag .dots { margin: 7px -8px auto; }
-          .tag .wide { display: none; }
+          .tag { --sq: 92px; top: 80px; font-size: 13px; max-width: calc(100vw - 48px); }
+          .tag .spine { padding: 0 3px; }
+          .tag .body { width: auto; flex: 1; min-width: 0; padding: 5px 6px 6px; }
+          .tag .dots { margin: 6px -6px auto; }
         }
       `}</style>
-      <div className="tag">
+      <div className={`tag ${plate.className}`}>
         <div className="scope">
           <AnalogueStrip scope onMetrics={(m) => { latest.current = m; }} />
         </div>
-        <div className="spine" style={r?.live ? { background: WHITE, color: DESKTOP } : undefined}>{status}</div>
+        <div className="spine">{status}</div>
         <div className="body">
           <div>STATION {clock ?? '--:--:--'} ET</div>
           <div className="dots" aria-hidden />
           <div>{track ? track.title : 'PRESS ▶ TO TUNE IN'}</div>
           <div>{track ? `${track.artist} · ${track.kind === 'inter' ? 'BREAK' : 'MIX'} · ${track.duration || '--:--'}` : 'NOTHING PLAYING'}</div>
-          <div>{f1(r?.mom ?? NaN)} LUFS · TP {f1(r?.tp ?? NaN)}<span className="wide"> · W {width}%</span></div>
+          <div>{f1(r?.mom ?? NaN)} LUFS · TP {f1(r?.tp ?? NaN)}  · W {width}%</div>
         </div>
       </div>
 
