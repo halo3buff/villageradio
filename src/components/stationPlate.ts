@@ -79,6 +79,8 @@ const YEL = '#f0c02c';
 const TRACE = '#e6e6e6';   // the Lissajous trace, mint light through the print
 const SCREEN_INK = 'rgba(230,230,230,0.8)';   // type on the screen
 const SCREEN_DIM = 'rgba(230,230,230,0.3)';   // the screen's graticule
+// the bare scope's print: white, the trace and rules in the station's blue
+const PRINT = { dim: 'rgba(1,96,172,0.3)', ink: 'rgba(1,96,172,0.7)', trace: '#0160ac', core: '#0160ac' };
 
 // film grain over the screen: one random tile, drawn at a fresh offset each frame
 let grain: CanvasPattern | null = null;
@@ -154,8 +156,8 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
 
   // the stereo field: x = right, y = left; the diagonals are mono / anti-phase
   // R / Ry = horizontal / vertical radius
-  const field = (cx: number, cy: number, R: number, Ry = R) => {
-    const dim = SCREEN_DIM;
+  const field = (cx: number, cy: number, R: number, Ry = R,
+    { dim, ink, trace, core } = { dim: SCREEN_DIM, ink: SCREEN_INK, trace: TRACE, core: '#ffffff' }) => {
     line(cx - R, cy, cx + R, cy, dim, 0.6);
     line(cx, cy - Ry, cx, cy + Ry, dim, 0.6);
     ctx.setLineDash([3, 4]);
@@ -166,18 +168,18 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
       line(cx + v * R, cy - 2.5, cx + v * R, cy + 2.5, dim, 0.6);
       line(cx - 2.5, cy - v * Ry, cx + 2.5, cy - v * Ry, dim, 0.6);
     }
-    t('XL', cx + 4, cy - Ry + 5, 5, SCREEN_INK);
-    t('XR', cx + R - 9, cy - 4, 5, SCREEN_INK);
+    t('XL', cx + 4, cy - Ry + 5, 5, ink);
+    t('XR', cx + R - 9, cy - 4, 5, ink);
     // mint light through the print: one path, filled as a wide haze, a glow, then a soft core
     ctx.beginPath();
     for (let k = 0; k < m.lHead; k++) {
       ctx.rect(cx + clamp(m.lx[k], -1, 1) * R - 0.7, cy - clamp(m.ly[k], -1, 1) * Ry - 0.7, 1.4, 1.4);
     }
     ctx.save();
-    ctx.fillStyle = TRACE; ctx.shadowColor = TRACE;
+    ctx.fillStyle = trace; ctx.shadowColor = trace;
     ctx.globalAlpha = 0.35; ctx.shadowBlur = 18 * s; ctx.fill();
     ctx.globalAlpha = 0.8; ctx.shadowBlur = 6 * s; ctx.fill();
-    ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; ctx.fillStyle = core; ctx.fill();
     ctx.restore();
   };
   // ── the stack's log bar, after a thermal scope's: two lines of readouts on black under the field
@@ -211,15 +213,11 @@ export function drawPlate(ctx: CanvasRenderingContext2D, s: number, m: Metrics, 
     ctx.restore();
   };
 
-  // the bare scope: the dark print, its vignette, the field to the edges, the grain; nothing else
+  // the bare scope: white, the field to the edges; nothing else
   if (scope) {
     const c = SCOPE / 2;
-    ctx.fillStyle = SCREEN; ctx.fillRect(0, 0, SCOPE, SCOPE);
-    const vig = ctx.createRadialGradient(c, c, SCOPE * 0.2, c, c, SCOPE * 0.75);
-    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.45)');
-    ctx.fillStyle = vig; ctx.fillRect(0, 0, SCOPE, SCOPE);
-    field(c, c, c);
-    grainOver(0, 0, SCOPE, SCOPE);
+    ctx.fillStyle = '#fbfcfe'; ctx.fillRect(0, 0, SCOPE, SCOPE);
+    field(c, c, c, c, PRINT);
     (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px';
     return;
   }

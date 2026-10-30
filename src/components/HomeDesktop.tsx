@@ -10,19 +10,16 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const INK = 'var(--vlg-fg, #111)';
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const DESKTOP = '#0160ac';   // the station's blue (kept from the Sapporo '72 trial)
-// the readout's highlighter pens, see-through so they read on any theme
-const LAV = '#e2e2e2', MINT = '#1e1e1e';   // grey pen, black pen: the scope's own print
+const WHITE = '#fbfcfe';
 
 const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : '--.-');
-const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '-.--');
 
 type Read = { mom: number; integ: number; tp: number; corr: number; live: boolean };
 
 /**
- * The station, laid out as a system monitor's readout: the clock as its headline, the Lissajous
- * square at left with a rule beside it, and at right the programme (what's playing) and the
- * signal (loudness, stereo), highlighted as a printout marked up by pen; ON AIR or TEST last.
- * README and RADAR top-right; the prompt is global (see SiteFrame), the transport the StationBar.
+ * The station as a spec label in the top-left corner: the white Lissajous square, a spine with
+ * ON AIR / TEST, then the clock, what's playing and the loudness. README and RADAR top-right;
+ * the prompt is global (see SiteFrame), the transport the StationBar.
  */
 export function HomeDesktop() {
   const { currentTrack } = useAudio();
@@ -60,7 +57,6 @@ export function HomeDesktop() {
   const r = read;
   const corr = r?.corr ?? NaN;
   const width = Number.isFinite(corr) ? Math.round((1 - corr) * 50) : '--';
-  const phase = Number.isFinite(corr) ? Math.round(Math.acos(Math.max(-1, Math.min(1, corr))) * 57.2958) : '--';
   const status = r?.live ? (r.tp > -1 ? 'HOT' : 'ON AIR') : 'TEST';
   const track = currentTrack;
 
@@ -72,45 +68,37 @@ export function HomeDesktop() {
       fontFamily: MONO, color: INK, background: DESKTOP,
     }}>
       <style>{`
-        .monitor { display: flex; flex-direction: column; gap: 18px; padding: 72px 24px 16px; max-width: 100%; }
-        .monitor .hl { background: ${LAV}; color: #1e1e1e; padding: 1px 5px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-        .monitor .mint { background: ${MINT}; color: #fff; }
-        /* the reference's proportions: the square about as tall as the readout, the headline ~1.4x its text */
-        .monitor { --sq: 184px; }
-        .monitor .head { font-size: 19px; letter-spacing: 0.04em; white-space: nowrap; }
-        .monitor .row { display: flex; gap: 18px; align-items: flex-start; }
-        .monitor .scope { width: var(--sq); flex: none; }
-        .monitor .rule { width: 9px; height: var(--sq); background: ${MINT}; flex: none; margin-left: -12px; }
-        /* a fixed width, so changing readouts never re-centre the whole monitor */
-        .monitor .info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.55; letter-spacing: 0.03em; flex: none; width: 46ch; max-width: 100%; }
-        .monitor .info .gap { height: 10px; }
-        /* phones: the square on top, its rule under it, the readout below */
+        /* a label, as on a rack's spec plate: the scope, a spine with the status set sideways,
+           then the clock over a dotted rule and three lines; one white outline round it all */
+        .tag { --sq: 150px; position: absolute; top: 72px; left: 24px; display: flex; height: var(--sq);
+          border: 1.5px solid ${WHITE}; border-radius: 8px; overflow: hidden; color: ${WHITE};
+          font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; }
+        .tag > * + * { border-left: 1.5px solid ${WHITE}; }
+        .tag .scope { width: var(--sq); flex: none; }
+        .tag .spine { flex: none; display: grid; place-items: center; padding: 0 6px;
+          writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 0.14em; white-space: nowrap; }
+        /* a fixed width, so changing readouts never shift the label */
+        .tag .body { flex: none; width: 33ch; display: flex; flex-direction: column; padding: 10px 12px; }
+        .tag .body > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+        .tag .dots { border-top: 1.5px dotted ${WHITE}; margin: 10px -12px auto; }
         @media (max-width: 715px) {
-          .monitor { gap: 14px; padding-top: 64px; --sq: min(56vw, 220px); }
-          .monitor .head { font-size: 16px; }
-          .monitor .row { flex-direction: column; gap: 10px; }
-          .monitor .scope, .monitor .rule { width: var(--sq); }
-          .monitor .rule { height: 6px; margin: -4px 0 0; }
-          .monitor .info { font-size: 12px; gap: 4px; }
+          .tag { --sq: 104px; top: 64px; font-size: 11px; max-width: calc(100vw - 48px); }
+          .tag .spine { padding: 0 4px; }
+          .tag .body { width: auto; flex: 1; min-width: 0; padding: 7px 8px; }
+          .tag .dots { margin: 7px -8px auto; }
         }
       `}</style>
-      <div className="monitor">
-        <div className="head"><span className="hl">STATION: {clock ?? '--:--:--'} ET</span></div>
-        <div className="row">
-          <div className="scope">
-            <AnalogueStrip scope onMetrics={(m) => { latest.current = m; }} />
-          </div>
-          <div className="rule" aria-hidden />
-          <div className="info">
-            <div><span className="hl">NOW PLAYING: {track ? track.title : '--'}</span></div>
-            <div>{track ? `${track.artist}, ${track.kind === 'inter' ? 'BREAK' : 'MIX'}` : 'PRESS ▶ TO TUNE IN'}</div>
-            <div className="gap" />
-            <div><span className="hl">RUNTIME: {track?.duration || '--:--'}{track?.date ? `, ${track.date}` : ''}</span></div>
-            <div><span className="hl mint">LOUDNESS: {f1(r?.mom ?? NaN)} LUFS, {f1(r?.integ ?? NaN)} INT, {f1(r?.tp ?? NaN)} TP</span></div>
-            <div>STEREO: {width}% WIDTH, r {f2(corr)}, {phase}° PHASE</div>
-            <div className="gap" />
-            <div><span className={r?.live ? 'hl mint' : 'hl'}>{status}</span></div>
-          </div>
+      <div className="tag">
+        <div className="scope">
+          <AnalogueStrip scope onMetrics={(m) => { latest.current = m; }} />
+        </div>
+        <div className="spine" style={r?.live ? { background: WHITE, color: DESKTOP } : undefined}>{status}</div>
+        <div className="body">
+          <div>STATION {clock ?? '--:--:--'} ET</div>
+          <div className="dots" aria-hidden />
+          <div>{track ? track.title : 'PRESS ▶ TO TUNE IN'}</div>
+          <div>{track ? `${track.artist} · ${track.kind === 'inter' ? 'BREAK' : 'MIX'} · ${track.duration || '--:--'}` : 'NOTHING PLAYING'}</div>
+          <div>{f1(r?.mom ?? NaN)} LUFS · TP {f1(r?.tp ?? NaN)} · W {width}%</div>
         </div>
       </div>
 
