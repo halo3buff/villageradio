@@ -28,7 +28,7 @@ export function stationClock() {
 export function StationBar() {
   const { isPlaying, mode, analyserL, analyserR, broadcastPlay, pause } = useAudio();
   const live = isPlaying && mode === 'broadcast';
-  const home = usePathname() === '/station';   // the station's own header carries the clock
+  const home = usePathname() === '/station';   // the station carries its own transport and clock
   const [clock, setClock] = useState<string | null>(null);
   const left = useRef<HTMLCanvasElement>(null);
   const right = useRef<HTMLCanvasElement>(null);
@@ -129,12 +129,13 @@ export function StationBar() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [home]);   // the canvases come and go with the bar
 
   const canvas = (ref: React.RefObject<HTMLCanvasElement | null>) => (
     <canvas ref={ref} aria-hidden className="hidden sm:block" style={{ width: W, height: H, color: 'var(--vlg-fg, #fff)', fontFamily: MONO }} />
   );
 
+  if (home) return null;
   return (
     <div
       className="station-bar fixed left-1/2 -translate-x-1/2 z-[2100] flex items-center gap-3"
@@ -158,9 +159,9 @@ export function StationBar() {
         )}
       </button>
       {canvas(left)}
-      {!home && <span className="border border-current h-[28px] leading-[26px] text-[14px] w-[102px] sm:h-[22px] sm:leading-[20px] sm:text-[12px] sm:w-[88px] text-center tracking-[0.08em] tabular-nums">
+      <span className="border border-current h-[28px] leading-[26px] text-[14px] w-[102px] sm:h-[22px] sm:leading-[20px] sm:text-[12px] sm:w-[88px] text-center tracking-[0.08em] tabular-nums">
         {clock ?? '--:--:--'}
-      </span>}
+      </span>
       {canvas(right)}
       {/* Mirrors the button's width so the clock stays dead centre. Both a touch bigger on phones. */}
       <span aria-hidden className="w-[28px] sm:w-[22px]" />
