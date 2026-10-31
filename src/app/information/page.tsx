@@ -17,7 +17,7 @@ export default function InformationPage() {
       <Image src="/images/tree_8bit.png" alt="Village Radio" width={165} height={205}
         style={{ width: 165, height: 205, objectFit: 'contain', filter: 'invert(var(--vlg-invert, 0))' }} />
       <div style={{ fontFamily: MONO, fontSize: 11, lineHeight: 1.5, textAlign: 'center', width: 'min(380px, calc(100vw - 48px))', color: 'var(--vlg-accent, #000)' }}>
-        &ldquo;Thus a man will sometimes suffer half an hour of mortal fear with a robber, but once the knife is finally at his throat, even fear vanishes&rdquo; -Dostoevsky
+        &ldquo;Thus a man will sometimes suffer half an hour of mortal fear with a robber, but once the knife is finally at his throat, even fear vanishes&rdquo; <span style={{ whiteSpace: 'nowrap' }}>-Dostoevsky</span>
       </div>
     </main>
   );
