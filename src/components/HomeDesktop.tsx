@@ -154,7 +154,8 @@ export function HomeDesktop() {
         .card .dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid ${INK}; }
         .card .dot.on { background: ${INK}; animation: blink 1s steps(1) infinite; }
         @keyframes blink { 50% { opacity: 0; } }
-        .card .body { grid-template-columns: 54% 46%; height: 112px; }
+        .card .body { grid-template-columns: 54% 46%; height: 112px; overflow: hidden; }
+        .card .body > * { min-width: 0; min-height: 0; }
         .card .data { padding: 8px 12px; display: grid; grid-template-columns: auto 1fr; align-content: space-between;
           column-gap: 12px; font-variant-numeric: tabular-nums; }
         .card .data b { font-weight: 400; }
