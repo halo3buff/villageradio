@@ -126,7 +126,7 @@ export function HomeDesktop() {
   const rows: [string, string][] = [
     ['LVL', `${num(rd?.lvl, 1)} DB`],
     ['PK', `${num(rd?.pk, 1)} DB`],
-    ['CF', `${num(rd && rd.pk - rd.lvl, 1)} DB`],
+    ['CF', `${num(rd ? rd.pk - rd.lvl : undefined, 1)} DB`],
     ['CORR', num(rd?.corr, 2, true)],
     ['BAL', num(rd?.bal, 2, true)],
     ['DRFT', `${num(rd?.drift, 1, true)} PPM`],
