@@ -203,7 +203,7 @@ export function HomeMobile({ commands }: { commands: NavCommand[] }) {
         }}>
           <span style={{
             position: 'absolute', top: -6, left: 14, padding: '0 6px', zIndex: 2,
-            background: 'var(--vlg-bg, #ede8df)', fontFamily: MONO, fontSize: 9,
+            background: 'var(--vlg-cover, var(--vlg-bg, #ede8df))', fontFamily: MONO, fontSize: 9,
             letterSpacing: '0.18em', color: 'var(--vlg-fg, #111)', pointerEvents: 'none',
           }}>
             [ BROADCAST ]

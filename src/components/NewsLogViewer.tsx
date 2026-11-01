@@ -202,7 +202,7 @@ export function NewsLogViewer({ posts }: { posts: NewsPost[] }) {
   const cmdH = 22;
 
   return (
-    <div style={{ position:'fixed', inset:0, background:T.bg, fontFamily:MONO, fontSize:fs, lineHeight:`${lh}px`, overflow:'hidden' }}>
+    <div style={{ position:'fixed', inset:0, background:'var(--vlg-bg)', fontFamily:MONO, fontSize:fs, lineHeight:`${lh}px`, overflow:'hidden' }}>
       <div className="page-enter" style={{ position:'absolute', inset:0 }}>
 
         {/* Back arrow — above the terminal */}

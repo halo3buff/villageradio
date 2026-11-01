@@ -143,7 +143,7 @@ export function siteVarMap(name: string): Record<string, string> {
   const t = THEMES[name] ?? THEMES[DEFAULT_THEME];
   const light = LIGHT_THEMES.has(name);
   return {
-    '--vlg-bg': t.bg,
+    '--vlg-bg': t === THEMES.default ? 'transparent' : t.bg,   // the default's page is the photo layer (globals.css)
     '--vlg-fg': t.exp_text,
     '--vlg-fg-dim': t.bar_dim,
     '--vlg-border': t.bar_border,

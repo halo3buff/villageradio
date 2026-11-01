@@ -254,7 +254,7 @@ export function DesktopInfo({ content, commands, back = '/' }: { content: string
           {/* Command instructions — white-backed, pinned to bottom */}
           <div style={{
             position: 'absolute', left: 0, bottom: 0, width: SW,
-            background: 'var(--vlg-bg, #fff)', paddingTop: 80, paddingBottom: 92,
+            background: 'var(--vlg-cover, var(--vlg-bg, #fff))', paddingTop: 80, paddingBottom: 92,
           }}>
             <div style={{
               fontFamily: MONO, fontSize: 11, lineHeight: '14px',

@@ -143,6 +143,21 @@ html:has(.admin-shell) {
   background-color: #000;   /* whatever the site theme, no edge of it shows round the admin */
 }
 
+/* The default theme's page, behind every public route: the landing photo zoomed in and blurred
+   away, under a film grain. --vlg-bg is transparent over it (lib/theme.ts); what has to hide
+   content scrolling beneath it paints --vlg-cover instead. */
+html[data-theme="default"] {
+  background-color: #a8a5a0;   /* the photo's mean, while it loads */
+  --vlg-cover: #a8a5a0;
+}
+html[data-theme="default"] body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='.33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 220px 220px, url(/site_assets/site_bg.webp) center / cover no-repeat;
+  background-blend-mode: overlay, normal;
+}
+body:has(.admin-shell)::before { display: none; }
+html:has(.admin-shell) { --vlg-bg: #000; }
+
 /* Admin toast: rises in from below. */
 .toast-in {
   animation: toast-in 220ms cubic-bezier(0.23, 1, 0.32, 1);

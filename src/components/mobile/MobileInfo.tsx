@@ -62,7 +62,7 @@ export function MobileInfo({ content, commands, back = '/' }: { content: string;
         {/* Bottom text block */}
         <div style={{
           position: 'absolute', left: vw(22), top: dvh(627), width: vw(354),
-          background: 'var(--vlg-bg, #fff)', paddingBottom: 4,
+          background: 'var(--vlg-cover, var(--vlg-bg, #fff))', paddingBottom: 4,
         }}>
           <div style={{
             fontFamily: MONO, fontSize: vw(8), lineHeight: dvh(10),
