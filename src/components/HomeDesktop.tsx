@@ -12,7 +12,7 @@ const DESKTOP = '#ffffff';
 
 // the screen's own raster, and its colours, as measured off the reference photo
 const W = 558, H = 383;
-const BAR = '#78fce4', BAR_RULE = '#58d4bc', BAR_TEXT = '#2f8a64';
+const BAR = '#78fff4', BAR_RULE = '#58d4c8', BAR_TEXT = '#2f8a64';
 const TEXT = '#86d8b4', FRAME = '#a8e0c8', TRACE = '#d4f2e4', AXIS = 'rgba(134,216,180,0.13)';
 const CELL = '#7fe8cf', CELL_TEXT = '#0d5238';
 // the bar, as a share of the screen: the play/pause button sits over it
@@ -188,17 +188,17 @@ export function HomeDesktop() {
       ctx.letterSpacing = '0.7px';   // the reference's character pitch
 
       // the call sign and the command bar
-      text('VGF-8194', 104, 35, TEXT, 'right');
+      text('VGF-8194', 104, 36, TEXT, 'right');
       text('COMMAND:', 104, 50, TEXT, 'right');
-      ctx.fillStyle = BAR; ctx.fillRect(107, 23, 335, 30);
-      ctx.fillStyle = BAR_RULE; ctx.fillRect(107, 37, 335, 1);
+      ctx.fillStyle = BAR; ctx.fillRect(107, 25, 335, 26);
+      ctx.fillStyle = BAR_RULE; ctx.fillRect(107, 38, 335, 1);
       const stars = !live || now % 1000 < 600 ? '***' : '   ';
-      text(`${stars}  ${live ? 'ON AIR' : 'TEST'}  ${stars}`, 278, 35, BAR_TEXT, 'center');
+      text(`${stars}  ${live ? 'ON AIR' : 'TEST'}  ${stars}`, 278, 36, BAR_TEXT, 'center');
       // the cursor, holding the play/pause, and the command it would run
-      ctx.fillStyle = BAR_TEXT; ctx.fillRect(110, 40, 10, 12);
+      ctx.fillStyle = BAR_TEXT; ctx.fillRect(110, 40, 10, 10);
       ctx.fillStyle = BAR;
-      if (live) { ctx.fillRect(112, 42, 2, 8); ctx.fillRect(116, 42, 2, 8); }
-      else { ctx.beginPath(); ctx.moveTo(112, 42); ctx.lineTo(118, 46); ctx.lineTo(112, 50); ctx.fill(); }
+      if (live) { ctx.fillRect(112, 42, 2, 6); ctx.fillRect(116, 42, 2, 6); }
+      else { ctx.beginPath(); ctx.moveTo(112, 42); ctx.lineTo(118, 45); ctx.lineTo(112, 48); ctx.fill(); }
       text(live ? 'PAUSE' : 'PLAY', 125, 50, BAR_TEXT);
 
       // the clock and the state, right of the bar
@@ -206,17 +206,17 @@ export function HomeDesktop() {
       text(live ? 'LIVE' : 'TEST', 456, 50);
       text('CHAN: 2', 456, 63);
 
-      text('LISSAJOUS DISPLAY', 278, 64, TEXT, 'center');
+      text('LISSAJOUS DISPLAY', 278, 67, TEXT, 'center');
 
       // the ruled row of readouts
       ctx.strokeStyle = FRAME; ctx.lineWidth = 2;
-      ctx.strokeRect(45, 73, 475, 22);
-      text('STEREO', 54, 89);
-      let x = 134;
-      text('LEVEL:', x, 89); x = cell(readout.lvl.padStart(5), x + ctx.measureText('LEVEL:').width + 2, 89) + 16;
-      text(`PEAK:${readout.pk.padStart(5)}`, x, 89); x += ctx.measureText('PEAK:-00.0').width + 16;
-      text(`CORR:${readout.corr}`, x, 89); x += ctx.measureText('CORR:+0.00').width + 16;
-      text('BAL:', x, 89); cell(readout.bal, x + ctx.measureText('BAL:').width + 2, 89);
+      ctx.strokeRect(45, 75, 475, 22);
+      text('STEREO', 54, 91);
+      let x = 118;
+      text('LEVEL:', x, 91); x = cell(readout.lvl.padStart(5), x + ctx.measureText('LEVEL:').width + 2, 91) + 13;
+      text(`PEAK:${readout.pk.padStart(5)}`, x, 91); x += ctx.measureText('PEAK:-00.0').width + 13;
+      text(`CORR:${readout.corr}`, x, 91); x += ctx.measureText('CORR:+0.00').width + 13;
+      text('BAL:', x, 91); cell(readout.bal, x + ctx.measureText('BAL:').width + 2, 91);
 
       // the stereo field: L against R turned 45° so mono stands upright, stretched to fill the
       // screen as the reference's trace does, over very faint axes
