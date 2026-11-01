@@ -339,7 +339,8 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
       audio.load();
     }
     // play() immediately — it resolves as soon as data at the offset arrives.
-    audio.play().catch(() => setIsPlaying(false));
+    // AbortError = a newer re-tune took over this play(), which isn't a failure
+    audio.play().catch((e) => { if (e.name !== 'AbortError') setIsPlaying(false); });
     setIsPlaying(true);
 
     // Verify the landing position once playable — if the browser ignored the

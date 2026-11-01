@@ -99,6 +99,10 @@ export const metadata: Metadata = {
   },
 };
 
+// The build has no CONFIG_BUCKET: prerendered pages would ship the seed lineup, whose retired files
+// the stream proxy refuses. Rendered per request instead; the loaders still cache the bucket reads.
+export const dynamic = 'force-dynamic';
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [manifest, rawTheme, commands] = await Promise.all([getBroadcastManifest(), getTheme(), getCommands()]);
   const playlist = manifestToMixes(manifest);
