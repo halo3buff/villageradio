@@ -3,13 +3,15 @@
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
 import { useAudio } from '@/lib/audio-context';
+import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const WHITE = '#ffffff';
 const W = 104, H = 64;    // the Lissajous window
-const REACH = 28, DOT = 1.4, SAMPLES = 700;
+const REACH = 28, DOT = 2;  // full scale, in px, stops short of the edges
+const STEP = 16, TEST_STEP = 40;   // samples between dots, so each stays its own light
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
@@ -91,11 +93,11 @@ export function HomeDesktop() {
       // R against L in a square, so mono runs up the diagonal; full scale stops short of the edges
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = WHITE;
-      const n = testing ? l.length : Math.min(SAMPLES, l.length);
-      for (let i = 0; i < n; i += testing ? 14 : 1) {
-        const x = W / 2 + Math.max(-1, Math.min(1, r[i])) * REACH;
-        const y = H / 2 - Math.max(-1, Math.min(1, l[i])) * REACH;
-        ctx.fillRect(x - DOT / 2, y - DOT / 2, DOT, DOT);
+      const gain = testing ? 1 : Math.pow(10, VISUAL_TRIM_DB / 20);
+      for (let i = 0; i < l.length; i += testing ? TEST_STEP : STEP) {
+        const x = W / 2 + Math.max(-1, Math.min(1, r[i] * gain)) * REACH;
+        const y = H / 2 - Math.max(-1, Math.min(1, l[i] * gain)) * REACH;
+        ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
       }
     };
     raf = requestAnimationFrame(draw);
