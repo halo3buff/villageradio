@@ -211,20 +211,23 @@ export function HomeDesktop() {
       text(`CORR:${readout.corr}`, x, 91); x += ctx.measureText('CORR:+0.00').width + 13;
       text('BAL:', x, 91); cell(readout.bal, x + ctx.measureText('BAL:').width + 2, 91);
 
-      // the stereo field: L against R turned 45° so mono stands upright, stretched to fill the
-      // screen as the reference's trace does, over very faint axes
-      const cx = 278, cy = 264, rx = 205, ry = 122;
+      // the stereo field: x = right, y = left, so mono runs up the diagonal. Square and linear, the
+      // radius fitting full scale inside the screen, so the cloud can never reach an edge
+      const cx = 278, cy = 264, R = 140;
       ctx.strokeStyle = AXIS; ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(cx - rx - 15, cy + 0.5); ctx.lineTo(cx + rx + 15, cy + 0.5);
-      ctx.moveTo(cx + 0.5, cy - ry - 8); ctx.lineTo(cx + 0.5, cy + ry + 8);
+      ctx.moveTo(cx - R, cy + 0.5); ctx.lineTo(cx + R, cy + 0.5);
+      ctx.moveTo(cx + 0.5, cy - R); ctx.lineTo(cx + 0.5, cy + R);
       ctx.stroke();
       ctx.fillStyle = TRACE;
-      for (let i = 0; i < l.length; i += testing ? 7 : 2) {
-        const px = cx + Math.tanh((r[i] - l[i]) * 0.75) * rx;
-        const py = cy - Math.tanh((l[i] + r[i]) * 0.75) * ry;
-        ctx.fillRect(px - 0.8, py - 0.8, 1.6, 1.6);
+      ctx.globalAlpha = 0.72;
+      const n = testing ? l.length : Math.min(1100, l.length);
+      for (let i = 0; i < n; i += testing ? 7 : 1) {
+        const px = cx + Math.max(-1, Math.min(1, r[i])) * R;
+        const py = cy - Math.max(-1, Math.min(1, l[i])) * R;
+        ctx.fillRect(px - 0.65, py - 0.65, 1.3, 1.3);
       }
+      ctx.globalAlpha = 1;
 
       // to the glass
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
