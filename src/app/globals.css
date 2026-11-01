@@ -156,7 +156,7 @@ html[data-theme="default"] body::before {
   background-blend-mode: overlay, normal;
 }
 body:has(.admin-shell)::before { display: none; }
-html:has(.admin-shell) { --vlg-bg: #000; }
+html:has(.admin-shell) { --vlg-bg: #000; background-color: #000; }
 
 /* Admin toast: rises in from below. */
 .toast-in {
