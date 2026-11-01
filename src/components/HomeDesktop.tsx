@@ -8,27 +8,24 @@ import { useEffect, useRef, useState } from 'react';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const WHITE = '#ffffff';
-const COLS = 13, ROWS = 8, PITCH = 8, DOT = 5.4;   // the light field
-const LIT = 0.32;         // the share of it lit at any moment
-// a 4x4 ordered-dither matrix: each dot lights once the field passes its threshold
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+const W = 104, H = 64;    // the Lissajous window
+const REACH = 28, DOT = 1.4, SAMPLES = 700;
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
 /**
  * The station as a small white outline in the top-left corner: the call sign, clock, state and
- * readouts, then at its right end a bordered field of lights, the spectrum
- * dithered into dots (low notes left), each easing on and off. Off air the field drifts slowly and
- * the readouts follow a test signal, so nothing stops. README and RADAR top-right; the prompt is
- * global (see SiteFrame). The StationBar stays off here.
+ * readouts, then at its right end a bordered Lissajous of the stereo field in glowing dots. Off
+ * air it and the readouts follow a test signal, so nothing stops. README and RADAR top-right; the
+ * prompt is global (see SiteFrame). The StationBar stays off here.
  */
 export function HomeDesktop() {
-  const { analyserL, analyserR, analyserFreq, isPlaying, mode, broadcastPlay, pause } = useAudio();
+  const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause } = useAudio();
   const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
   const [rd, setRd] = useState<Readout | null>(null);
-  const ch = useRef({ aL: analyserL, aR: analyserR, aF: analyserFreq });
-  ch.current = { aL: analyserL, aR: analyserR, aF: analyserFreq };
+  const ch = useRef({ aL: analyserL, aR: analyserR });
+  ch.current = { aL: analyserL, aR: analyserR };
   const lights = useRef<HTMLCanvasElement>(null);
 
   // the body's min-h-screen is iOS's LARGE viewport, taller than what's visible with the URL bar
@@ -44,40 +41,36 @@ export function HomeDesktop() {
     const canvas = lights.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-    const W = COLS * PITCH, H = ROWS * PITCH;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = W * dpr; canvas.height = H * dpr;
     ctx.scale(dpr, dpr);
 
     let l = new Float32Array(2048), r = new Float32Array(2048);
-    let spec = new Uint8Array(0);
-    const glow = new Float32Array(COLS * ROWS);   // each dot's light, eased
-    const slow = new Float32Array(COLS);          // each band's recent level
-    const ease = new Float32Array(COLS);
-    let bias = 0;
     let nextRead = 0, raf = 0;
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
-      const { aL, aR, aF } = ch.current;
+      const { aL, aR } = ch.current;
       const t = now / 1000;
 
-      // the readouts: the broadcast, or the test signal whenever nothing's flowing
+      // the broadcast, or the test signal whenever nothing's flowing
+      let energy = 0;
+      if (aL && aR) {
+        if (l.length !== aL.fftSize) { l = new Float32Array(aL.fftSize); r = new Float32Array(aL.fftSize); }
+        aL.getFloatTimeDomainData(l); aR.getFloatTimeDomainData(r);
+        for (let i = 0; i < l.length; i++) energy += l[i] * l[i] + r[i] * r[i];
+      }
+      const testing = energy < 1e-9;
+      if (testing) {
+        const amp = 0.58 + 0.04 * Math.sin(t * 0.7), w = (Math.PI * 2) / l.length;
+        for (let i = 0; i < l.length; i++) {
+          l[i] = amp * Math.sin(3 * w * i) + (Math.random() - 0.5) * 0.006;
+          r[i] = amp * Math.sin(2 * w * i + t * 0.25) + (Math.random() - 0.5) * 0.006;
+        }
+      }
+
       if (now >= nextRead) {
         nextRead = now + 150;
-        let energy = 0;
-        if (aL && aR) {
-          if (l.length !== aL.fftSize) { l = new Float32Array(aL.fftSize); r = new Float32Array(aL.fftSize); }
-          aL.getFloatTimeDomainData(l); aR.getFloatTimeDomainData(r);
-          for (let i = 0; i < l.length; i++) energy += l[i] * l[i] + r[i] * r[i];
-        }
-        if (energy < 1e-9) {
-          const amp = 0.58 + 0.04 * Math.sin(t * 0.7), w = (Math.PI * 2) / l.length;
-          for (let i = 0; i < l.length; i++) {
-            l[i] = amp * Math.sin(3 * w * i) + (Math.random() - 0.5) * 0.006;
-            r[i] = amp * Math.sin(2 * w * i + t * 0.25) + (Math.random() - 0.5) * 0.006;
-          }
-        }
         let ll = 0, rr = 0, lr = 0, pk = 0;
         for (let i = 0; i < l.length; i++) {
           ll += l[i] * l[i]; rr += r[i] * r[i]; lr += l[i] * r[i];
@@ -95,53 +88,15 @@ export function HomeDesktop() {
         });
       }
 
-      // the spectrum, one log-spaced band to a column (40 Hz to 12 kHz)
-      let sum = 0;
-      if (aF) {
-        if (spec.length !== aF.frequencyBinCount) spec = new Uint8Array(aF.frequencyBinCount);
-        aF.getByteFrequencyData(spec);
-        for (let i = 0; i < spec.length; i++) sum += spec[i];
-      }
-      const hz = aF ? aF.context.sampleRate / aF.fftSize : 1;
-      const on = sum > 0;
-
+      // R against L in a square, so mono runs up the diagonal; full scale stops short of the edges
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = ctx.shadowColor = WHITE;
-      let lit = 0;
-      for (let x = 0; x < COLS; x++) {
-        let rel = 0;
-        if (on) {
-          const a = 40 * Math.pow(300, x / COLS), b = 40 * Math.pow(300, (x + 1) / COLS);
-          const i0 = Math.floor(a / hz), i1 = Math.max(i0 + 1, Math.ceil(b / hz));
-          let band = 0;
-          for (let i = i0; i < i1; i++) band = Math.max(band, spec[i] ?? 0);
-          band /= 255;
-          // each band against its own recent level: a steady band goes dark, only change lights up
-          // (eased, so it follows the music's phrases rather than every flicker in the data)
-          ease[x] += ((band - slow[x]) * 4 - ease[x]) * 0.25;
-          rel = ease[x];
-          slow[x] += (band - slow[x]) * 0.02;
-        }
-        for (let y = 0; y < ROWS; y++) {
-          const up = 1 - y / (ROWS - 1);   // 0 at the bottom row, 1 at the top
-          const field = on
-            ? 0.42 + rel - up * 0.5 - bias
-            : 0.42 + 0.34 * Math.sin(x * 0.55 + t * 0.35) * Math.sin(y * 0.8 - t * 0.27);
-          const k = y * COLS + x;
-          const target = field > BAYER[(y % 4) * 4 + (x % 4)] ? 1 : 0;
-          lit += target;
-          glow[k] += (target - glow[k]) * (target ? 0.4 : 0.1);   // quick on, quick off: hard edges, not a wash
-          ctx.globalAlpha = 0.07 + 0.93 * glow[k];
-          ctx.shadowBlur = glow[k] * 7;
-          ctx.beginPath();
-          ctx.arc((x + 0.5) * PITCH, (y + 0.5) * PITCH, DOT / 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
+      ctx.fillStyle = WHITE;
+      const n = testing ? l.length : Math.min(SAMPLES, l.length);
+      for (let i = 0; i < n; i += testing ? 14 : 1) {
+        const x = W / 2 + Math.max(-1, Math.min(1, r[i])) * REACH;
+        const y = H / 2 - Math.max(-1, Math.min(1, l[i])) * REACH;
+        ctx.fillRect(x - DOT / 2, y - DOT / 2, DOT, DOT);
       }
-      // the threshold rides the density: however loud the audio, about a third of the field is lit
-      if (on) bias += (lit / (COLS * ROWS) - LIT) * 0.05;
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
@@ -166,7 +121,7 @@ export function HomeDesktop() {
         .plate .lamp { width: 6px; height: 6px; background: currentColor; animation: lamp 1s steps(1) infinite; }
         @keyframes lamp { 50% { opacity: 0; } }
         .plate .window { border: 1px solid ${WHITE}; display: flex; box-shadow: 0 0 3px rgba(255,255,255,0.3); }
-        .plate canvas { display: block; width: ${COLS * PITCH}px; height: ${ROWS * PITCH}px; margin: auto 6px;
+        .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
           filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)); }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
