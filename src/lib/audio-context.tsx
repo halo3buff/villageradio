@@ -1,6 +1,5 @@
 'use client';
 import { createContext, useContext, useRef, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import type { Mix } from '@/lib/types';
 import { positionAt, secondsIntoDay, type Segment } from '@/lib/content/broadcast';
 import { trimDb } from '@/lib/audio/loudness';
@@ -58,14 +57,18 @@ function getBroadcastPosition(segments: Segment[], offsetMs: number) {
   return { ...positionAt(segments, sec), sec };
 }
 
-export function AudioProvider({ children, playlist, segments }: { children: React.ReactNode; playlist: Mix[]; segments: Segment[] }) {
+export function AudioProvider({ children, playlist: shippedPlaylist, segments: shippedSegments }: { children: React.ReactNode; playlist: Mix[]; segments: Segment[] }) {
+  // The lineup as the page shipped it, then as re-fetched while tuned in. Fetched rather than
+  // router.refresh(): a refresh that lands on a newer deploy reloads the page and kills the audio.
+  const [lineup, setLineup] = useState({ playlist: shippedPlaylist, segments: shippedSegments });
+  useEffect(() => { setLineup({ playlist: shippedPlaylist, segments: shippedSegments }); }, [shippedPlaylist, shippedSegments]);
+  const { playlist, segments } = lineup;
   // The day's segments index into `playlist`. Timers and callbacks outlive renders, so they read
   // both through refs — a refreshed lineup (see below) reaches a broadcast that's already playing.
   const broadcastRef = useRef(playlist);
   broadcastRef.current = playlist;
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
-  const router = useRouter();
   const audioRef        = useRef<HTMLAudioElement | null>(null);
   const webCtxRef       = useRef<AudioContext | null>(null);
   const gainNodeRef     = useRef<GainNode | null>(null);
@@ -92,7 +95,7 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
   const [analyserFreq,  setAnalyserFreq]  = useState<AnalyserNode | null>(null);
   const [volume,        setVolumeState]   = useState(0.8);
 
-  // A new lineup (published from the admin, pulled in by router.refresh): adopt its timings
+  // A new lineup (published from the admin, pulled in by refreshLineup): adopt its timings
   // and, if the broadcast is on, re-tune to wherever the new day says we should be.
   const lineupKey = JSON.stringify(segments.map(g => [g.start, g.end, g.loop, playlist[g.idx]?.src]));
   const lineupRef = useRef(lineupKey);
@@ -403,12 +406,19 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     }
   }
 
+  async function refreshLineup() {
+    try {
+      const res = await fetch('/api/lineup');
+      if (res.ok) setLineup(await res.json());
+    } catch { /* keep the lineup we have */ }
+  }
+
   function startBroadcastTimers() {
     stopBroadcastTimers();
     correctTimerRef.current = setInterval(correctDrift, CORRECT_INTERVAL_MS);
     timeRefreshRef.current  = setInterval(async () => {
       try { serverOffsetRef.current = await fetchServerOffsetMs(); } catch { /* keep last offset */ }
-      router.refresh(); // long listens pick up newly published lineups too
+      refreshLineup(); // long listens pick up newly published lineups too
     }, TIME_REFRESH_MS);
   }
 
@@ -431,7 +441,7 @@ export function AudioProvider({ children, playlist, segments }: { children: Reac
     initWebAudio(audio);
     startBroadcastTimers(); // first: it clears the boundary timer that tuning sets
     tuneIntoBroadcast();
-    router.refresh(); // pick up a lineup published since this page loaded
+    refreshLineup(); // pick up a lineup published since this page loaded
   }
 
   function play(track: Mix) {
