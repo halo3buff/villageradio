@@ -16,7 +16,7 @@ export default function InformationPage() {
       background: 'var(--vlg-bg, #fff)',
     }}>
       {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
-      <img src="/site_assets/logo_roto.webp" alt="Village Radio"
+      <img src="/site_assets/logo_roto_v2.webp" alt="Village Radio"
         style={{ width: 200, height: 205, objectFit: 'contain', filter: 'brightness(0) invert(var(--vlg-invert, 0)) drop-shadow(0 0 3px rgba(255,255,255,0.7)) drop-shadow(0 0 8px rgba(255,255,255,0.35))' }} />
       {/* the attribution sits on its own row, flush with the right edge of the first two lines, out of the flow so the quote's last
           line stays centred on its own; on narrow screens it's simply the next row, centred */}
