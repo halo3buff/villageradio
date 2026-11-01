@@ -109,7 +109,7 @@ export function HomeDesktop() {
       ctx.font = `10px ${css.fontFamily}`;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'right'; ctx.fillText('-1', c - R - 3, c);
-      ctx.textAlign = 'left'; ctx.fillText('+1 R', c + R + 3, c);
+      ctx.fillText('+1 R', c + R, c - 12);
       ctx.textAlign = 'center';
       ctx.fillText('+1 L', c, c - R - 8);
       ctx.fillText('-1', c, c + R + 8);
