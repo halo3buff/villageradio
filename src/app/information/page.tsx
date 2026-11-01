@@ -27,7 +27,7 @@ export default function InformationPage() {
         }
       `}</style>
       <div className="quote" style={{ fontFamily: MONO, fontSize: 11, lineHeight: 1.5, textAlign: 'center', width: 'min(380px, calc(100vw - 48px))', color: 'var(--vlg-accent, #000)' }}>
-        &ldquo;Thus a man will sometimes suffer half an hour of mortal fear with a robber, but once the knife is finally at his throat, even fear vanishes&rdquo; <span className="attr">-Dostoevsky</span>
+        {'.-..-. - .... ..- ... / .- / -- .- -. / .-- .. .-.. .-.. / ... --- -- . - .. -- . ... / ... ..- ..-. ..-. . .-. / .... .- .-.. ..-. / .- -. / .... --- ..- .-. / --- ..-. / -- --- .-. - .- .-.. / ..-. . .- .-. / .-- .. - .... / .- / .-. --- -... -... . .-. --..-- / -... ..- - / --- -. -.-. . / - .... . / -.- -. .. ..-. . / .. ... / ..-. .. -. .- .-.. .-.. -.-- / .- - / .... .. ... / - .... .-. --- .- - --..-- / . ...- . -. / ..-. . .- .-. / ...- .- -. .. ... .... . ... .-..-.'} <span className="attr">{'-....- -.. --- ... - --- . ...- ... -.- -.--'}</span>
       </div>
     </main>
   );
