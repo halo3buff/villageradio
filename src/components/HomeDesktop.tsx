@@ -10,8 +10,8 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const WHITE = '#ffffff';
 const W = 104, H = 64;    // the Lissajous window
-const REACH = 28, DOT = 2;  // full scale, in px, stops short of the edges
-const STEP = 16, TEST_STEP = 40;   // samples between dots, so each stays its own light
+const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
+const STEP = 8, TEST_STEP = 20;   // samples between dots, so each stays its own light
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
