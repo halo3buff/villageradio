@@ -11,14 +11,14 @@ const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the sta
 const DESKTOP = '#ffffff';
 
 // the screen's own raster, and its colours, as measured off the reference photo
-const W = 558, H = 383;
+const W = 558, H = 430;
 const BAR = '#78fff4', BAR_RULE = '#58d4c8', BAR_TEXT = '#2f8a64';
 const TEXT = '#86d8b4', FRAME = '#a8e0c8', TRACE = '#d4f2e4', AXIS = 'rgba(134,216,180,0.13)';
 const CELL = '#7fe8cf', CELL_TEXT = '#0d5238';
 // the bar, as a share of the screen: the play/pause button sits over it
 const HIT = { left: 100 / W, top: 14 / H, width: 350 / W, height: 46 / H };
 
-// The photographed tube: the raster bowed and tilted on the glass, softened as old video is, a
+// The photographed tube: the raster softened as old video is, a
 // tinted bloom round everything lit, a green haze where the trace is dense, the phosphor drifting
 // between cyan and yellow-green, and warm, mottled, vignetted black behind it all.
 const VERT = `attribute vec2 a; varying vec2 v;
@@ -26,15 +26,7 @@ void main() { v = vec2(a.x * 0.5 + 0.5, 0.5 - a.y * 0.5); gl_Position = vec4(a, 
 const FRAG = `precision highp float;
 uniform sampler2D t; uniform float time; varying vec2 v;
 const vec2 RES = vec2(${W}.0, ${H}.0);
-const float ASPECT = ${W}.0 / ${H}.0;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-vec2 warp(vec2 uv) {
-  vec2 p = (uv - 0.5) * 2.0 * vec2(ASPECT, 1.0);
-  float c = cos(0.0205), s = sin(0.0205);
-  p = vec2(c * p.x + s * p.y, -s * p.x + c * p.y);
-  p *= 0.945 * (1.0 + 0.047 * dot(p, p));
-  return p / vec2(ASPECT, 1.0) * 0.5 + 0.5;
-}
 vec3 tap(vec2 uv) {
   vec2 e = step(vec2(0.0), uv) * step(uv, vec2(1.0));
   return texture2D(t, uv).rgb * e.x * e.y;
@@ -48,7 +40,7 @@ vec3 ring(vec2 uv, float r) {
   return c / 12.0;
 }
 void main() {
-  vec2 uv = warp(v);
+  vec2 uv = v;
   vec3 soft = tap(uv) * 0.5 + ring(uv, 0.75) * 0.5;
   vec3 glow = ring(uv, 1.8) * 0.5 + ring(uv, 3.0) * 0.5;
   vec3 wide = ring(uv, 6.0) * 0.5 + ring(uv, 10.0) * 0.5;
@@ -157,7 +149,8 @@ export function HomeDesktop() {
         aL.getFloatTimeDomainData(l); aR.getFloatTimeDomainData(r);
         for (let i = 0; i < l.length; i++) energy += l[i] * l[i] + r[i] * r[i];
       }
-      if (energy < 1e-9) {
+      const testing = energy < 1e-9;
+      if (testing) {
         const t = now / 1000, amp = 0.58 + 0.04 * Math.sin(t * 0.7), w = (Math.PI * 2) / l.length;
         for (let i = 0; i < l.length; i++) {
           l[i] = amp * Math.sin(3 * w * i) + (Math.random() - 0.5) * 0.006;
@@ -220,20 +213,18 @@ export function HomeDesktop() {
 
       // the stereo field: L against R turned 45° so mono stands upright, stretched to fill the
       // screen as the reference's trace does, over very faint axes
-      const cx = 278, cy = 228, rx = 205, ry = 112;
+      const cx = 278, cy = 264, rx = 205, ry = 122;
       ctx.strokeStyle = AXIS; ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(cx - rx - 15, cy + 0.5); ctx.lineTo(cx + rx + 15, cy + 0.5);
       ctx.moveTo(cx + 0.5, cy - ry - 8); ctx.lineTo(cx + 0.5, cy + ry + 8);
       ctx.stroke();
-      ctx.strokeStyle = TRACE; ctx.lineWidth = 1.7; ctx.lineJoin = 'round';
-      ctx.beginPath();
-      for (let i = 0; i < l.length; i += 2) {
-        const px = cx + Math.max(-1, Math.min(1, (r[i] - l[i]) * 0.9)) * rx;
-        const py = cy - Math.max(-1, Math.min(1, (l[i] + r[i]) * 0.9)) * ry;
-        if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      ctx.fillStyle = TRACE;
+      for (let i = 0; i < l.length; i += testing ? 7 : 2) {
+        const px = cx + Math.tanh((r[i] - l[i]) * 0.75) * rx;
+        const py = cy - Math.tanh((l[i] + r[i]) * 0.75) * ry;
+        ctx.fillRect(px - 0.8, py - 0.8, 1.6, 1.6);
       }
-      ctx.stroke();
 
       // to the glass
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -260,6 +251,7 @@ export function HomeDesktop() {
       <div style={{
         position: 'absolute', left: '50%', top: `calc(50% - ${PROMPT_BAND / 2}px)`, transform: 'translate(-50%, -50%)',
         width: `min(${W}px, calc(100vw - 32px))`, aspectRatio: `${W} / ${H}`, background: '#000',
+        outline: '1px solid rgba(0,0,0,0.2)', outlineOffset: 3,
       }}>
         <canvas ref={screen} aria-hidden style={{ display: 'block', width: '100%', height: '100%', fontFamily: PIXEL }} />
         <button
