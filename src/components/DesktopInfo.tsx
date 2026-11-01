@@ -234,11 +234,12 @@ export function DesktopInfo({ content, commands, back = '/' }: { content: string
       <div style={{ ...frame, left: 0, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         <div style={{
           position: 'absolute', left: 0, top: 0, width: SW, height: SH,
-          overflow: 'hidden',
+          overflow: 'hidden', display: 'flex', flexDirection: 'column',
         }}>
           <div style={{
             fontFamily: MONO, fontSize: 11, lineHeight: '14px',
             color: 'var(--vlg-fg, #000)', whiteSpace: 'pre',
+            flex: 1, minHeight: 0, overflow: 'hidden',
           }}>
             {`MAIN:/vlg/stn/broadcast > signal_check --verbose --all 2>&1\n`}
             {`SESSION: ${x4(1, 0)}   RX_UTC: ${utc}   PATH: ALT-01   PKT_LOSS: 0.00%   BIT_ERR: 0\n`}
@@ -251,11 +252,8 @@ export function DesktopInfo({ content, commands, back = '/' }: { content: string
             {CODE_TEXT}
           </div>
 
-          {/* Command instructions — white-backed, pinned to bottom */}
-          <div style={{
-            position: 'absolute', left: 0, bottom: 0, width: SW,
-            background: 'var(--vlg-cover, var(--vlg-bg, #fff))', paddingTop: 80, paddingBottom: 92,
-          }}>
+          {/* Command instructions — pinned to bottom; the code above clips at their top */}
+          <div style={{ flex: 'none', width: SW, paddingTop: 80, paddingBottom: 92 }}>
             <div style={{
               fontFamily: MONO, fontSize: 11, lineHeight: '14px',
               color: 'var(--vlg-fg, #000)', whiteSpace: 'pre',
