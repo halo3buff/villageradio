@@ -10,7 +10,7 @@ const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the sta
 const TICK = 12;          // room the tick labels take outside the plot
 // the border's layers, in px, and their inks as measured off the reference
 const BAND = 36, RULE = 3, RULE_INSET = 6, IN = RULE_INSET + RULE;
-const BAND_INK = '#1e1715', RULE_INK = '#e94e29', KEYLINE = '#b4c8b0', BAND_TEXT = '#f4f4ec';
+const BAND_INK = '#1e1715', RULE_INK = '#e94e29', KEYLINE = '#c7d6b8', BAND_TEXT = '#f4f4ec';
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
