@@ -16,14 +16,14 @@ export default function InformationPage() {
     }}>
       <Image src="/images/tree_8bit.png" alt="Village Radio" width={165} height={205}
         style={{ width: 165, height: 205, objectFit: 'contain', filter: 'invert(var(--vlg-invert, 0))' }} />
-      {/* the attribution keeps the column it has at the end of the quote's last line, one row lower;
-          too narrow for it to fit there (it would wrap anyway), it simply takes the next row */}
+      {/* the attribution sits on its own row at a set column, out of the flow so the quote's last
+          line stays centred on its own; on narrow screens it's simply the next row, centred */}
       <style>{`
-        .quote { padding-bottom: 1.5em; }
-        .quote .attr { position: relative; top: 1.5em; white-space: nowrap; }
+        .quote { position: relative; padding-bottom: 1.5em; }
+        .quote .attr { position: absolute; left: 246px; bottom: 0; white-space: nowrap; }
         @media (max-width: 427px) {
           .quote { padding-bottom: 0; }
-          .quote .attr { display: block; top: 0; }
+          .quote .attr { position: static; display: block; }
         }
       `}</style>
       <div className="quote" style={{ fontFamily: MONO, fontSize: 11, lineHeight: 1.5, textAlign: 'center', width: 'min(380px, calc(100vw - 48px))', color: 'var(--vlg-accent, #000)' }}>
