@@ -141,7 +141,7 @@ export function HomeDesktop() {
     }}>
       <style>{`
         .fig { position: absolute; left: 50%; top: calc(50% - ${PROMPT_BAND / 2}px); transform: translate(-50%, -50%);
-          width: min(calc(100vw - 32px), calc(100dvh - ${PROMPT_BAND + 120}px)); aspect-ratio: 1; }
+          width: calc(0.75 * min(100vw - 32px, 100dvh - ${PROMPT_BAND + 120}px)); aspect-ratio: 1; }
         .fig canvas { display: block; width: 100%; height: 100%; color: inherit; font-family: inherit; }
         .fig .line { position: absolute; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; height: 20px; }
         .fig .above { bottom: 100%; margin-bottom: 6px; }
