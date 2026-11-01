@@ -96,7 +96,7 @@ export function HomeDesktop() {
       // the axes, ticked at the half and at full scale
       ctx.strokeStyle = ctx.fillStyle = css.color;
       ctx.lineWidth = 1 / dpr;
-      ctx.globalAlpha = 0.45;
+      ctx.globalAlpha = 0.85;
       ctx.beginPath();
       ctx.moveTo(c - R, snap(c)); ctx.lineTo(c + R, snap(c));
       ctx.moveTo(snap(c), c - R); ctx.lineTo(snap(c), c + R);
@@ -115,12 +115,12 @@ export function HomeDesktop() {
       ctx.fillText('-1', c, c + R + 8);
 
       // the cloud: one window, every dot equal, no trailing
-      ctx.globalAlpha = 0.72;
+      ctx.globalAlpha = 1;
       const n = testing ? l.length : Math.min(1100, l.length);
       for (let i = 0; i < n; i += testing ? 7 : 1) {
         const x = c + Math.max(-1, Math.min(1, r[i])) * R;
         const y = c - Math.max(-1, Math.min(1, l[i])) * R;
-        ctx.fillRect(x - 0.65, y - 0.65, 1.3, 1.3);
+        ctx.fillRect(x - 0.9, y - 0.9, 1.8, 1.8);
       }
       ctx.globalAlpha = 1;
     };
@@ -142,7 +142,7 @@ export function HomeDesktop() {
       <style>{`
         .fig { position: absolute; left: 50%; top: calc(50% - ${PROMPT_BAND / 2}px); transform: translate(-50%, -50%);
           width: calc(0.75 * min(100vw - 32px, 100dvh - ${PROMPT_BAND + 120}px)); aspect-ratio: 1; }
-        .fig canvas { display: block; width: 100%; height: 100%; color: inherit; font-family: inherit; }
+        .fig canvas { display: block; box-sizing: border-box; width: 100%; height: 100%; border: 1px solid currentColor; color: inherit; font-family: inherit; }
         .fig .line { position: absolute; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; height: 20px; }
         .fig .above { bottom: 100%; margin-bottom: 6px; }
         .fig .below { top: 100%; margin-top: 6px; }
