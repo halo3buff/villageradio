@@ -8,13 +8,17 @@ import { useEffect, useRef, useState } from 'react';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const TICK = 12;          // room the tick labels take outside the plot
+// the border's layers, in px, and their inks as measured off the reference
+const BAND = 36, RULE = 3, RULE_INSET = 6, IN = RULE_INSET + RULE;
+const BAND_INK = '#1e1715', RULE_INK = '#e94e29', KEYLINE = '#b4c8b0', BAND_TEXT = '#f4f4ec';
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
 /**
  * The station as a figure, drawn straight on the page: the stereo field as a large Lissajous in
  * dots (x = right, y = left, so mono runs up the diagonal; full scale fits the plot, so the cloud
- * never reaches an edge), the call sign, clock, state and readouts set small in its margins. Off
+ * never reaches an edge), framed in a layered band that carries the call sign, clock, state and
+ * readouts along its edges. Off
  * air it plots a test signal, so the figure and the readouts never stop; everything is measured
  * from whichever samples are on it. README and RADAR top-right; the prompt is global (see
  * SiteFrame). The StationBar stays off here.
@@ -128,10 +132,6 @@ export function HomeDesktop() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const rows: [string, string | null | undefined][] = [
-    ['LVL', rd && `${rd.lvl} DB`], ['PK', rd && `${rd.pk} DB`], ['CORR', rd?.corr], ['BAL', rd?.bal],
-  ];
-
   return (
     <div style={{
       // fixed, so on iOS it tracks the visible viewport, not the large one
@@ -140,31 +140,34 @@ export function HomeDesktop() {
       fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)', background: 'var(--vlg-bg, #fff)',
     }}>
       <style>{`
+        /* the border: a heavy band with a thin rule set inside it, a keyline round the field, and
+           the type in the band, each side reading along its own edge with its head to the field */
         .fig { position: absolute; left: 50%; top: calc(50% - ${PROMPT_BAND / 2}px); transform: translate(-50%, -50%);
-          width: calc(0.75 * min(100vw - 32px, 100dvh - ${PROMPT_BAND + 120}px)); aspect-ratio: 1; }
-        .fig canvas { display: block; box-sizing: border-box; width: 100%; height: 100%; border: 1px solid currentColor; color: inherit; font-family: inherit; }
-        .fig .line { position: absolute; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; height: 20px; }
-        .fig .above { bottom: 100%; margin-bottom: 6px; }
-        .fig .below { top: 100%; margin-top: 6px; }
-        .fig button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 12px 12px 12px 0; }
+          box-sizing: border-box; width: calc(0.75 * min(100vw - 32px, 100dvh - ${PROMPT_BAND + 120}px) + ${BAND * 2}px); margin: 0; padding: ${BAND}px;
+          background: ${BAND_INK}; color: ${BAND_TEXT}; font-size: 11px; font-variant-numeric: tabular-nums; white-space: pre; }
+        .fig::before { content: ''; position: absolute; inset: ${RULE_INSET}px; border: ${RULE}px solid ${RULE_INK}; pointer-events: none; }
+        .fig canvas { display: block; box-sizing: border-box; width: 100%; aspect-ratio: 1; border: ${RULE}px solid ${KEYLINE};
+          background: var(--vlg-bg, #fff); color: var(--vlg-fg, #000); font-family: inherit; }
+        .fig .edge { position: absolute; display: flex; align-items: center; justify-content: center; gap: 18px; }
+        .fig .top, .fig .bottom { left: ${IN}px; right: ${IN}px; height: ${BAND - IN}px; }
+        .fig .top { top: ${IN}px; font-size: 14px; letter-spacing: 0.2em; }
+        .fig .bottom { bottom: ${IN}px; }
+        .fig .left, .fig .right { top: ${IN}px; bottom: ${IN}px; width: ${BAND - IN}px; writing-mode: vertical-rl; }
+        .fig .left { left: ${IN}px; }
+        .fig .right { right: ${IN}px; transform: rotate(180deg); }
+        .fig button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 100%; }
         .fig button:active { opacity: 0.6; }
-        .fig .lamp { width: 7px; height: 7px; background: currentColor; animation: lamp 1s steps(1) infinite; }
+        .fig .lamp { width: 7px; height: 7px; background: ${RULE_INK}; animation: lamp 1s steps(1) infinite; }
         @keyframes lamp { 50% { opacity: 0; } }
-        .fig .read { position: absolute; left: calc(100% + 24px); bottom: 0; display: grid; grid-template-columns: auto auto; gap: 2px 16px;
-          white-space: pre; font-variant-numeric: tabular-nums; }
-        .fig .read span { text-align: right; }
         @media (max-width: 899px) {
-          .fig .read { left: auto; right: 0; bottom: auto; top: calc(100% + 32px); }
+          .fig { width: min(100vw - 32px, 100dvh - ${PROMPT_BAND + 120}px); }
         }
       `}</style>
 
-      <figure className="fig" style={{ margin: 0 }}>
-        <div className="line above">
-          <span>VGF-8194</span>
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{clock ?? '--:--:--'}</span>
-        </div>
+      <figure className="fig">
         <canvas ref={plot} aria-hidden />
-        <div className="line below">
+        <div className="edge top">VGF-8194</div>
+        <div className="edge bottom">
           <button onClick={() => (live ? pause() : broadcastPlay())} aria-label={live ? 'Pause the station' : 'Play the station'}>
             <svg viewBox="0 0 8 9" fill="currentColor" aria-hidden width="8" height="9">
               {live ? <><rect x="0" y="0" width="2.5" height="9" /><rect x="5.5" y="0" width="2.5" height="9" /></>
@@ -173,9 +176,15 @@ export function HomeDesktop() {
             {live ? 'ON AIR' : 'TEST'}
             {live && <i className="lamp" />}
           </button>
+          <span>{clock ?? '--:--:--'}</span>
         </div>
-        <div className="read">
-          {rows.flatMap(([k, v]) => [<b key={k} style={{ fontWeight: 400 }}>{k}</b>, <span key={k + 'v'}>{v ?? '--'}</span>])}
+        <div className="edge left">
+          <span>LVL {rd?.lvl ?? '   --'} DB</span>
+          <span>PK {rd?.pk ?? '   --'} DB</span>
+        </div>
+        <div className="edge right">
+          <span>CORR {rd?.corr ?? '   --'}</span>
+          <span>BAL {rd?.bal ?? '   --'}</span>
         </div>
       </figure>
 
