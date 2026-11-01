@@ -16,11 +16,11 @@ export default function InformationPage() {
     }}>
       <Image src="/images/tree_8bit.png" alt="Village Radio" width={165} height={205}
         style={{ width: 165, height: 205, objectFit: 'contain', filter: 'invert(var(--vlg-invert, 0))' }} />
-      {/* the attribution sits on its own row at a set column, out of the flow so the quote's last
+      {/* the attribution sits on its own row, flush with the right edge of the first two lines, out of the flow so the quote's last
           line stays centred on its own; on narrow screens it's simply the next row, centred */}
       <style>{`
         .quote { position: relative; padding-bottom: 1.5em; }
-        .quote .attr { position: absolute; left: 246px; bottom: 0; white-space: nowrap; }
+        .quote .attr { position: absolute; right: 5.2px; bottom: 0; white-space: nowrap; }
         @media (max-width: 427px) {
           .quote { padding-bottom: 0; }
           .quote .attr { position: static; display: block; }
