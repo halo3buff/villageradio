@@ -114,7 +114,7 @@ export function HomeDesktop() {
         for (let y = 0; y < ROWS; y++) {
           const up = 1 - y / (ROWS - 1);   // 0 at the bottom row, 1 at the top
           const field = on
-            ? band * 1.5 - up * 0.75
+            ? Math.pow(band, 2) * 1.5 - up * 0.8
             : 0.42 + 0.34 * Math.sin(x * 0.55 + t * 0.35) * Math.sin(y * 0.8 - t * 0.27);
           const k = y * COLS + x;
           const target = field > BAYER[(y % 4) * 4 + (x % 4)] ? 1 : 0;
