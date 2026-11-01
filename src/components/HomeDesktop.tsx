@@ -10,6 +10,7 @@ const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the sta
 const TICK = 12;          // room the tick labels take outside the plot
 // the border's layers, in px, and their inks as measured off the reference
 const BAND = 36, RULE = 3, RULE_INSET = 6, IN = RULE_INSET + RULE;
+const METRICS = 40;      // the readout strip's height, attached to the top of the frame
 const BAND_INK = '#1e1715', RULE_INK = '#e94e29', KEYLINE = '#c7d6b8', BAND_TEXT = '#f4f4ec';
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
@@ -17,8 +18,8 @@ type Readout = { lvl: string; pk: string; corr: string; bal: string };
 /**
  * The station as a figure, drawn straight on the page: the stereo field as a large Lissajous in
  * dots (x = right, y = left, so mono runs up the diagonal; full scale fits the plot, so the cloud
- * never reaches an edge), framed in a layered band that carries the call sign, clock, state and
- * readouts along its edges. Off
+ * never reaches an edge), framed in a layered band that carries the call sign, clock and state,
+ * with the readouts in a strip attached on top. Off
  * air it plots a test signal, so the figure and the readouts never stop; everything is measured
  * from whichever samples are on it. README and RADAR top-right; the prompt is global (see
  * SiteFrame). The StationBar stays off here.
@@ -141,8 +142,8 @@ export function HomeDesktop() {
     }}>
       <style>{`
         /* the border: a heavy band with a thin rule set inside it, a keyline round the field, and
-           the type in the band, each side reading along its own edge with its head to the field */
-        .fig { position: absolute; left: 50%; top: calc(50% - ${PROMPT_BAND / 2}px); transform: translate(-50%, -50%);
+           the call sign, state and clock in the band; the readouts in their own strip on top */
+        .fig { position: absolute; left: 50%; top: calc(50% - ${(PROMPT_BAND - METRICS) / 2}px); transform: translate(-50%, -50%);
           box-sizing: border-box; width: calc(0.75 * min(100vw - 32px, 100dvh - ${PROMPT_BAND + 120}px) + ${BAND * 2}px); margin: 0; padding: ${BAND}px;
           background: ${BAND_INK}; color: ${BAND_TEXT}; font-size: 11px; font-variant-numeric: tabular-nums; white-space: pre; }
         .fig::before { content: ''; position: absolute; inset: ${RULE_INSET}px; border: ${RULE}px solid ${RULE_INK}; pointer-events: none; }
@@ -152,15 +153,16 @@ export function HomeDesktop() {
         .fig .top, .fig .bottom { left: ${IN}px; right: ${IN}px; height: ${BAND - IN}px; }
         .fig .top { top: ${IN}px; font-size: 14px; letter-spacing: 0.2em; }
         .fig .bottom { bottom: ${IN}px; }
-        .fig .left, .fig .right { top: ${IN}px; bottom: ${IN}px; width: ${BAND - IN}px; writing-mode: vertical-rl; }
-        .fig .left { left: ${IN}px; }
-        .fig .right { right: ${IN}px; transform: rotate(180deg); }
+        .fig .metrics { position: absolute; left: 0; right: 0; bottom: 100%; height: ${METRICS}px; box-sizing: border-box; padding: 0 ${IN + 10}px;
+          display: flex; align-items: center; justify-content: space-between; background: ${BAND_INK}; }
+        .fig .metrics::before { content: ''; position: absolute; inset: ${RULE_INSET}px; border: ${RULE}px solid ${RULE_INK}; pointer-events: none; }
         .fig button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 100%; }
         .fig button:active { opacity: 0.6; }
         .fig .lamp { width: 7px; height: 7px; background: ${RULE_INK}; animation: lamp 1s steps(1) infinite; }
         @keyframes lamp { 50% { opacity: 0; } }
         @media (max-width: 899px) {
           .fig { width: min(100vw - 32px, 100dvh - ${PROMPT_BAND + 120}px); }
+          .fig .metrics { letter-spacing: 0; font-size: 10px; }
         }
       `}</style>
 
@@ -178,11 +180,9 @@ export function HomeDesktop() {
           </button>
           <span>{clock ?? '--:--:--'}</span>
         </div>
-        <div className="edge left">
+        <div className="metrics">
           <span>LVL {rd?.lvl ?? '   --'} DB</span>
           <span>PK {rd?.pk ?? '   --'} DB</span>
-        </div>
-        <div className="edge right">
           <span>CORR {rd?.corr ?? '   --'}</span>
           <span>BAL {rd?.bal ?? '   --'}</span>
         </div>
