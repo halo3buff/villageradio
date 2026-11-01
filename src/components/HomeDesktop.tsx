@@ -12,9 +12,9 @@ const DESKTOP = '#ffffff';
 
 // the screen's own raster, and its colours, as measured off the reference photo
 const W = 558, H = 383;
-const BAR = '#78fce4', BAR_RULE = '#58d4bc', BAR_TEXT = '#3f9c74';
+const BAR = '#78fce4', BAR_RULE = '#58d4bc', BAR_TEXT = '#2f8a64';
 const TEXT = '#86d8b4', FRAME = '#a8e0c8', TRACE = '#d4f2e4', AXIS = 'rgba(134,216,180,0.13)';
-const CELL = '#92f4d8', CELL_TEXT = '#2a7a5a';
+const CELL = '#7fe8cf', CELL_TEXT = '#0d5238';
 // the bar, as a share of the screen: the play/pause button sits over it
 const HIT = { left: 100 / W, top: 14 / H, width: 350 / W, height: 46 / H };
 
@@ -32,7 +32,7 @@ vec2 warp(vec2 uv) {
   vec2 p = (uv - 0.5) * 2.0 * vec2(ASPECT, 1.0);
   float c = cos(0.0205), s = sin(0.0205);
   p = vec2(c * p.x + s * p.y, -s * p.x + c * p.y);
-  p *= 1.0 + 0.047 * dot(p, p);
+  p *= 0.945 * (1.0 + 0.047 * dot(p, p));
   return p / vec2(ASPECT, 1.0) * 0.5 + 0.5;
 }
 vec3 tap(vec2 uv) {
@@ -53,10 +53,12 @@ void main() {
   vec3 glow = ring(uv, 1.8) * 0.5 + ring(uv, 3.0) * 0.5;
   vec3 wide = ring(uv, 6.0) * 0.5 + ring(uv, 10.0) * 0.5;
   float haze = dot(wide, vec3(0.3, 0.6, 0.1));
-  vec3 col = soft * 0.82 + glow * vec3(0.12, 0.42, 0.26) + vec3(0.02, 0.26, 0.11) * haze;
+  // flat lit areas (the bar) hold their colour; only thin lines bloom and wander
+  float flat_ = smoothstep(0.22, 0.55, haze);
+  vec3 col = soft * mix(0.82, 1.0, flat_) + (glow * vec3(0.12, 0.42, 0.26) + vec3(0.02, 0.26, 0.11) * haze) * (1.0 - flat_);
   // the phosphor's colour wanders along the trace: cyan here, yellow-green there
   float m = 0.5 + 0.5 * sin(uv.x * 41.0 + uv.y * 23.0) * sin(uv.x * 13.0 - uv.y * 37.0);
-  col *= mix(vec3(0.80, 1.0, 1.06), vec3(1.04, 1.0, 0.72), m);
+  col *= mix(mix(vec3(0.80, 1.0, 1.06), vec3(1.04, 1.0, 0.72), m), vec3(1.0), flat_);
   // the faintest raster, and a flicker
   col *= 0.965 + 0.035 * cos(uv.y * RES.y * 6.2832);
   col *= 0.985 + 0.015 * sin(time * 47.0);
@@ -133,8 +135,8 @@ export function HomeDesktop() {
     let nextRead = 0, raf = 0;
 
     const text = (s: string, x: number, y: number, color = TEXT, align: CanvasTextAlign = 'left') => {
-      ctx.fillStyle = color; ctx.textAlign = align;
-      ctx.fillText(s, x, y);
+      ctx.fillStyle = ctx.strokeStyle = color; ctx.textAlign = align; ctx.lineWidth = 0.35;
+      ctx.fillText(s, x, y); ctx.strokeText(s, x, y);   // the character generator's heavier strokes
     };
     // an inverted cell, as the reference picks out its selected values
     const cell = (s: string, x: number, y: number) => {
@@ -183,6 +185,7 @@ export function HomeDesktop() {
       ctx.fillRect(0, 0, W, H);
       ctx.font = `19px ${getComputedStyle(canvas).fontFamily}`;
       ctx.textBaseline = 'alphabetic';
+      ctx.letterSpacing = '0.7px';   // the reference's character pitch
 
       // the call sign and the command bar
       text('VGF-8194', 104, 35, TEXT, 'right');
@@ -223,7 +226,7 @@ export function HomeDesktop() {
       ctx.moveTo(cx - rx - 15, cy + 0.5); ctx.lineTo(cx + rx + 15, cy + 0.5);
       ctx.moveTo(cx + 0.5, cy - ry - 8); ctx.lineTo(cx + 0.5, cy + ry + 8);
       ctx.stroke();
-      ctx.strokeStyle = TRACE; ctx.lineWidth = 1.15; ctx.lineJoin = 'round';
+      ctx.strokeStyle = TRACE; ctx.lineWidth = 1.7; ctx.lineJoin = 'round';
       ctx.beginPath();
       for (let i = 0; i < l.length; i += 2) {
         const px = cx + Math.max(-1, Math.min(1, (r[i] - l[i]) * 0.9)) * rx;
