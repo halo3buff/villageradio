@@ -53,6 +53,7 @@ export function HomeDesktop() {
     let spec = new Uint8Array(0);
     const glow = new Float32Array(COLS * ROWS);   // each dot's light, eased
     const slow = new Float32Array(COLS);          // each band's recent level
+    const ease = new Float32Array(COLS);
     let bias = 0;
     let nextRead = 0, raf = 0;
 
@@ -116,7 +117,9 @@ export function HomeDesktop() {
           for (let i = i0; i < i1; i++) band = Math.max(band, spec[i] ?? 0);
           band /= 255;
           // each band against its own recent level: a steady band goes dark, only change lights up
-          rel = (band - slow[x]) * 4;
+          // (eased, so it follows the music's phrases rather than every flicker in the data)
+          ease[x] += ((band - slow[x]) * 4 - ease[x]) * 0.25;
+          rel = ease[x];
           slow[x] += (band - slow[x]) * 0.02;
         }
         for (let y = 0; y < ROWS; y++) {
@@ -127,7 +130,7 @@ export function HomeDesktop() {
           const k = y * COLS + x;
           const target = field > BAYER[(y % 4) * 4 + (x % 4)] ? 1 : 0;
           lit += target;
-          glow[k] += (target - glow[k]) * (target ? 0.55 : 0.16);   // snaps on, drops fast: hard edges, not a wash
+          glow[k] += (target - glow[k]) * (target ? 0.4 : 0.1);   // quick on, quick off: hard edges, not a wash
           ctx.globalAlpha = 0.07 + 0.93 * glow[k];
           ctx.shadowBlur = glow[k] * 7;
           ctx.beginPath();

@@ -149,7 +149,7 @@ html:has(.admin-shell) {
    lines up with the page and the cover can't be seen. */
 html[data-theme="default"] {
   background-color: #a8a5a0;   /* the photo's mean, while it loads */
-  --vlg-cover: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1.6 0 0 0 -.3 1.6 0 0 0 -.3 1.6 0 0 0 -.3 0 0 0 0 .2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 220px 220px fixed, url(/site_assets/site_bg.webp) center / cover no-repeat fixed, #a8a5a0;
+  --vlg-cover: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1.6 0 0 0 -.3 1.6 0 0 0 -.3 1.6 0 0 0 -.3 0 0 0 0 .2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 220px 220px fixed, url(/site_assets/site_bg_v2.webp) center / cover no-repeat fixed, #a8a5a0;
 }
 html[data-theme="default"] body::before {
   content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;

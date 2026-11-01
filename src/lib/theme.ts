@@ -149,7 +149,7 @@ export function siteVarMap(name: string): Record<string, string> {
     '--vlg-border': t.bar_border,
     '--vlg-accent': t.uid_real,
     '--vlg-panel': t.bar_bg,
-    '--vlg-invert': light ? '0' : '1',
+    '--vlg-invert': light && t !== THEMES.default ? '0' : '1',   // the default's black marks print white on the photo
     '--vlg-strong': light ? t.exp_text : '#ffffff',
     '--vlg-cmd-cursor': t.cmd_cursor,
   };
