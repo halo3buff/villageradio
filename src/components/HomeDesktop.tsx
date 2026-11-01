@@ -9,6 +9,7 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const WHITE = '#ffffff';
 const COLS = 13, ROWS = 8, PITCH = 8, DOT = 5.4;   // the light field
+const LIT = 0.32;         // the share of it lit at any moment
 // a 4x4 ordered-dither matrix: each dot lights once the field passes its threshold
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 
@@ -51,6 +52,8 @@ export function HomeDesktop() {
     let l = new Float32Array(2048), r = new Float32Array(2048);
     let spec = new Uint8Array(0);
     const glow = new Float32Array(COLS * ROWS);   // each dot's light, eased
+    const slow = new Float32Array(COLS);          // each band's recent level
+    let bias = 0;
     let nextRead = 0, raf = 0;
 
     const draw = (now: number) => {
@@ -102,32 +105,38 @@ export function HomeDesktop() {
       const on = sum > 0;
 
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = WHITE;
+      ctx.fillStyle = ctx.shadowColor = WHITE;
+      let lit = 0;
       for (let x = 0; x < COLS; x++) {
-        let band = 0;
+        let rel = 0;
         if (on) {
           const a = 40 * Math.pow(300, x / COLS), b = 40 * Math.pow(300, (x + 1) / COLS);
           const i0 = Math.floor(a / hz), i1 = Math.max(i0 + 1, Math.ceil(b / hz));
+          let band = 0;
           for (let i = i0; i < i1; i++) band = Math.max(band, spec[i] ?? 0);
           band /= 255;
+          // each band against its own recent level: a steady band goes dark, only change lights up
+          rel = (band - slow[x]) * 9;
+          slow[x] += (band - slow[x]) * 0.02;
         }
         for (let y = 0; y < ROWS; y++) {
           const up = 1 - y / (ROWS - 1);   // 0 at the bottom row, 1 at the top
           const field = on
-            ? Math.pow(band, 2) * 1.5 - up * 0.8
+            ? 0.42 + rel - up * 0.5 - bias
             : 0.42 + 0.34 * Math.sin(x * 0.55 + t * 0.35) * Math.sin(y * 0.8 - t * 0.27);
           const k = y * COLS + x;
           const target = field > BAYER[(y % 4) * 4 + (x % 4)] ? 1 : 0;
-          glow[k] += (target - glow[k]) * (target ? 0.3 : 0.07);   // quick on, slow off, like a lamp
-          const a = 0.16 + 0.84 * glow[k];
-          ctx.globalAlpha = a;
-          ctx.shadowColor = WHITE;
-          ctx.shadowBlur = glow[k] * 9;
+          lit += target;
+          glow[k] += (target - glow[k]) * (target ? 0.55 : 0.16);   // snaps on, drops fast: hard edges, not a wash
+          ctx.globalAlpha = 0.07 + 0.93 * glow[k];
+          ctx.shadowBlur = glow[k] * 7;
           ctx.beginPath();
           ctx.arc((x + 0.5) * PITCH, (y + 0.5) * PITCH, DOT / 2, 0, Math.PI * 2);
           ctx.fill();
         }
       }
+      // the threshold rides the density: however loud the audio, about a third of the field is lit
+      if (on) bias += (lit / (COLS * ROWS) - LIT) * 0.05;
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
     };
@@ -143,18 +152,19 @@ export function HomeDesktop() {
       fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)',
     }}>
       <style>{`
-        /* all white, drawn straight on the page: one glow over the type, the borders and the lights */
+        /* all white, drawn straight on the page: the type and borders barely glow, the lights do */
         .plate { position: absolute; top: 24px; left: 24px; display: flex; gap: 6px; padding: 6px; color: ${WHITE}; border: 1px solid ${WHITE};
           font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; white-space: pre;
-          filter: drop-shadow(0 0 2px rgba(255,255,255,0.9)) drop-shadow(0 0 7px rgba(255,255,255,0.55)); }
+          text-shadow: 0 0 3px rgba(255,255,255,0.3); box-shadow: 0 0 3px rgba(255,255,255,0.3); }
         .plate .info { padding: 3px 12px 3px 6px; display: grid; grid-template-columns: auto auto; column-gap: 22px; row-gap: 3px; align-content: center; }
         .plate .info .end { text-align: right; }
         .plate button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 0; margin: -6px 0; }
         .plate button:active { opacity: 0.6; }
         .plate .lamp { width: 6px; height: 6px; background: currentColor; animation: lamp 1s steps(1) infinite; }
         @keyframes lamp { 50% { opacity: 0; } }
-        .plate .window { border: 1px solid ${WHITE}; display: flex; }
-        .plate canvas { display: block; width: ${COLS * PITCH}px; height: ${ROWS * PITCH}px; margin: auto 6px; }
+        .plate .window { border: 1px solid ${WHITE}; display: flex; box-shadow: 0 0 3px rgba(255,255,255,0.3); }
+        .plate canvas { display: block; width: ${COLS * PITCH}px; height: ${ROWS * PITCH}px; margin: auto 6px;
+          filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)); }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
         }

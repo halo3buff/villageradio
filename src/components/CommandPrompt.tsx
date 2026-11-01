@@ -107,7 +107,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
       }}>
         {PS1}{cmd}
         {echo ? (
-          <span style={{ color: '#ff0000' }}>{'  ->  '}{echo}</span>
+          <span>{'  ->  '}{echo}</span>
         ) : (
           <span style={{
             display: 'inline-block', width: 8, height: 14, background: 'var(--vlg-cmd-cursor, #000)',

@@ -33,14 +33,14 @@ export type Theme = {
 
 export const THEMES: Record<string, Theme> = {
   default: {
-    // the mint report-cover stock: dark olive ink on mint (sampled from the reference cover)
-    bg:'#eef8f1', ts:'#3a3a3a', uid_palette:['#0f5e5a','#1d5a1d','#5a2a7a','#1a3f80','#7a3a10','#0e4f6e','#6a2068','#0d5a40','#7a3418','#2a3a8a'], uid_real:'#1a2418', col_host:'#7a2040', col_data:'#2b3626',
-    bar_bg:'#dadada', bar_border:'#9e9e9e', bar_dim:'#5a5a5a', bar_bright:'#1a2418',
-    filter_col:'#0f5e5a',
-    tab_bg:'#d2d2d2', tab_fg:'#5a5a5a', tab_active_bg:'#2b3626', tab_active_fg:'#eef8f1',
-    cmd_bg:'#d2d2d2', cmd_fg:'#1a2418', cmd_cursor:'#2b3626',
-    hover_bg:'rgba(43,54,38,0.06)', sel_bg:'rgba(43,54,38,0.12)',
-    exp_comment:'#5a5a5a', exp_num:'#8a8a8a', exp_text:'#2b3626', exp_border:'#9e9e9e',
+    // the blurred photo (globals.css): the page shows through and every word on it is white
+    bg:'#a8a5a0', ts:'#ffffff', uid_palette:['#ffffff'], uid_real:'#ffffff', col_host:'#ffffff', col_data:'#ffffff',
+    bar_bg:'transparent', bar_border:'rgba(255,255,255,0.6)', bar_dim:'#ffffff', bar_bright:'#ffffff',
+    filter_col:'#ffffff',
+    tab_bg:'transparent', tab_fg:'#ffffff', tab_active_bg:'rgba(255,255,255,0.22)', tab_active_fg:'#ffffff',
+    cmd_bg:'transparent', cmd_fg:'#ffffff', cmd_cursor:'#ffffff',
+    hover_bg:'rgba(255,255,255,0.1)', sel_bg:'rgba(255,255,255,0.18)',
+    exp_comment:'#ffffff', exp_num:'#ffffff', exp_text:'#ffffff', exp_border:'rgba(255,255,255,0.6)',
   },
   black: {
     // white on black — the previous paper-white values, inverted
