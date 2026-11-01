@@ -116,7 +116,7 @@ export function HomeDesktop() {
           for (let i = i0; i < i1; i++) band = Math.max(band, spec[i] ?? 0);
           band /= 255;
           // each band against its own recent level: a steady band goes dark, only change lights up
-          rel = (band - slow[x]) * 9;
+          rel = (band - slow[x]) * 4;
           slow[x] += (band - slow[x]) * 0.02;
         }
         for (let y = 0; y < ROWS; y++) {
