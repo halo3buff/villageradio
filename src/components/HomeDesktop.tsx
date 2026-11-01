@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
-const WHITE = '#fcfcfc';  // the reference's lit white, as measured
+const WHITE = '#ffffff';
 const COLS = 13, ROWS = 8, PITCH = 8, DOT = 5.4;   // the light field
 // a 4x4 ordered-dither matrix: each dot lights once the field passes its threshold
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
@@ -15,8 +15,8 @@ const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
 /**
- * The station as a small white plate in the top-left corner: the call sign, clock, state and
- * readouts, then at its right end a window onto the page holding a field of lights, the spectrum
+ * The station as a small white outline in the top-left corner: the call sign, clock, state and
+ * readouts, then at its right end a bordered field of lights, the spectrum
  * dithered into dots (low notes left), each easing on and off. Off air the field drifts slowly and
  * the readouts follow a test signal, so nothing stops. README and RADAR top-right; the prompt is
  * global (see SiteFrame). The StationBar stays off here.
@@ -122,7 +122,7 @@ export function HomeDesktop() {
           const a = 0.16 + 0.84 * glow[k];
           ctx.globalAlpha = a;
           ctx.shadowColor = WHITE;
-          ctx.shadowBlur = glow[k] * 7;
+          ctx.shadowBlur = glow[k] * 9;
           ctx.beginPath();
           ctx.arc((x + 0.5) * PITCH, (y + 0.5) * PITCH, DOT / 2, 0, Math.PI * 2);
           ctx.fill();
@@ -143,16 +143,17 @@ export function HomeDesktop() {
       fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)',
     }}>
       <style>{`
-        .plate { position: absolute; top: 24px; left: 24px; display: flex; color: #111; font-size: 11px; letter-spacing: 0.04em;
-          font-variant-numeric: tabular-nums; white-space: pre; filter: drop-shadow(0 0 14px rgba(255,255,255,0.4)); }
-        .plate .info { background: ${WHITE}; padding: 9px 14px 9px 12px; display: grid; grid-template-columns: auto auto; column-gap: 22px; row-gap: 3px; align-content: center; }
+        /* all white, drawn straight on the page: one glow over the type, the borders and the lights */
+        .plate { position: absolute; top: 24px; left: 24px; display: flex; gap: 6px; padding: 6px; color: ${WHITE}; border: 1px solid ${WHITE};
+          font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; white-space: pre;
+          filter: drop-shadow(0 0 2px rgba(255,255,255,0.9)) drop-shadow(0 0 7px rgba(255,255,255,0.55)); }
+        .plate .info { padding: 3px 12px 3px 6px; display: grid; grid-template-columns: auto auto; column-gap: 22px; row-gap: 3px; align-content: center; }
         .plate .info .end { text-align: right; }
         .plate button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 0; margin: -6px 0; }
         .plate button:active { opacity: 0.6; }
         .plate .lamp { width: 6px; height: 6px; background: currentColor; animation: lamp 1s steps(1) infinite; }
         @keyframes lamp { 50% { opacity: 0; } }
-        /* the window: the plate's white runs round it, the page shows through, the lights on that */
-        .plate .window { border: 4px solid ${WHITE}; border-left-width: 0; display: flex; }
+        .plate .window { border: 1px solid ${WHITE}; display: flex; }
         .plate canvas { display: block; width: ${COLS * PITCH}px; height: ${ROWS * PITCH}px; margin: auto 6px; }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
