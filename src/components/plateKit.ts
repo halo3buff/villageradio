@@ -40,6 +40,7 @@ type Look = {
   grain: number;                                          // screen grain opacity (0 = none)
   grid: string;                                           // the radar's lat/long grid
   frame?: string;                                         // an edge round each screen
+  glow?: boolean;                                         // keeps the instruments' shadows
   panes?: boolean;                                        // PlateFrame draws the frames, in CSS
 };
 const NONE = 'rgba(0,0,0,0)';
@@ -53,22 +54,23 @@ const C = {   // aeronautical chart inks
 };
 const TRACE_RGB = '230,230,230', YEL_RGB = '240,192,44', INK_RGB = '43,54,38', VIG_RGB = '0,0,0';
 let vga = 'monospace';
-const BLACK = '#000000';
+const WHITE = '#ffffff', ALARM = '#ff3b1f';
 const LOOKS: Record<string, Look> = {
-  // the site's own: a survey drawing on a photograph. Black hairlines and serif labels straight on the
-  // ground (RadarDesktop's styles), no glass, no colour; a faint fill goes light, so it lifts off the photo.
+  // the site's own: no stock or screens, white light on the photograph through PlateFrame's panes.
+  // Colour is kept for the one thing it says, killed / strike; Area C and jurisdiction go dark so
+  // they still read apart from Areas A and B, lit.
   default: {
     colors: {
-      [PAPER]: NONE, [INK]: BLACK, [SCREEN]: NONE, [YEL]: BLACK, [TRACE]: BLACK, [CORE]: BLACK,
-      '#7a2a10': BLACK, '#ff8a6a': BLACK, '#fff': BLACK,
-      'rgba(255,255,255,0.18)': NONE, 'rgba(236,230,210,0.35)': BLACK, 'rgba(255,255,255,0.028)': NONE, 'rgba(230,230,230,0.3)': 'rgba(0,0,0,0.7)',
+      [PAPER]: NONE, [INK]: WHITE, [SCREEN]: NONE, [YEL]: WHITE, [TRACE]: WHITE, [CORE]: WHITE,
+      '#7a2a10': ALARM, '#ff8a6a': ALARM, '#fff': WHITE,
+      'rgba(255,255,255,0.18)': NONE, 'rgba(236,230,210,0.35)': WHITE, 'rgba(255,255,255,0.028)': NONE, 'rgba(230,230,230,0.3)': 'rgba(255,255,255,0.75)',
     },
-    tint: (rgb, a) => rgb === TRACE_RGB ? (a < 0.2 ? `rgba(255,255,255,${Math.min(0.6, a * 7)})` : `rgba(0,0,0,${Math.min(1, a * 2)})`)
-      : rgb === YEL_RGB || rgb === INK_RGB ? `rgba(0,0,0,${a})`
+    tint: (rgb, a) => rgb === TRACE_RGB ? `rgba(255,255,255,${a < 0.2 ? a : Math.min(1, a * 1.6)})`
+      : rgb === YEL_RGB ? `rgba(0,0,0,${a})`
+      : rgb === INK_RGB ? `rgba(255,255,255,${a})`
       : rgb === VIG_RGB ? NONE : undefined,
-    label: BLACK, value: BLACK, stamp: BLACK,
-    face: size => `700 ${size * 1.3}px 'Times New Roman', Times, serif`,
-    grain: 0, grid: NONE, panes: true,
+    label: WHITE, value: WHITE, stamp: WHITE,
+    grain: 0, grid: NONE, glow: true, panes: true,
   },
   ega: {
     colors: {
@@ -132,7 +134,7 @@ export function themeAware(ctx: CanvasRenderingContext2D) {
   prop('fillStyle', color);
   prop('strokeStyle', color);
   prop('shadowColor', color);
-  prop('shadowBlur', () => 0);
+  prop('shadowBlur', (L, v) => (L.glow ? v : 0));
   prop('font', (L, v) => {
     const m = L.face && typeof v === 'string' && !/arabic/i.test(v) && v.match(/([\d.]+)px/);
     return m ? L.face!(parseFloat(m[1])) : v;

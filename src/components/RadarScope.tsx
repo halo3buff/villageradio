@@ -164,14 +164,6 @@ export function RadarScope(props: Props) {
       for (const bl of incBlips) {
         const x = bl.inc!, age = nowS - x.t, color = hotInc(x) ? HOT : CORE;
         glow(color, bl === hover ? 1 : Math.max(age < 6 * HOUR ? 0.85 : age < DAY ? 0.55 : 0.25, lit(bl)), 7);
-        if (L?.panes) {   // the survey's marks: a +, its weight the severity; a ring for a second source
-          const hot = hotInc(x), arm = hot ? 4.2 : 2.4;
-          ctx.lineWidth = hot ? 1.5 : 0.6;
-          ctx.beginPath(); ctx.moveTo(bl.x - arm, bl.y); ctx.lineTo(bl.x + arm, bl.y); ctx.moveTo(bl.x, bl.y - arm); ctx.lineTo(bl.x, bl.y + arm); ctx.stroke();
-          if (sourcesOf(x).length > 1) { ctx.lineWidth = 0.5; ctx.beginPath(); ctx.arc(bl.x, bl.y, arm + 1.6, 0, 7); ctx.stroke(); }
-          done();
-          continue;
-        }
         ctx.beginPath(); ctx.moveTo(bl.x, bl.y - 2.6); ctx.lineTo(bl.x + 2.4, bl.y + 1.8); ctx.lineTo(bl.x - 2.4, bl.y + 1.8); ctx.closePath();
         if (x.tags.includes('SETTLERS') || hotInc(x)) ctx.fill(); else ctx.stroke();
         if (sourcesOf(x).length > 1) {   // confirmed by two channels or more: a second, outer triangle
@@ -202,11 +194,6 @@ export function RadarScope(props: Props) {
 
       // the rim and its bearings, on the paper
       if (!L?.panes) { ctx.strokeStyle = INK; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(CX, CY, R, 0, 7); ctx.stroke(); }
-      else for (const side of [-1, 1]) {   // the survey's heavy brackets, either side of the scope
-        const x = CX + side * (R + 15), arm = -side * 7;
-        ctx.strokeStyle = INK; ctx.lineWidth = 2.2;
-        ctx.beginPath(); ctx.moveTo(x + arm, CY - 62); ctx.lineTo(x, CY - 62); ctx.lineTo(x, CY + 62); ctx.lineTo(x + arm, CY + 62); ctx.stroke();
-      }
       for (let d = 0; d < 360; d += 10) {
         const b = (d * Math.PI) / 180, sx = Math.sin(b), cy = -Math.cos(b), long = d % 30 === 0;
         line(CX + sx * R, CY + cy * R, CX + sx * (R + (long ? 4 : 2)), CY + cy * (R + (long ? 4 : 2)), INK);
@@ -225,17 +212,15 @@ export function RadarScope(props: Props) {
         [`MIL AIRCRAFT NOW ${airBlips.length}`, false],
       ];
       tally.forEach(([r, red], i) => t(r, X0 + SCR, Y0 + 2 + i * 7, 5, red ? RED : INK, 'right'));
-      const plus = (x: number, y: number, arm: number, w: number) => { ctx.strokeStyle = INK; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x - arm, y); ctx.lineTo(x + arm, y); ctx.moveTo(x, y - arm); ctx.lineTo(x, y + arm); ctx.stroke(); };
       const key: [string, (x: number, y: number) => void][] = [
-        ['FIELD REPORT', (x, y) => { if (L?.panes) return plus(x, y, 2.2, 0.6); ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(x, y - 2); ctx.lineTo(x + 1.9, y + 1.4); ctx.lineTo(x - 1.9, y + 1.4); ctx.closePath(); ctx.fill(); }],
+        ['FIELD REPORT', (x, y) => { ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(x, y - 2); ctx.lineTo(x + 1.9, y + 1.4); ctx.lineTo(x - 1.9, y + 1.4); ctx.closePath(); ctx.fill(); }],
         ['SIRENS', (x, y) => { ctx.fillStyle = ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.arc(x, y, 0.7, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.stroke(); }],
         ['SAT FIRE', (x, y) => { ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 7); ctx.fill(); }],
         ['MIL AIRCRAFT', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.moveTo(x, y - 2); ctx.lineTo(x + 2, y); ctx.lineTo(x, y + 2); ctx.lineTo(x - 2, y); ctx.closePath(); ctx.stroke(); }],
-        [L?.panes ? 'RING = 2+ SOURCES' : 'DOUBLE = 2+ SOURCES', (x, y) => { if (L?.panes) { plus(x, y, 1.6, 0.5); ctx.lineWidth = 0.5; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.stroke(); return; } ctx.strokeStyle = INK; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(x, y - 2.6); ctx.lineTo(x + 2.4, y + 1.8); ctx.lineTo(x - 2.4, y + 1.8); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y - 1.2); ctx.lineTo(x + 1.1, y + 0.8); ctx.lineTo(x - 1.1, y + 0.8); ctx.closePath(); ctx.stroke(); }],
-        [L?.panes ? 'HEAVY = KILLED/STRIKE' : 'RED = KILLED/STRIKE', (x, y) => { if (L?.panes) return plus(x, y, 2.8, 1.3); ctx.fillStyle = RED; ctx.fillRect(x - 1.5, y - 1.5, 3, 3); }],
+        ['DOUBLE = 2+ SOURCES', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(x, y - 2.6); ctx.lineTo(x + 2.4, y + 1.8); ctx.lineTo(x - 2.4, y + 1.8); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y - 1.2); ctx.lineTo(x + 1.1, y + 0.8); ctx.lineTo(x - 1.1, y + 0.8); ctx.closePath(); ctx.stroke(); }],
+        ['RED = KILLED/STRIKE', (x, y) => { ctx.fillStyle = RED; ctx.fillRect(x - 1.5, y - 1.5, 3, 3); }],
         ['PULSE = NEW', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, 0.8, 0, 7); ctx.stroke(); }],
       ];
-      if (L?.panes) { ctx.fillStyle = '#fefefe'; ctx.fillRect(X0 - 1, Y0 + SCR - 53, 84, 53); }   // a white tab on the ground, not a plate colour
       key.forEach(([label, draw], i) => {
         const y = Y0 + SCR - 2 - (key.length - 1 - i) * 7.5;
         draw(X0 + 3, y - 1.8);

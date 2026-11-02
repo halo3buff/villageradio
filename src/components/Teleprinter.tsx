@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { NetNow, TelexKind, TelexLine } from '@/lib/radar';
 import { PlateFrame } from './PlateFrame';
-import { INK, look, mountPlate, platePoint } from './plateKit';
+import { INK, mountPlate, platePoint } from './plateKit';
 
 /**
  * The teleprinter — every report, outage and live event the console receives,
@@ -36,7 +36,6 @@ export function telex(text: string, k: TelexKind, hot = false) {
 }
 
 const RED = '#7a2a10';
-const REVERSED = '#fefefe';   // white, set on a black bar: not a plate colour, so no look translates it
 
 /** The margin mark for a kind of line, centred on (x, y): the same marks the radar plots. */
 function mark(ctx: CanvasRenderingContext2D, k: TelexKind, x: number, y: number, color: string) {
@@ -46,9 +45,7 @@ function mark(ctx: CanvasRenderingContext2D, k: TelexKind, x: number, y: number,
     case 'report': ctx.moveTo(x - 1.6, y); ctx.lineTo(x + 1.6, y); ctx.moveTo(x, y - 1.6); ctx.lineTo(x, y + 1.6); ctx.stroke(); break;
     case 'fire': ctx.arc(x, y, 1.4, 0, 7); ctx.fill(); break;
     case 'air': ctx.moveTo(x, y - 1.8); ctx.lineTo(x + 1.8, y); ctx.lineTo(x, y + 1.8); ctx.lineTo(x - 1.8, y); ctx.closePath(); ctx.stroke(); break;
-    case 'incident':
-      if (look()?.panes) { ctx.moveTo(x - 1.8, y); ctx.lineTo(x + 1.8, y); ctx.moveTo(x, y - 1.8); ctx.lineTo(x, y + 1.8); ctx.stroke(); break; }
-      ctx.moveTo(x, y - 1.8); ctx.lineTo(x + 1.7, y + 1.3); ctx.lineTo(x - 1.7, y + 1.3); ctx.closePath(); ctx.fill(); break;
+    case 'incident': ctx.moveTo(x, y - 1.8); ctx.lineTo(x + 1.7, y + 1.3); ctx.lineTo(x - 1.7, y + 1.3); ctx.closePath(); ctx.fill(); break;
     case 'alert': ctx.arc(x, y, 0.7, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x, y, 1.9, 0, 7); ctx.stroke(); break;
     case 'net': ctx.moveTo(x - 2, y + 0.8); ctx.lineTo(x - 0.7, y - 1); ctx.lineTo(x + 0.7, y + 1); ctx.lineTo(x + 2, y - 0.8); ctx.stroke(); break;
   }
@@ -117,9 +114,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
       const end = Math.max(0, rows.length - back);
       const baseY = Y0 + PH - 10;
       for (let k = 0; k < VISIBLE && end - 1 - k >= 0; k++) {
-        const m = rows[end - 1 - k], y = baseY - k * LH, inverse = m.hot && look()?.panes;
-        const color = inverse ? REVERSED : m.hot ? RED : INK;
-        if (inverse) { ctx.fillStyle = INK; ctx.fillRect(MARK - 3, y - 6, X0 + PW - 11 - (MARK - 3), LH - 0.5); }
+        const m = rows[end - 1 - k], y = baseY - k * LH, color = m.hot ? RED : INK;
         mark(ctx, m.k, MARK, y - 1.8, color);
         t(m.text, TX, y, 5, color);
       }
@@ -154,7 +149,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
         t(label, X0 + 15, y, 5.5);
         t(src, X0 + PW - 6, y, 4.5, INK, 'right');
       });
-      t(`${look()?.panes ? 'REVERSED' : 'RED'}: KILLED / STRIKE / SIRENS / OUTAGE / MIL`, X0, H - 3, 5);
+      t('RED: KILLED / STRIKE / SIRENS / OUTAGE / MIL', X0, H - 3, 5);
     });
 
     // scroll the roll: wheel on desktop, drag on touch — only over the paper itself, so a swipe
