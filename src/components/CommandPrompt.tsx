@@ -22,6 +22,8 @@ const ps1 = (path: string) => `MAIN:/vlg/stn/${FILES[path] ?? path.split('/').po
  */
 // Not in the CMS command list, so they never appear on the README or in admin.
 const PASSPHRASE: Record<string, string> = { gulam: '/station', farm: '/farm' };
+// The admin entry for phones, which have no arrow keys: summons SootSprite's sprite, homepage only.
+const SPRITE_WORD = 'honeycomb';
 
 export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const cmdMap = {
@@ -29,7 +31,8 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     ...PASSPHRASE,
   };
   const router = useRouter();
-  const PS1 = ps1(usePathname());
+  const pathname = usePathname();
+  const PS1 = ps1(pathname);
   const inputRef = useRef<HTMLInputElement>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [cmd, setCmd] = useState('');
@@ -60,6 +63,12 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const onChange = (raw: string) => {
     if (echo) return; // frozen while a command executes
     const value = normalise(raw);
+    if (value.toLowerCase() === SPRITE_WORD && pathname === '/') {
+      setCmd('');
+      inputRef.current?.blur();
+      window.dispatchEvent(new Event('vlg:sprite'));
+      return;
+    }
     const target = cmdMap[value];
     if (!target) { setCmd(raw); return; }
     setCmd(value);

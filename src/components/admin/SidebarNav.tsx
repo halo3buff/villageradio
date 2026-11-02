@@ -24,13 +24,13 @@ export function SidebarNav() {
   }
 
   return (
-    <nav className="w-44 shrink-0 border-r border-white/10 px-5 py-7 flex flex-col gap-5">
+    <nav className="w-full md:w-44 shrink-0 border-b md:border-b-0 md:border-r border-white/10 px-4 py-4 md:px-5 md:py-7 flex flex-col gap-3 md:gap-5">
       <div className="font-mono text-[9px] tracking-[0.28em] uppercase text-white/55">
         vlg.fm
         <span className="block mt-1 text-white/35">console</span>
       </div>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-row flex-wrap gap-x-5 gap-y-3 md:flex-col md:gap-2.5">
         {SECTIONS.map((s) =>
           s.live ? (
             <Link
@@ -59,7 +59,7 @@ export function SidebarNav() {
 
       <button
         onClick={logout}
-        className="mt-auto self-start font-mono text-[9px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors"
+        className="md:mt-auto self-start font-mono text-[9px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors"
       >
         logout →
       </button>

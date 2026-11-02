@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { advance } from '@/lib/auth/key-sequence';
 import { LoginForm } from '@/components/LoginForm';
 
-// The hidden admin entry. Mounted ONLY on the homepage (src/app/page.tsx), so the sequence works
-// nowhere else. The sprite is obscurity only — the real lock is the login + the 404-gated /admin.
+// The hidden admin entry. Mounted ONLY on the homepage (src/app/page.tsx), so the sequence (or, on a
+// phone, the prompt's word) works nowhere else. The sprite is obscurity only — the real lock is the login + the 404-gated /admin.
 const SEQUENCE = ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'ArrowDown'];
 const AUTO_HIDE_MS = 15_000;
 
@@ -25,8 +25,11 @@ export function SootSprite() {
         setSpriteVisible(true);
       }
     }
+    // phones have no arrow keys: the command prompt's word summons it instead
+    const summon = () => setSpriteVisible(true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('vlg:sprite', summon);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('vlg:sprite', summon); };
   }, []);
 
   // Auto-hide the sprite after a while — but not once the login overlay is open.
@@ -52,7 +55,7 @@ export function SootSprite() {
         <button
           aria-label="enter"
           onClick={() => setLoginOpen(true)}
-          className="soot-sprite fixed top-3 left-[400px] z-[60] h-9 w-9 cursor-pointer bg-transparent border-0 p-0"
+          className="soot-sprite fixed top-3 left-[min(400px,calc(100vw-3.5rem))] z-[60] h-9 w-9 cursor-pointer bg-transparent border-0 p-0"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icons/soot-sprite.png" alt="" className="h-full w-full object-contain" />

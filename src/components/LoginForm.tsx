@@ -46,7 +46,7 @@ export function LoginForm() {
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
           required
-          className="w-full bg-transparent border-b border-white/15 pb-1.5 font-mono text-sm text-white outline-none focus:border-white/40"
+          className="w-full bg-transparent border-b border-white/15 pb-1.5 font-mono text-base md:text-sm text-white outline-none focus:border-white/40"
         />
       </label>
       <label className="block mb-5">
@@ -59,7 +59,7 @@ export function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
           required
-          className="w-full bg-transparent border-b border-white/15 pb-1.5 font-mono text-sm text-white outline-none focus:border-white/40"
+          className="w-full bg-transparent border-b border-white/15 pb-1.5 font-mono text-base md:text-sm text-white outline-none focus:border-white/40"
         />
       </label>
       <button

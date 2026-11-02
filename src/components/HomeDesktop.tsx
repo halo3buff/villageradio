@@ -12,6 +12,9 @@ const WHITE = '#ffffff';
 const W = 104, H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
 const STEP = 8, TEST_STEP = 20;   // samples between dots, so each stays its own light
+// the floor: quieter than this (dBFS RMS) the figure is held at this size, its shape intact, so a
+// quiet stretch still moves; louder plays exactly as before. Never lifted more than LIFT_MAX.
+const FLOOR_DB = -30, LIFT_MAX_DB = 40, LIFT_EASE_S = 0.5;
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
@@ -48,7 +51,7 @@ export function HomeDesktop() {
     ctx.scale(dpr, dpr);
 
     let l = new Float32Array(2048), r = new Float32Array(2048);
-    let nextRead = 0, raf = 0;
+    let nextRead = 0, raf = 0, lift = 0, last = 0;
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
@@ -93,7 +96,12 @@ export function HomeDesktop() {
       // R against L in a square, so mono runs up the diagonal; full scale stops short of the edges
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = WHITE;
-      const gain = testing ? 1 : Math.pow(10, VISUAL_TRIM_DB / 20);
+      const level = 10 * Math.log10(energy / (2 * l.length) || 1e-12);
+      const want = testing ? 0 : Math.min(LIFT_MAX_DB, Math.max(0, FLOOR_DB - level));
+      // drops at once when the audio comes back up, so a hit never overshoots; rises gently
+      lift = want < lift ? want : lift + (want - lift) * (1 - Math.exp(-Math.min(0.25, (now - last) / 1000) / LIFT_EASE_S));
+      last = now;
+      const gain = testing ? 1 : Math.pow(10, (VISUAL_TRIM_DB + lift) / 20);
       for (let i = 0; i < l.length; i += testing ? TEST_STEP : STEP) {
         const x = W / 2 + Math.max(-1, Math.min(1, r[i] * gain)) * REACH;
         const y = H / 2 - Math.max(-1, Math.min(1, l[i] * gain)) * REACH;
