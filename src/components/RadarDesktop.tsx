@@ -2,7 +2,7 @@
 
 import { Airspace } from '@/components/Airspace';
 import { RadarScope } from '@/components/RadarScope';
-import { SettlementMap } from '@/components/SettlementMap';
+import { NEG_INK } from '@/components/plateKit';
 import { Teleprinter } from '@/components/Teleprinter';
 import type { Live } from '@/lib/live';
 import { useEffect, useState } from 'react';
@@ -10,10 +10,10 @@ import { useEffect, useState } from 'react';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the global command prompt's strip, as on the station
 const POLL = 15000;       // the console's state from /api/radar/live; the instruments take it live
-const ROW_W = 260 + 372 + 260 + 260, ROW_H = 446;   // the four plates side by side, plate units
+const ROW_W = 260 + 372 + 260, ROW_H = 446;   // the three plates side by side, plate units
 const GAP = 8;            // between them, px
 
-/** The radar console: teleprinter | radar | settlement map | airspace in a row above the
+/** The radar console: teleprinter | radar | airspace in a row above the
  *  prompt; on phones a scrolling column, the roll last. README where the station keeps its own. */
 export function RadarDesktop({ initial }: { initial: Live }) {
   const [live, setLive] = useState(initial);
@@ -42,23 +42,20 @@ export function RadarDesktop({ initial }: { initial: Live }) {
         .console .plate { display: block; position: relative; width: min(100%, 480px); flex: none; }
         .console .plate canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
         .console .pane { display: none; position: absolute; }
-        /* the station's plate and window: a white outline on the photo, frosted on a layer of its own
-           (a backdrop-filter on the plate would cut the panes' blur off from the page). Smokier than
-           the station's: this much small type needs the ground, and the photo's grain gone from under it */
-        html[data-theme="default"] .console .plate { isolation: isolate; border: 1px solid #fff; box-shadow: 0 0 3px rgba(255,255,255,0.3); }
-        html[data-theme="default"] .console .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.22); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-        html[data-theme="default"] .console .pane { display: block; border: 1px solid #fff; box-shadow: 0 0 3px rgba(255,255,255,0.3);
-          background: rgba(0,0,0,0.22); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-        .console .radar, .console .map, .console .air { order: -1; }   /* phones: the roll last */
+        /* a film negative of the station's plate and window: white glass on the photo, frosted on a layer
+           of its own (a backdrop-filter on the plate would cut the panes' blur off from the page) */
+        html[data-theme="default"] .console .plate { isolation: isolate; border: 1px solid ${NEG_INK}; }
+        html[data-theme="default"] .console .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(255,255,255,0.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+        html[data-theme="default"] .console .pane { display: block; border: 1px solid ${NEG_INK}; background: rgba(255,255,255,0.45); }
+        .console .radar, .console .air { order: -1; }   /* phones: the roll last */
         @media (min-width: 900px) {
           .console { position: fixed; inset: 0 0 ${PROMPT_BAND}px 0; flex-direction: row; justify-content: center; gap: ${GAP}px; padding: 0; overflow: hidden; }
-          .console .plate { width: auto; height: min(calc(100dvh - 140px), calc((100vw - 48px - ${3 * GAP}px) * ${ROW_H} / ${ROW_W}), 720px); }
-          .console .radar, .console .map, .console .air { order: 0; }
+          .console .plate { width: auto; height: min(calc(100dvh - 140px), calc((100vw - 48px - ${2 * GAP}px) * ${ROW_H} / ${ROW_W}), 720px); }
+          .console .radar, .console .air { order: 0; }
         }
       `}</style>
       <Teleprinter lines={telex} net={net} />
       <RadarScope feed={feed} fires={fires} incidents={incidents} alerts={alerts} />
-      <SettlementMap />
       <Airspace />
       {/* README where the station keeps its own; a placeholder for now, it leads nowhere */}
       <a className="radar-back" style={{

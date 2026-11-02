@@ -55,22 +55,21 @@ const C = {   // aeronautical chart inks
 };
 const TRACE_RGB = '230,230,230', YEL_RGB = '240,192,44', INK_RGB = '43,54,38', VIG_RGB = '0,0,0';
 let vga = 'monospace';
-const WHITE = '#ffffff', ALARM = '#ff8a6a';
+/** The site's own look's ink, for PlateFrame's outlines too. */
+export const NEG_INK = '#1668b0';
+const NEG_RGB = '22,104,176', ALARM = '#c8102e';
 const LOOKS: Record<string, Look> = {
-  // the site's own: no stock or screens, white light on the photograph through PlateFrame's panes.
-  // Colour is kept for the one thing it says, killed / strike; Area C and jurisdiction go dark so
-  // they still read apart from Areas A and B, lit.
+  // the site's own: a film negative, dark ink on white glass over the photograph, through
+  // PlateFrame's panes. Colour is kept for the one thing it says, killed / strike.
   default: {
     colors: {
-      [PAPER]: NONE, [INK]: WHITE, [SCREEN]: NONE, [YEL]: WHITE, [TRACE]: WHITE, [CORE]: WHITE,
-      '#7a2a10': ALARM, '#ff8a6a': ALARM, '#fff': WHITE,
-      'rgba(255,255,255,0.18)': NONE, 'rgba(236,230,210,0.35)': WHITE, 'rgba(255,255,255,0.028)': NONE, 'rgba(230,230,230,0.3)': 'rgba(255,255,255,0.85)',
+      [PAPER]: NONE, [INK]: NEG_INK, [SCREEN]: NONE, [YEL]: NEG_INK, [TRACE]: NEG_INK, [CORE]: NEG_INK,
+      '#7a2a10': ALARM, '#ff8a6a': ALARM, '#fff': NEG_INK,
+      'rgba(255,255,255,0.18)': NONE, 'rgba(236,230,210,0.35)': NEG_INK, 'rgba(255,255,255,0.028)': NONE, 'rgba(230,230,230,0.3)': `rgba(${NEG_RGB},0.8)`,
     },
-    tint: (rgb, a) => rgb === TRACE_RGB ? `rgba(255,255,255,${a < 0.2 ? a : Math.min(1, a * 1.6)})`
-      : rgb === YEL_RGB ? `rgba(0,0,0,${a})`
-      : rgb === INK_RGB ? `rgba(255,255,255,${a})`
+    tint: (rgb, a) => rgb === TRACE_RGB || rgb === YEL_RGB || rgb === INK_RGB ? `rgba(${NEG_RGB},${a < 0.3 ? a : Math.min(1, a * 1.8)})`
       : rgb === VIG_RGB ? NONE : undefined,
-    label: WHITE, value: WHITE, stamp: WHITE,
+    label: NEG_INK, value: NEG_INK, stamp: NEG_INK,
     grain: 0, grid: NONE, glow: true, panes: true, type: 1.15,
   },
   ega: {
