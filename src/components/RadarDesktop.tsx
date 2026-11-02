@@ -42,13 +42,13 @@ export function RadarDesktop({ initial }: { initial: Live }) {
         .console .plate { display: block; position: relative; width: min(100%, 480px); flex: none; }
         .console .plate canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
         .console .pane { display: none; position: absolute; }
-        /* the station's plate and window: a white outline on the photo, the plate barely frosted on a
-           layer of its own (a backdrop-filter on it would cut the panes' blur off from the page), the
-           panes a touch more */
+        /* the station's plate and window: a white outline on the photo, frosted on a layer of its own
+           (a backdrop-filter on the plate would cut the panes' blur off from the page). Smokier than
+           the station's: this much small type needs the ground, and the photo's grain gone from under it */
         html[data-theme="default"] .console .plate { isolation: isolate; border: 1px solid #fff; box-shadow: 0 0 3px rgba(255,255,255,0.3); }
-        html[data-theme="default"] .console .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
+        html[data-theme="default"] .console .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.22); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
         html[data-theme="default"] .console .pane { display: block; border: 1px solid #fff; box-shadow: 0 0 3px rgba(255,255,255,0.3);
-          background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+          background: rgba(0,0,0,0.22); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
         .console .radar, .console .map, .console .air { order: -1; }   /* phones: the roll last */
         @media (min-width: 900px) {
           .console { position: fixed; inset: 0 0 ${PROMPT_BAND}px 0; flex-direction: row; justify-content: center; gap: ${GAP}px; padding: 0; overflow: hidden; }
