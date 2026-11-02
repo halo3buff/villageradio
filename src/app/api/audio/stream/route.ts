@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { getBroadcastFiles } from '@/lib/content/loaders';
 import { R2_PUBLIC_BASE } from '@/lib/content/media';
+import { isAdmin } from '@/lib/auth/guard';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,8 @@ const MIME: Record<string, string> = {
 // the 206 + Content-Range tells the browser there's more and it issues follow-up ranges.
 const WINDOW_BYTES = 16 * 1024 * 1024;
 
+const SAFE_FILE = /^[A-Za-z0-9._-]+\.(mp3|wav|ogg|m4a)$/;   // one object at the bucket root, no paths
+
 /** Client Range header (or null) → bounded upstream Range value. */
 function boundRange(header: string | null): string {
   const m = /^bytes=(\d+)-(\d*)$/.exec(header ?? '');
@@ -29,8 +32,10 @@ function boundRange(header: string | null): string {
 
 export async function GET(request: NextRequest) {
   const file = request.nextUrl.searchParams.get('file');
+  if (!file) return new Response('Not found', { status: 404 });
+  // the admin previews mixes before they're published, so off the manifest it may stream any upload
   const allowed = new Set(await getBroadcastFiles());
-  if (!file || !allowed.has(file)) return new Response('Not found', { status: 404 });
+  if (!allowed.has(file) && !(SAFE_FILE.test(file) && (await isAdmin()))) return new Response('Not found', { status: 404 });
 
   const fetchHeaders: Record<string, string> = {
     Range: boundRange(request.headers.get('Range')),

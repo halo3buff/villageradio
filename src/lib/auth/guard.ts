@@ -9,9 +9,14 @@ import { authConfig } from './config';
  * matching the "the panel doesn't exist" behavior.
  */
 export async function requireAdmin(): Promise<void> {
+  if (!(await isAdmin())) notFound();
+}
+
+/** Whether the request carries a valid admin session, without 404ing when it doesn't. */
+export async function isAdmin(): Promise<boolean> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
+  if (!token) return false;
   const cfg = authConfig();
-  const payload = await verifySession(token, cfg.sessionSecret, cfg.sessionVersion);
-  if (!payload) notFound();
+  return !!(await verifySession(token, cfg.sessionSecret, cfg.sessionVersion));
 }

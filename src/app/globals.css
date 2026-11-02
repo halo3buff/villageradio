@@ -146,6 +146,8 @@ html:not([data-theme="default"]):has(.admin-shell) {
 /* on the photo the console's dim greys and hairlines would vanish: lifted to the site's white */
 html[data-theme="default"] .admin-shell [class*="text-white/"]:not(:hover) { color: rgba(255,255,255,0.82); }
 html[data-theme="default"] .admin-shell [class*="border-white/"] { border-color: rgba(255,255,255,0.55); }
+/* a select's open list is the system's own box: dark under the console's white text */
+.admin-shell option { background-color: #111; color: #fff; }
 
 /* The default theme's page, behind every public route: the landing photo zoomed in and blurred
    away, under a film grain. --vlg-bg is transparent over it (lib/theme.ts); what has to hide
