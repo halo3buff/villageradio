@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { PlateFrame } from './PlateFrame';
 import { CORE, INK, mountPlate, platePoint, reach, SCREEN_DIM, SCREEN_INK, YEL } from './plateKit';
 import { extent, fit, loadGeo, rings, type Geo, type Site } from './geo';
 
@@ -38,7 +39,7 @@ export function SettlementMap() {
       }
     });
 
-    const stop = mountPlate(cv, W, H, ({ ctx, s, t, line, screen, grain }, now) => {
+    const stop = mountPlate(cv, W, H, ({ ctx, s, t, line, screen, grain, frame }, now) => {
       screen(X0, Y0, SW, SH);
       t(geo === null ? '[ NO MAP ]' : '[ SETTLEMENTS ]', X0 + 6, Y0 + 13, 8.5, SCREEN_INK);
 
@@ -122,7 +123,7 @@ export function SettlementMap() {
 
       // ── the table ─────────────────────────────────────────────────────────
       const ty = Y0 + SH + 8;
-      ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.strokeRect(X0, ty, SW, 76);
+      frame(X0, ty, SW, 76);
       if (geo) {
         const n = (k: number) => geo!.sites.filter(x => x.t === k).length;
         const since = (y: number) => geo!.sites.filter(x => x.y != null && x.y >= y && x.t !== INDUSTRIAL).length;
@@ -157,12 +158,13 @@ export function SettlementMap() {
   }, []);
 
   return (
-    <canvas
-      ref={ref}
-      className="plate map"
-      role="img"
-      aria-label="Map of the West Bank: Oslo Areas A, B and C, settlement jurisdictions, the separation barrier, and Israeli settlements, outposts and farm outposts by year founded, from Peace Now data."
-      style={{ aspectRatio: `${W} / ${H}`, touchAction: 'manipulation' }}
-    />
+    <PlateFrame W={W} H={H} kind="map" panes={[[X0, Y0, SW, SH], [X0, Y0 + SH + 8, SW, 76]]}>
+      <canvas
+        ref={ref}
+        role="img"
+        aria-label="Map of the West Bank: Oslo Areas A, B and C, settlement jurisdictions, the separation barrier, and Israeli settlements, outposts and farm outposts by year founded, from Peace Now data."
+        style={{ touchAction: 'manipulation' }}
+      />
+    </PlateFrame>
   );
 }

@@ -11,6 +11,7 @@ const sourcesOf = (x: Incident) => [...new Set([x.src, ...(x.also ?? []).map(a =
 import { CORE, INK, look, mountPlate, platePoint, reach, SCREEN, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
 import { loadGeo, rings, type Geo } from './geo';
 import { AIR_EVENT } from './Airspace';
+import { PlateFrame } from './PlateFrame';
 
 /**
  * The radar — a round PPI scope over Gaza and the West Bank on a faint map, 100 km to the
@@ -79,7 +80,7 @@ export function RadarScope(props: Props) {
     };
     window.addEventListener(AIR_EVENT, onAir);
 
-    const stop = mountPlate(cv, W, H, ({ ctx, s, mono, t, line, grain }, now) => {
+    const stop = mountPlate(cv, W, H, ({ ctx, s, mono, t, line, grain, frame }, now) => {
       const cur = live.current;
       if (seen !== cur) {
         seen = cur;
@@ -192,8 +193,7 @@ export function RadarScope(props: Props) {
       ctx.restore();
 
       // the rim and its bearings, on the paper
-      ctx.strokeStyle = INK; ctx.lineWidth = 0.8;
-      ctx.beginPath(); ctx.arc(CX, CY, R, 0, 7); ctx.stroke();
+      if (!L?.panes) { ctx.strokeStyle = INK; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(CX, CY, R, 0, 7); ctx.stroke(); }
       for (let d = 0; d < 360; d += 10) {
         const b = (d * Math.PI) / 180, sx = Math.sin(b), cy = -Math.cos(b), long = d % 30 === 0;
         line(CX + sx * R, CY + cy * R, CX + sx * (R + (long ? 4 : 2)), CY + cy * (R + (long ? 4 : 2)), INK);
@@ -230,7 +230,7 @@ export function RadarScope(props: Props) {
 
       // ── the table: the hovered contact read out, else the running totals ─────
       const ty = Y0 + SCR + 8, th = TABLE_H - 20;
-      ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.strokeRect(X0, ty, SCR, th);
+      frame(X0, ty, SCR, th);
       const rows = (xs: [string, string?][]) => xs.forEach(([r, c], i) => t(r, X0 + 6, ty + 12 + i * 9, i ? 5.5 : 6.5, c ?? INK));
       if (hover?.inc) {
         const x = hover.inc;
@@ -320,14 +320,15 @@ export function RadarScope(props: Props) {
 
   const placed = props.incidents.filter(x => x.place);
   return (
+    <PlateFrame W={W} H={H} kind="radar" panes={[[CX - R, CY - R, R * 2, R * 2, true], [X0, Y0 + SCR + 8, SCR, TABLE_H - 20]]}>
     <canvas
       ref={ref}
       role="img"
       aria-label={`Radar map of Gaza and the West Bank: ${props.incidents.length} field reports (WAFA, Ma'an, Quds News Network) in the past 72 hours${
         placed.length ? `, latest ${placed.at(-1)!.tags.join(' ').toLowerCase()} in ${placed.at(-1)!.place!.en}` : ''}; ${
         (props.fires ?? []).filter(f => f.region).length} satellite fire detections in 7 days; siren alerts and live military aircraft.`}
-      className="plate radar"
-      style={{ aspectRatio: `${W} / ${H}`, touchAction: 'manipulation' }}
+      style={{ touchAction: 'manipulation' }}
     />
+    </PlateFrame>
   );
 }

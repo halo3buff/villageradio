@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { AIR_BOX, FIX_EVERY, type Aircraft } from '@/lib/air';
+import { PlateFrame } from './PlateFrame';
 import { CORE, INK, mountPlate, platePoint, reach, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
 import { fit, loadGeo, rings, type Geo } from './geo';
 import { telex } from './Teleprinter';
@@ -84,7 +85,7 @@ export function Airspace() {
       return [tr.a.lon + (nm * Math.sin(r)) / (60 * Math.cos((tr.a.lat * Math.PI) / 180)), tr.a.lat + (nm * Math.cos(r)) / 60];
     };
 
-    const stop = mountPlate(cv, W, H, ({ ctx, s, t, line, screen, grain }, now) => {
+    const stop = mountPlate(cv, W, H, ({ ctx, s, t, line, screen, grain, frame }, now) => {
       screen(X0, Y0, SW, SH);
       t(ok === false ? '[ NO FEED ]' : '[ AIRSPACE ]', X0 + 6, Y0 + 13, 8.5, SCREEN_INK);
       // the fix's age, counting up until the next lands
@@ -154,7 +155,7 @@ export function Airspace() {
 
       // ── the table ─────────────────────────────────────────────────────────
       const ty = Y0 + SH + 8;
-      ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.strokeRect(X0, ty, SW, 76);
+      frame(X0, ty, SW, 76);
       const mil = list.filter(tr => tr.a.mil);
       t(`CONTACTS ${list.length}`, X0 + 6, ty + 14, 5.5);
       t(`MILITARY ${mil.length}`, X0 + 6, ty + 26, 5.5, mil.length ? '#7a2a10' : INK);
@@ -187,12 +188,13 @@ export function Airspace() {
   }, []);
 
   return (
-    <canvas
-      ref={ref}
-      className="plate air"
-      role="img"
-      aria-label="Live air traffic over Gaza, the West Bank and Israel from public ADS-B transponder data; military-registered aircraft highlighted."
-      style={{ aspectRatio: `${W} / ${H}`, touchAction: 'manipulation' }}
-    />
+    <PlateFrame W={W} H={H} kind="air" panes={[[X0, Y0, SW, SH], [X0, Y0 + SH + 8, SW, 76]]}>
+      <canvas
+        ref={ref}
+        role="img"
+        aria-label="Live air traffic over Gaza, the West Bank and Israel from public ADS-B transponder data; military-registered aircraft highlighted."
+        style={{ touchAction: 'manipulation' }}
+      />
+    </PlateFrame>
   );
 }

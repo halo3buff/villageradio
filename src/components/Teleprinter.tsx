@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { NetNow, TelexKind, TelexLine } from '@/lib/radar';
+import { PlateFrame } from './PlateFrame';
 import { INK, mountPlate, platePoint } from './plateKit';
 
 /**
@@ -79,7 +80,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
     window.addEventListener(EVENT, onEvent);
     let back = 0;                     // lines scrolled back from the newest
 
-    const stop = mountPlate(cv, W, H, ({ ctx, mono, t, line }, now) => {
+    const stop = mountPlate(cv, W, H, ({ ctx, mono, t, line, frame }, now) => {
       // the head types the oldest queued line, then returns the carriage
       let partial = '';
       if (r.queue.length) {
@@ -97,7 +98,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
 
       // the paper: a lighter sheet with feed holes down both margins
       ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(X0, Y0, PW, PH);
-      ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.strokeRect(X0, Y0, PW, PH);
+      frame(X0, Y0, PW, PH);
       ctx.fillStyle = 'rgba(43,54,38,0.25)';
       const fed = (shown + (partial ? 1 : 0)) * LH;   // holes travel with the paper
       for (let y = Y0 + 6 - (fed % 12) + 12; y < Y0 + PH - 3; y += 12) {
@@ -131,7 +132,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
 
       // ── the footer, the radar's table style ───────────────────────────────
       const ty = Y0 + PH + 8;
-      ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.strokeRect(X0, ty, PW, 76);
+      frame(X0, ty, PW, 76);
       const all = [...r.server, ...r.local];
       const count = (k: TelexKind) => all.filter(l => l.k === k).length;
       const net = live.current;
@@ -208,12 +209,13 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
   }, []);
 
   return (
-    <canvas
-      ref={ref}
-      className="plate"
-      role="img"
-      aria-label={`Teleprinter: ${lines.slice(-5).map(l => l.text).join('; ')}`}
-      style={{ aspectRatio: `${W} / ${H}`, touchAction: 'manipulation' }}
-    />
+    <PlateFrame W={W} H={H} panes={[[X0, Y0, PW, PH], [X0, Y0 + PH + 8, PW, 76]]}>
+      <canvas
+        ref={ref}
+        role="img"
+        aria-label={`Teleprinter: ${lines.slice(-5).map(l => l.text).join('; ')}`}
+        style={{ touchAction: 'manipulation' }}
+      />
+    </PlateFrame>
   );
 }

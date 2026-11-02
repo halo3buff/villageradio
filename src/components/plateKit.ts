@@ -17,6 +17,8 @@ export type Pen = {
   line: (x0: number, y0: number, x1: number, y1: number, color: string, w?: number) => void;
   /** the dark print window, vignetted */
   screen: (x: number, y: number, w: number, h: number) => void;
+  /** a box's edge, unless the page's look has PlateFrame draw it */
+  frame: (x: number, y: number, w: number, h: number) => void;
   /** grain over a screen, at a fresh offset each frame */
   grain: (x: number, y: number, w: number, h: number) => void;
 };
@@ -38,6 +40,8 @@ type Look = {
   grain: number;                                          // screen grain opacity (0 = none)
   grid: string;                                           // the radar's lat/long grid
   frame?: string;                                         // an edge round each screen
+  glow?: boolean;                                         // keeps the instruments' shadows
+  panes?: boolean;                                        // PlateFrame draws the frames, in CSS
 };
 const NONE = 'rgba(0,0,0,0)';
 const E = {   // the EGA palette entries used
@@ -50,7 +54,24 @@ const C = {   // aeronautical chart inks
 };
 const TRACE_RGB = '230,230,230', YEL_RGB = '240,192,44', INK_RGB = '43,54,38', VIG_RGB = '0,0,0';
 let vga = 'monospace';
+const WHITE = '#ffffff', ALARM = '#ff3b1f';
 const LOOKS: Record<string, Look> = {
+  // the site's own: no stock or screens, white light on the photograph through PlateFrame's panes.
+  // Colour is kept for the one thing it says, killed / strike; Area C and jurisdiction go dark so
+  // they still read apart from Areas A and B, lit.
+  default: {
+    colors: {
+      [PAPER]: NONE, [INK]: WHITE, [SCREEN]: NONE, [YEL]: WHITE, [TRACE]: WHITE, [CORE]: WHITE,
+      '#7a2a10': ALARM, '#ff8a6a': ALARM, '#fff': WHITE,
+      'rgba(255,255,255,0.18)': NONE, 'rgba(236,230,210,0.35)': WHITE, 'rgba(255,255,255,0.028)': NONE, 'rgba(230,230,230,0.3)': 'rgba(255,255,255,0.75)',
+    },
+    tint: (rgb, a) => rgb === TRACE_RGB ? `rgba(255,255,255,${a < 0.2 ? a : Math.min(1, a * 1.6)})`
+      : rgb === YEL_RGB ? `rgba(0,0,0,${a})`
+      : rgb === INK_RGB ? `rgba(255,255,255,${a})`
+      : rgb === VIG_RGB ? NONE : undefined,
+    label: WHITE, value: WHITE, stamp: WHITE,
+    grain: 0, grid: NONE, glow: true, panes: true,
+  },
   ega: {
     colors: {
       [PAPER]: E.black, [INK]: E.lcyan, [SCREEN]: E.black, [YEL]: E.yellow, [TRACE]: E.lgreen, [CORE]: E.white,
@@ -113,7 +134,7 @@ export function themeAware(ctx: CanvasRenderingContext2D) {
   prop('fillStyle', color);
   prop('strokeStyle', color);
   prop('shadowColor', color);
-  prop('shadowBlur', () => 0);
+  prop('shadowBlur', (L, v) => (L.glow ? v : 0));
   prop('font', (L, v) => {
     const m = L.face && typeof v === 'string' && !/arabic/i.test(v) && v.match(/([\d.]+)px/);
     return m ? L.face!(parseFloat(m[1])) : v;
@@ -179,6 +200,10 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
       vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.45)');
       ctx.fillStyle = vig; ctx.fillRect(x, y, w, h);
     },
+    frame: (x, y, w, h) => {
+      if (look()?.panes) return;
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.strokeRect(x, y, w, h);
+    },
     grain: (x, y, w, h) => {
       const a = look()?.grain ?? 1;
       if (!pattern || !a) return;
@@ -203,6 +228,7 @@ export function mountPlate(cv: HTMLCanvasElement, W: number, H: number, frame: (
     ctx.setTransform(p.s, 0, 0, p.s, 0, 0);
     (ctx as unknown as { letterSpacing: string }).letterSpacing = look()?.face ? '0px' : '0.5px';
     ctx.textBaseline = 'alphabetic';
+    ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
     frame(p, now);
     raf = requestAnimationFrame(loop);
