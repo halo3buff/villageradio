@@ -1301,6 +1301,10 @@ function SeriesPicker({
 }
 
 type AddMode = 'existing' | 'upload';
+const pinRate = (a: HTMLAudioElement) => {
+  if (a.defaultPlaybackRate !== 1) a.defaultPlaybackRate = 1;
+  if (a.playbackRate !== 1) a.playbackRate = 1;
+};
 /** Hear an entry exactly as the station plays it: the same loudness trim plus the admin level,
  *  which this panel also sets. */
 function Preview({ entry, onLevel }: { entry: BroadcastEntry; onLevel: (gainDb: number) => void }) {
@@ -1327,6 +1331,10 @@ function Preview({ entry, onLevel }: { entry: BroadcastEntry; onLevel: (gainDb: 
         ref={ref}
         src={`/api/audio/stream?file=${encodeURIComponent(entry.file)}`}
         preload="none"
+        // always 1×, as the station plays it: a media-speed extension's remembered rate is snapped back
+        onLoadStart={(e) => pinRate(e.currentTarget)}
+        onRateChange={(e) => pinRate(e.currentTarget)}
+        onPlaying={(e) => pinRate(e.currentTarget)}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onTimeUpdate={(e) => setT(e.currentTarget.currentTime)}
