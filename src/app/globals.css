@@ -130,18 +130,22 @@ html[data-theme="chart"] [src*="logo_roto"] {
   mix-blend-mode: multiply;
 }
 
-/* Admin console: always dark, and the page scrolls with the wheel. The base rules above make
-   <body> its own (never-scrolling) scroll container with overscroll-behavior:none, which stops
-   wheel scrolling from reaching the page and breaks position:sticky — fatal on the admin's tall
-   pages. Letting body overflow normally hands scrolling back to the viewport. */
+/* Admin console: white on the site's own page in the default theme, black under every other, and
+   the page scrolls with the wheel. The base rules above make <body> its own (never-scrolling) scroll
+   container with overscroll-behavior:none, which stops wheel scrolling from reaching the page and
+   breaks position:sticky — fatal on the admin's tall pages. Letting body overflow normally hands
+   scrolling back to the viewport. */
 body:has(.admin-shell) {
   overflow: visible;
-  background-color: #000;
   color-scheme: dark;
 }
-html:has(.admin-shell) {
-  background-color: #000;   /* whatever the site theme, no edge of it shows round the admin */
+html:not([data-theme="default"]):has(.admin-shell) body { background-color: #000; }
+html:not([data-theme="default"]):has(.admin-shell) {
+  background-color: #000;   /* no edge of the theme shows round the admin */
 }
+/* on the photo the console's dim greys and hairlines would vanish: lifted to the site's white */
+html[data-theme="default"] .admin-shell [class*="text-white/"]:not(:hover) { color: rgba(255,255,255,0.82); }
+html[data-theme="default"] .admin-shell [class*="border-white/"] { border-color: rgba(255,255,255,0.55); }
 
 /* The default theme's page, behind every public route: the landing photo zoomed in and blurred
    away, under a film grain. --vlg-bg is transparent over it (lib/theme.ts); what has to hide
@@ -155,8 +159,8 @@ html[data-theme="default"] body::before {
   content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background: var(--vlg-cover);
 }
-body:has(.admin-shell)::before { display: none; }
-html:has(.admin-shell) { --vlg-bg: #000; background-color: #000; }
+html:not([data-theme="default"]) body:has(.admin-shell)::before { display: none; }
+html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
 
 /* Admin toast: rises in from below. */
 .toast-in {

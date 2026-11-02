@@ -538,7 +538,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   return (
     <div className={drag?.active ? 'cursor-grabbing' : ''}>
       {/* Toolbar */}
-      <div className="sticky top-0 z-40 -mx-6 -mt-7 mb-5 px-6 h-14 flex items-center gap-4 border-b border-white/10 bg-black/85 backdrop-blur-md">
+      <div className="sticky top-0 z-40 -mx-6 -mt-7 mb-5 px-6 h-14 flex items-center gap-4 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
         <h1 className="font-sans text-[15px] font-medium text-white">Broadcast</h1>
         <div className="flex items-center gap-1.5 font-mono text-[10.5px] text-white/50">
           <Chip>{schedule.length} blocks</Chip>
@@ -854,7 +854,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
       {/* Drag ghost */}
       {dragEntry && drag && drag.over !== 'day' && (
         <div
-          className="fixed z-50 pointer-events-none flex items-center gap-2 rounded-md border border-white/15 bg-[#161616]/95 px-3 h-8 shadow-[0_8px_30px_rgba(0,0,0,0.6)]"
+          className="fixed z-50 pointer-events-none flex items-center gap-2 rounded-md border border-white/15 [background:var(--vlg-cover,rgb(22_22_22/0.95))] px-3 h-8 shadow-[0_8px_30px_rgba(0,0,0,0.6)]"
           style={{ left: drag.x + 14, top: drag.y + 10 }}
         >
           <span className="w-2 h-2 rounded-full" style={{ background: inkOf(dragEntry) }} />
@@ -868,7 +868,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
           className="fixed inset-0 z-[60] flex items-start justify-center bg-black/70 backdrop-blur-sm px-6 pt-[12vh]"
           onPointerDown={(e) => e.target === e.currentTarget && setAdding(false)}
         >
-          <div className="w-full max-w-xl rounded-xl border border-white/10 bg-[#0d0d0d] shadow-2xl">
+          <div className="w-full max-w-xl rounded-xl border border-white/10 [background:var(--vlg-cover,#0d0d0d)] shadow-2xl">
             <AddPanel
               knownFiles={knownFiles}
               existingIds={entries.map((e) => e.id)}
@@ -887,7 +887,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
       {toast && (
         <div
           key={toast.key}
-          className="toast-in fixed bottom-24 left-1/2 z-[70] -translate-x-1/2 flex items-center gap-4 rounded-lg border border-white/12 bg-[#151515] pl-4 pr-2 h-10 shadow-[0_10px_40px_rgba(0,0,0,0.7)]"
+          className="toast-in fixed bottom-24 left-1/2 z-[70] -translate-x-1/2 flex items-center gap-4 rounded-lg border border-white/12 [background:var(--vlg-cover,#151515)] pl-4 pr-2 h-10 shadow-[0_10px_40px_rgba(0,0,0,0.7)]"
         >
           <span className="font-sans text-[12.5px] text-white/85">{toast.msg}</span>
           {past.length > 0 && !toast.msg.startsWith('Published') && (

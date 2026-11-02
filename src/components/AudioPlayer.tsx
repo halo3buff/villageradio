@@ -9,7 +9,7 @@ export function AudioPlayer() {
 
   return (
     <div className={`fixed bottom-0 inset-x-0 z-50 border-t ${
-      isAdmin ? 'bg-black border-white/10' : 'bg-[var(--vlg-bg,#080808)] border-[var(--vlg-border,rgba(255,255,255,0.08))]'
+      isAdmin ? '[background:var(--vlg-cover,#000)] border-white/10' : 'bg-[var(--vlg-bg,#080808)] border-[var(--vlg-border,rgba(255,255,255,0.08))]'
     }`}>
       <div className="px-5 py-3 flex items-center gap-6">
         <span className="font-mono text-[10px] text-vr-signal tracking-widest shrink-0 select-none">

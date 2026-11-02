@@ -28,9 +28,9 @@ export function RadarDesktop({ initial }: { initial: Live }) {
   return (
     <div className="console" style={{ background: 'var(--vlg-bg, #fff)' }}>
       <style>{`
-        /* phones: an ordinary page, so scrolling it also tucks Safari's address bar away. The clock
-           bar and README sit at the very top of it and the prompt at the very end, and scroll away
-           with it, rather than staying pinned over the instruments. */
+        /* phones: an ordinary page, so scrolling it also tucks Safari's address bar away. README sits
+           at the very top of it and the prompt at the very end, and scroll away with it, rather than
+           staying pinned over the instruments. */
         .console { display: flex; flex-direction: column; align-items: center; gap: 12px;
                    padding: 64px 8px ${PROMPT_BAND + 8}px; }
         @media (max-width: 899px) {
@@ -44,9 +44,9 @@ export function RadarDesktop({ initial }: { initial: Live }) {
         /* the station's plate and window: a white outline on the photo, the plate barely frosted on a
            layer of its own (a backdrop-filter on it would cut the panes' blur off from the page), the
            panes a touch more */
-        html[data-theme="default"] .console .plate { isolation: isolate; border: 1px solid #fff; box-shadow: 0 0 3px rgba(255,255,255,0.3); }
+        html[data-theme="default"] .console .plate { isolation: isolate; border: 1px solid #fff; }
         html[data-theme="default"] .console .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
-        html[data-theme="default"] .console .pane { display: block; border: 1px solid #fff; box-shadow: 0 0 3px rgba(255,255,255,0.3);
+        html[data-theme="default"] .console .pane { display: block; border: 1px solid #fff;
           background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
         .console .radar, .console .air { order: -1; }   /* phones: the roll last */
         @media (min-width: 900px) {

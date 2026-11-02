@@ -40,7 +40,6 @@ type Look = {
   grain: number;                                          // screen grain opacity (0 = none)
   grid: string;                                           // the radar's lat/long grid
   frame?: string;                                         // an edge round each screen
-  glow?: boolean;                                         // keeps the instruments' shadows
   panes?: boolean;                                        // PlateFrame draws the frames, in CSS
 };
 const NONE = 'rgba(0,0,0,0)';
@@ -56,7 +55,7 @@ const TRACE_RGB = '230,230,230', YEL_RGB = '240,192,44', INK_RGB = '43,54,38', V
 let vga = 'monospace';
 const WHITE = '#ffffff', ALARM = '#ff3b1f';
 const LOOKS: Record<string, Look> = {
-  // the site's own: no stock or screens, white light on the photograph through PlateFrame's panes.
+  // the site's own: no stock or screens, white on the photograph through PlateFrame's panes, unlit.
   // Colour is kept for the one thing it says, killed / strike; Area C and jurisdiction go dark so
   // they still read apart from Areas A and B, lit.
   default: {
@@ -70,7 +69,7 @@ const LOOKS: Record<string, Look> = {
       : rgb === INK_RGB ? `rgba(255,255,255,${a})`
       : rgb === VIG_RGB ? NONE : undefined,
     label: WHITE, value: WHITE, stamp: WHITE,
-    grain: 0, grid: NONE, glow: true, panes: true,
+    grain: 0, grid: NONE, panes: true,
   },
   ega: {
     colors: {
@@ -134,7 +133,7 @@ export function themeAware(ctx: CanvasRenderingContext2D) {
   prop('fillStyle', color);
   prop('strokeStyle', color);
   prop('shadowColor', color);
-  prop('shadowBlur', (L, v) => (L.glow ? v : 0));
+  prop('shadowBlur', () => 0);
   prop('font', (L, v) => {
     const m = L.face && typeof v === 'string' && !/arabic/i.test(v) && v.match(/([\d.]+)px/);
     return m ? L.face!(parseFloat(m[1])) : v;

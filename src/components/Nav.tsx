@@ -17,7 +17,7 @@ export function Nav() {
   return (
     <nav className={`flex items-center gap-3 sm:gap-5 px-4 sm:px-5 py-1 border-b ${
       isAdmin
-        ? 'bg-black border-white/10'
+        ? 'bg-[var(--vlg-bg,#000)] border-white/10'
         : 'bg-[var(--vlg-bg,#080808)] border-[var(--vlg-border,rgba(255,255,255,0.08))]'
     }`}>
       <Link href={logoHref} className="mr-auto shrink-0" aria-label="Village Radio">
