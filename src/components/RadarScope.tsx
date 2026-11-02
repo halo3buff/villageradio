@@ -218,7 +218,7 @@ export function RadarScope(props: Props) {
         ['SAT FIRE', (x, y) => { ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 7); ctx.fill(); }],
         ['MIL AIRCRAFT', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.moveTo(x, y - 2); ctx.lineTo(x + 2, y); ctx.lineTo(x, y + 2); ctx.lineTo(x - 2, y); ctx.closePath(); ctx.stroke(); }],
         ['DOUBLE = 2+ SOURCES', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(x, y - 2.6); ctx.lineTo(x + 2.4, y + 1.8); ctx.lineTo(x - 2.4, y + 1.8); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y - 1.2); ctx.lineTo(x + 1.1, y + 0.8); ctx.lineTo(x - 1.1, y + 0.8); ctx.closePath(); ctx.stroke(); }],
-        ['RED = KILLED/STRIKE', (x, y) => { ctx.fillStyle = RED; ctx.fillRect(x - 1.5, y - 1.5, 3, 3); }],
+        [`${look()?.panes ? 'BLACK' : 'RED'} = KILLED/STRIKE`, (x, y) => { ctx.fillStyle = RED; ctx.fillRect(x - 1.5, y - 1.5, 3, 3); }],
         ['PULSE = NEW', (x, y) => { ctx.strokeStyle = INK; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, 0.8, 0, 7); ctx.stroke(); }],
       ];
       key.forEach(([label, draw], i) => {

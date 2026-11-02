@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { NetNow, TelexKind, TelexLine } from '@/lib/radar';
 import { PlateFrame } from './PlateFrame';
-import { INK, mountPlate, platePoint } from './plateKit';
+import { INK, look, mountPlate, platePoint } from './plateKit';
 
 /**
  * The teleprinter — every report, outage and live event the console receives,
@@ -149,7 +149,7 @@ export function Teleprinter({ lines, net }: { lines: TelexLine[]; net: NetNow | 
         t(label, X0 + 15, y, 5.5);
         t(src, X0 + PW - 6, y, 4.5, INK, 'right');
       });
-      t('RED: KILLED / STRIKE / SIRENS / OUTAGE / MIL', X0, H - 3, 5);
+      t(`${look()?.panes ? 'BLACK' : 'RED'}: KILLED / STRIKE / SIRENS / OUTAGE / MIL`, X0, H - 3, 5);
     });
 
     // scroll the roll: wheel on desktop, drag on touch — only over the paper itself, so a swipe

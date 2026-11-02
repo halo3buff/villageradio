@@ -2,7 +2,7 @@
 
 import { Airspace } from '@/components/Airspace';
 import { RadarScope } from '@/components/RadarScope';
-import { NEG_INK } from '@/components/plateKit';
+import { GREY_INK } from '@/components/plateKit';
 import { Teleprinter } from '@/components/Teleprinter';
 import type { Live } from '@/lib/live';
 import { useEffect, useState } from 'react';
@@ -42,11 +42,11 @@ export function RadarDesktop({ initial }: { initial: Live }) {
         .console .plate { display: block; position: relative; width: min(100%, 480px); flex: none; }
         .console .plate canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
         .console .pane { display: none; position: absolute; }
-        /* the station's outline and window on a true negative of the photo behind them, without its colour:
-           the plate inverts the page on a layer of its own, and the panes sit a touch darker on that */
-        html[data-theme="default"] .console .plate { isolation: isolate; border: 1px solid ${NEG_INK}; box-shadow: 0 0 3px rgba(255,255,255,0.3); }
-        html[data-theme="default"] .console .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.12); backdrop-filter: grayscale(1) invert(1) blur(8px); -webkit-backdrop-filter: grayscale(1) invert(1) blur(8px); }
-        html[data-theme="default"] .console .pane { display: block; border: 1px solid ${NEG_INK}; box-shadow: 0 0 3px rgba(255,255,255,0.3); background: rgba(0,0,0,0.12); }
+        /* the station's plate and window in grey ink on light glass: the plate frosts the page on a layer of
+           its own (a backdrop-filter on it would cut anything nested off from the page), the panes a touch lighter */
+        html[data-theme="default"] .console .plate { isolation: isolate; border: 1px solid ${GREY_INK}; }
+        html[data-theme="default"] .console .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(255,255,255,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+        html[data-theme="default"] .console .pane { display: block; border: 1px solid ${GREY_INK}; background: rgba(255,255,255,0.3); }
         .console .radar, .console .air { order: -1; }   /* phones: the roll last */
         @media (min-width: 900px) {
           .console { position: fixed; inset: 0 0 ${PROMPT_BAND}px 0; flex-direction: row; justify-content: center; gap: ${GAP}px; padding: 0; overflow: hidden; }

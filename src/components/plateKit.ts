@@ -56,21 +56,21 @@ const C = {   // aeronautical chart inks
 const TRACE_RGB = '230,230,230', YEL_RGB = '240,192,44', INK_RGB = '43,54,38', VIG_RGB = '0,0,0';
 let vga = 'monospace';
 /** The site's own look's ink, for PlateFrame's outlines too. */
-export const NEG_INK = '#ffffff';
-const NEG_RGB = '255,255,255', ALARM = '#ff8a6a';
+export const GREY_INK = '#3d3d3d';
+const BLACK = '#000000';
 const LOOKS: Record<string, Look> = {
-  // the site's own: white light on a negative of the photograph, through PlateFrame's panes.
-  // Colour is kept for the one thing it says, killed / strike.
+  // the site's own: grey ink on light frosted glass over the photograph, through PlateFrame's panes.
+  // No colour: pure black is what says killed / strike, and military.
   default: {
     colors: {
-      [PAPER]: NONE, [INK]: NEG_INK, [SCREEN]: NONE, [YEL]: NEG_INK, [TRACE]: NEG_INK, [CORE]: NEG_INK,
-      '#7a2a10': ALARM, '#ff8a6a': ALARM, '#fff': NEG_INK,
-      'rgba(255,255,255,0.18)': NONE, 'rgba(236,230,210,0.35)': NEG_INK, 'rgba(255,255,255,0.028)': NONE, 'rgba(230,230,230,0.3)': `rgba(${NEG_RGB},0.8)`,
+      [PAPER]: NONE, [INK]: GREY_INK, [SCREEN]: NONE, [YEL]: BLACK, [TRACE]: GREY_INK, [CORE]: GREY_INK,
+      '#7a2a10': BLACK, '#ff8a6a': BLACK, '#fff': GREY_INK,
+      'rgba(255,255,255,0.18)': NONE, 'rgba(236,230,210,0.35)': GREY_INK, 'rgba(255,255,255,0.028)': NONE, 'rgba(230,230,230,0.3)': 'rgba(0,0,0,0.5)',
     },
-    tint: (rgb, a) => rgb === TRACE_RGB || rgb === YEL_RGB || rgb === INK_RGB ? `rgba(${NEG_RGB},${a < 0.3 ? a : Math.min(1, a * 1.8)})`
+    tint: (rgb, a) => rgb === TRACE_RGB || rgb === YEL_RGB || rgb === INK_RGB ? `rgba(0,0,0,${a < 0.3 ? a : Math.min(0.8, a * 1.4)})`
       : rgb === VIG_RGB ? NONE : undefined,
-    label: NEG_INK, value: NEG_INK, stamp: NEG_INK,
-    grain: 0, grid: NONE, glow: true, panes: true, type: 1.15,
+    label: GREY_INK, value: GREY_INK, stamp: GREY_INK,
+    grain: 0, grid: NONE, glow: false, panes: true, type: 1.15,
   },
   ega: {
     colors: {
