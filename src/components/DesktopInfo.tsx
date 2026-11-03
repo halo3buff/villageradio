@@ -1,6 +1,5 @@
 'use client';
 
-import { BackLink } from '@/components/BackLink';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import type { NavCommand } from '@/lib/types';
@@ -278,10 +277,10 @@ export function DesktopInfo({ content, commands, back = '/' }: { content: string
         </div>
       </div>
 
-      {/* Right panel — tree/email/arrow, pinned to right viewport edge */}
+      {/* Right panel — tree/email, pinned to right viewport edge */}
       <div style={{ ...frame, right: 0, transform: `scale(${scale})`, transformOrigin: 'top right' }}>
         {/* 8-bit tree — centered on email midpoint (120px from right edge) */}
-        <div style={{ position: 'absolute', right: 38, top: 35, width: 165, height: 205 }}>
+        <div style={{ position: 'absolute', right: 38, top: 15, width: 165, height: 205 }}>
           <Image
             src="/images/tree_8bit.png"
             alt="Village Radio"
@@ -292,21 +291,11 @@ export function DesktopInfo({ content, commands, back = '/' }: { content: string
 
         {/* Email — centered under tree */}
         <div style={{
-          position: 'absolute', right: 0, top: 252, width: 240,
+          position: 'absolute', right: 0, top: 232, width: 240,
           textAlign: 'center', fontFamily: MONO, fontSize: 11, color: T.uid_real,
         }}>
           cloudmain2stock@gmail.com
         </div>
-
-        {/* Back arrow — centered on email midpoint */}
-        <BackLink href={back} style={{
-          position: 'absolute', right: 95, top: 942,
-          display: 'block', width: 50, height: 50,
-          pointerEvents: 'auto',
-        }}>
-          <Image src="/icons/left-arrow.png" alt="Back" width={50} height={50}
-            style={{ width: 50, height: 50, objectFit: 'contain' }} />
-        </BackLink>
       </div>
     </div>
   );

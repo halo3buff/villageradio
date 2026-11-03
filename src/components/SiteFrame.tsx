@@ -16,8 +16,8 @@ import type { NavCommand } from '@/lib/types';
  */
 
 // /admin is a different machine and keeps the legacy chrome.
-// The station's top bar belongs to the station and its README (README_1) only.
-const HAS_BAR = (p: string) => p === '/station' || p === '/station/readme';
+// The station's top bar belongs to the station only (which keeps it off for now).
+const HAS_BAR = (p: string) => p === '/station';
 
 const NO_PROMPT = (p: string) => p === '/admin' || p.startsWith('/admin/');
 export function SiteFrame({

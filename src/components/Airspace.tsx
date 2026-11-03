@@ -3,7 +3,10 @@
 import { useEffect, useRef } from 'react';
 import { AIR_BOX, FIX_EVERY, type Aircraft } from '@/lib/air';
 import { PlateFrame } from './PlateFrame';
-import { CORE, INK, mountPlate, platePoint, reach, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
+import { CORE, INK, look, mountPlate, platePoint, reach, SCREEN_DIM, SCREEN_INK, TRACE, YEL } from './plateKit';
+
+// military: amber, but in the site's own look (white on the photo) the red that says killed / strike
+const MIL = () => (look()?.panes ? '#7a2a10' : YEL);
 import { fit, loadGeo, rings, type Geo } from './geo';
 import { telex } from './Teleprinter';
 
@@ -120,7 +123,7 @@ export function Airspace() {
       // the contacts
       const list = [...tracks.values()];
       for (const tr of list) {
-        const a = tr.a, color = a.mil ? YEL : TRACE;
+        const a = tr.a, color = a.mil ? MIL() : TRACE;
         const [x, y] = p(...at(tr, now));
         // trail: the fixes it has reported, fading back
         tr.trail.forEach(([lon, lat], i) => {
@@ -141,8 +144,8 @@ export function Airspace() {
         ctx.shadowBlur = 0;
         // data block
         const fl = a.alt == null ? '---' : a.alt === 0 ? 'GND' : String(Math.round(a.alt / 100)).padStart(3, '0');
-        t(a.flight || a.reg || a.hex, x + 3.5, y - 2.5, 4.2, a.mil ? YEL : SCREEN_INK);
-        t(`${fl} ${a.mil ? 'MIL ' : ''}${a.type}`, x + 3.5, y + 2.5, 3.8, a.mil ? YEL : SCREEN_DIM);
+        t(a.flight || a.reg || a.hex, x + 3.5, y - 2.5, 4.2, a.mil ? MIL() : SCREEN_INK);
+        t(`${fl} ${a.mil ? 'MIL ' : ''}${a.type}`, x + 3.5, y + 2.5, 3.8, a.mil ? MIL() : SCREEN_DIM);
       }
 
       t('□ CIVIL   ◇ MILITARY   — 1 MIN', X0 + 6, Y0 + SH - 4, 4.5, SCREEN_INK);

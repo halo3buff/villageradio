@@ -5,16 +5,20 @@ import { stationClock } from '@/components/StationBar';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
+import { LOGO_DOTS } from './logoDots';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const WHITE = '#ffffff';
 const W = 104, H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
-const STEP = 8, TEST_STEP = 20;   // samples between dots, so each stays its own light
+const STEP = 8;   // samples between dots, so each stays its own light
 // the floor: quieter than this (dBFS RMS) the figure is held at this size, its shape intact, so a
 // quiet stretch still moves; louder plays exactly as before. Never lifted more than LIFT_MAX.
 const FLOOR_DB = -30, LIFT_MAX_DB = 40, LIFT_EASE_S = 0.5;
+// paused, the window shows README_0's mark in dots, turning as it does there; on play they gather to
+// the centre while the broadcast comes up (alongside it, never holding it back)
+const LOGO_R = 44, SPIN_S = 9.52, GATHER_MS = 350;
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
@@ -30,6 +34,8 @@ export function HomeDesktop() {
   const [clock, setClock] = useState<string | null>(null);
   const [rd, setRd] = useState<Readout | null>(null);
   const ch = useRef({ aL: analyserL, aR: analyserR });
+  const liveRef = useRef(live);
+  liveRef.current = live;
   ch.current = { aL: analyserL, aR: analyserR };
   const lights = useRef<HTMLCanvasElement>(null);
 
@@ -51,7 +57,7 @@ export function HomeDesktop() {
     ctx.scale(dpr, dpr);
 
     let l = new Float32Array(2048), r = new Float32Array(2048);
-    let nextRead = 0, raf = 0, lift = 0, last = 0;
+    let nextRead = 0, raf = 0, lift = 0, last = 0, gatherAt = 0;
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
@@ -101,11 +107,27 @@ export function HomeDesktop() {
       // drops at once when the audio comes back up, so a hit never overshoots; rises gently
       lift = want < lift ? want : lift + (want - lift) * (1 - Math.exp(-Math.min(0.25, (now - last) / 1000) / LIFT_EASE_S));
       last = now;
-      const gain = testing ? 1 : Math.pow(10, (VISUAL_TRIM_DB + lift) / 20);
-      for (let i = 0; i < l.length; i += testing ? TEST_STEP : STEP) {
+      const gain = Math.pow(10, (VISUAL_TRIM_DB + lift) / 20);
+      if (!testing) for (let i = 0; i < l.length; i += STEP) {
         const x = W / 2 + Math.max(-1, Math.min(1, r[i] * gain)) * REACH;
         const y = H / 2 - Math.max(-1, Math.min(1, l[i] * gain)) * REACH;
         ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
+      }
+
+      // the mark: whole while paused, gathering once play is pressed, held as one point until the audio arrives
+      if (!liveRef.current) gatherAt = 0;
+      else if (!gatherAt) gatherAt = now;
+      const k = gatherAt ? Math.min(1, (now - gatherAt) / GATHER_MS) : 0;
+      if (testing || k < 1) {
+        const shrink = 1 - k * k * (3 - 2 * k);   // eased in and out
+        const turn = Math.cos((t / SPIN_S) * Math.PI * 2) * LOGO_R * shrink, rise = LOGO_R * shrink;
+        ctx.globalAlpha = testing ? 1 : 1 - k;
+        for (let i = 0; i < LOGO_DOTS.length; i += 2) {
+          const x = W / 2 + (LOGO_DOTS[i] / 1000) * turn + (Math.random() - 0.5) * 0.35;
+          const y = H / 2 + (LOGO_DOTS[i + 1] / 1000) * rise + (Math.random() - 0.5) * 0.35;
+          ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
+        }
+        ctx.globalAlpha = 1;
       }
     };
     raf = requestAnimationFrame(draw);

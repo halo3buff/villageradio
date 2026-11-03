@@ -135,6 +135,7 @@ export function themeAware(ctx: CanvasRenderingContext2D) {
   prop('shadowColor', color);
   prop('shadowBlur', () => 0);
   prop('font', (L, v) => {
+    if (L.panes && typeof v === 'string') return v.replace(/^(700|bold) /, '400 ');   // the site's own: regular weight
     const m = L.face && typeof v === 'string' && !/arabic/i.test(v) && v.match(/([\d.]+)px/);
     return m ? L.face!(parseFloat(m[1])) : v;
   });
