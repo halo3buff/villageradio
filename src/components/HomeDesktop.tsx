@@ -5,20 +5,23 @@ import { stationClock } from '@/components/StationBar';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
-import { LOGO_DOTS } from './logoDots';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const WHITE = '#ffffff';
 const W = 104, H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
-const STEP = 8;   // samples between dots, so each stays its own light
+const STEP = 8, TEST_STEP = 20;   // samples between dots, so each stays its own light
 // the floor: quieter than this (dBFS RMS) the figure is held at this size, its shape intact, so a
 // quiet stretch still moves; louder plays exactly as before. Never lifted more than LIFT_MAX.
 const FLOOR_DB = -30, LIFT_MAX_DB = 40, LIFT_EASE_S = 0.5;
-// paused, the window shows README_0's mark in dots, turning as it does there; on play they gather to
-// the centre while the broadcast comes up (alongside it, never holding it back)
-const LOGO_R = 44, SPIN_S = 9.52, GATHER_MS = 350;
+// on play the test figure's dots gather to the centre while the broadcast comes up (alongside it, never
+// holding it back), each on its own: a delay, a pace and a curve of its own, all done inside GATHER_MS
+const GATHER_MS = 350;
+const SWARM = Array.from({ length: 512 }, () => {
+  const delay = Math.random() * 0.3;
+  return { delay, pace: delay + 0.5 + Math.random() * (0.5 - delay), curl: (Math.random() - 0.5) * 0.6 };
+});
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
@@ -114,17 +117,21 @@ export function HomeDesktop() {
         ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
       }
 
-      // the mark: whole while paused, gathering once play is pressed, held as one point until the audio arrives
+      // the test figure: whole while paused, gathering once play is pressed, held as one point until the audio arrives
       if (!liveRef.current) gatherAt = 0;
       else if (!gatherAt) gatherAt = now;
-      const k = gatherAt ? Math.min(1, (now - gatherAt) / GATHER_MS) : 0;
-      if (testing || k < 1) {
-        const shrink = 1 - k * k * (3 - 2 * k);   // eased in and out
-        const turn = Math.cos((t / SPIN_S) * Math.PI * 2) * LOGO_R * shrink, rise = LOGO_R * shrink;
-        ctx.globalAlpha = testing ? 1 : 1 - k;
-        for (let i = 0; i < LOGO_DOTS.length; i += 2) {
-          const x = W / 2 + (LOGO_DOTS[i] / 1000) * turn + (Math.random() - 0.5) * 0.35;
-          const y = H / 2 + (LOGO_DOTS[i + 1] / 1000) * rise + (Math.random() - 0.5) * 0.35;
+      const el = gatherAt ? (now - gatherAt) / GATHER_MS : 0;
+      if (testing || el < 1) {
+        const amp = 0.58 + 0.04 * Math.sin(t * 0.7), w = (Math.PI * 2) / l.length;
+        for (let i = 0, j = 0; i < l.length; i += TEST_STEP, j++) {
+          const dx = Math.max(-1, Math.min(1, amp * Math.sin(2 * w * i + t * 0.25) + (Math.random() - 0.5) * 0.006)) * REACH;
+          const dy = -Math.max(-1, Math.min(1, amp * Math.sin(3 * w * i) + (Math.random() - 0.5) * 0.006)) * REACH;
+          const d = SWARM[j % SWARM.length];
+          const k = Math.max(0, Math.min(1, (el - d.delay) / (d.pace - d.delay)));
+          if (!testing && k >= 1) continue;
+          const keep = 1 - k * k * (3 - 2 * k), bow = Math.sin(Math.PI * k) * d.curl;   // eased in and out, and bowed off the straight line
+          const x = W / 2 + (dx - dy * bow) * keep, y = H / 2 + (dy + dx * bow) * keep;
+          ctx.globalAlpha = testing ? 1 : 1 - k;
           ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
         }
         ctx.globalAlpha = 1;
