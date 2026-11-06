@@ -29,7 +29,8 @@ const inkOf = (e: BroadcastEntry) =>
   e.kind === 'mix' ? (e.series ? SERIES_INK[e.series] : '#c8c4bb') : '#8b8b8b';
 
 const DAY = 86_400;
-const ZOOMS = [1, 2, 4, 8]; // px per minute
+const ZOOMS = [1, 2, 4, 8]; // px per minute; 'fit' lays the whole day across the screen
+const LANE_TOP = 22; // the hour ruler sits above the blocks
 const NOW_RED = '#ff4d3d';
 const MAGNET_PX = 8; // drops this close to another block's edge snap onto it
 
@@ -66,7 +67,7 @@ type Preview = { schedule: Placement[]; id: string; dropped: number };
 type Drag = {
   id: string; // block id, or the entry id when dragged from the library
   from: 'library' | 'block';
-  grab: number; // seconds between the block's top and the pointer
+  grab: number; // seconds between the block's start and the pointer
   startX: number;
   startY: number;
   x: number;
@@ -93,12 +94,14 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   const [adding, setAdding] = useState(false);
   const [past, setPast] = useState<Doc[]>([]);
   const [future, setFuture] = useState<Doc[]>([]);
-  const [ppm, setPpm] = useState(2);
+  const [zoom, setZoom] = useState<number | 'fit'>('fit');
+  const [width, setWidth] = useState(1440); // the day's visible width
   const [query, setQuery] = useState('');
   const [now, setNow] = useState<number | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const lastEdit = useRef<string | null>(null);
   const dayRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const libraryRef = useRef<HTMLDivElement>(null);
 
   const { entries, schedule, filler } = doc;
@@ -161,7 +164,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     setMeasuring(null);
   }
 
-  const y = (sec: number) => (sec / 60) * ppm;
+  const ppm = zoom === 'fit' ? width / 1440 : zoom;
+  const tx = (sec: number) => (sec / 60) * ppm;
 
   // Warn before navigating away with unpublished edits.
   useEffect(() => {
@@ -209,23 +213,43 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   }, []);
 
   function scrollToSec(sec: number, behavior: ScrollBehavior, px = ppm) {
-    const el = dayRef.current;
+    const el = scrollRef.current;
     if (!el) return;
-    const top = el.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo({ top: Math.max(0, top + (sec / 60) * px - window.innerHeight / 3), behavior });
+    el.scrollTo({ left: Math.max(0, (sec / 60) * px - el.clientWidth / 3), behavior });
   }
 
-  /** Change zoom, keeping the time under the middle of the screen in place. */
-  function zoomTo(next: number) {
-    const el = dayRef.current;
-    if (!el || next === ppm) return;
-    const mid = ((window.innerHeight / 2 - el.getBoundingClientRect().top) / ppm) * 60;
-    setPpm(next);
-    requestAnimationFrame(() => {
-      const top = el.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({ top: top + (mid / 60) * next - window.innerHeight / 2 });
-    });
+  /** Change zoom, keeping the time under the middle of the day in place. */
+  function zoomTo(next: number | 'fit') {
+    const el = scrollRef.current;
+    if (!el || next === zoom) return;
+    const mid = ((el.scrollLeft + el.clientWidth / 2) / ppm) * 60;
+    const px = next === 'fit' ? width / 1440 : next;
+    setZoom(next);
+    requestAnimationFrame(() => el.scrollTo({ left: (mid / 60) * px - el.clientWidth / 2 }));
   }
+
+  // 'fit' follows the window.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Zoomed in, the wheel scrolls the day sideways, as in a DAW.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || Math.abs(e.deltaX) >= Math.abs(e.deltaY) || el.scrollWidth <= el.clientWidth) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   /** Every change goes through here. Consecutive edits to the same field collapse into one undo step. */
   function update(next: Doc, editKey: string | null = null) {
@@ -294,12 +318,12 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     notify(id ? `Empty time now plays ${byId.get(id)?.title || 'untitled'}` : 'Empty time is now silent');
   }
 
-  /** Scroll the page only if that time is off screen. */
+  /** Scroll the day only if that time is out of view. */
   function reveal(sec: number, len: number) {
-    const el = dayRef.current;
+    const el = scrollRef.current;
     if (!el) return;
-    const top = el.getBoundingClientRect().top + y(sec);
-    if (top < 80 || top + Math.min(y(len), 120) > window.innerHeight - 20) scrollToSec(sec, 'smooth');
+    const left = tx(sec) - el.scrollLeft;
+    if (left < 20 || left + Math.min(tx(len), 200) > el.clientWidth - 20) scrollToSec(sec, 'smooth');
   }
 
   function selectBlock(id: string, scroll = false) {
@@ -308,7 +332,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     if (scroll && b) reveal(b.start, endOf(b) - b.start);
   }
 
-  // Keyboard: undo/redo, publish, ↑↓ walk the blocks, Alt+↑↓ nudge (a minute; with Shift a second), Delete, Esc.
+  // Keyboard: undo/redo, publish, ←→ (or ↑↓) walk the blocks, Alt+←→ nudge (a minute; with Shift a second), Delete, Esc.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (adding) {
@@ -332,8 +356,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         redo();
       } else if (e.key === 'Escape') {
         setSel(null);
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        const dir = e.key === 'ArrowUp' ? -1 : 1;
+      } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        const dir = e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 1;
         if (e.altKey) {
           if (!selBlock) return;
           e.preventDefault();
@@ -362,18 +386,20 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   function previewAt(x: number, yPx: number, d: Drag): Pick<Drag, 'over' | 'preview'> {
     const lib = libraryRef.current?.getBoundingClientRect();
     if (lib && x >= lib.left && x <= lib.right && yPx >= lib.top && yPx <= lib.bottom) return { over: 'library', preview: null };
+    const lane = scrollRef.current?.getBoundingClientRect();
     const day = dayRef.current?.getBoundingClientRect();
-    if (!day || x < day.left || x > day.right) return { over: null, preview: null };
+    if (!lane || !day || x < lane.left || x > lane.right || yPx < lane.top - 40 || yPx > lane.bottom + 40)
+      return { over: null, preview: null };
     const block =
       d.from === 'block' ? schedule.find((b) => b.id === d.id)! : { id: 'new', entry: d.id, start: 0, plays: 1 };
     const len = lenOf(block.entry) * block.plays;
-    const raw = ((yPx - day.top) / ppm) * 60 - d.grab;
+    const raw = ((x - day.left) / ppm) * 60 - d.grab;
     let at = Math.round(raw / 60) * 60;
     let best = (MAGNET_PX / ppm) * 60;
     for (const b of schedule) {
       if (b.id === block.id) continue;
       for (const edge of [b.start, endOf(b)]) {
-        // the dragged block's top, or its bottom, against this edge
+        // the dragged block's start, or its end, against this edge
         for (const snapped of [edge, edge - len]) {
           const d = Math.abs(raw - snapped);
           if (d < best) {
@@ -423,14 +449,16 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
           notify(`${d.preview.dropped} block${d.preview.dropped > 1 ? 's' : ''} pushed past midnight came off the day`);
       }
     }
-    // Auto-scroll near the top/bottom edge while dragging.
+    // Auto-scroll the day near its left/right edge while dragging over it.
     const edge = () => {
       const d = dragRef.current;
-      if (d?.active) {
-        const zone = 90;
-        const v = d.y < zone ? -(zone - d.y) / 4 : d.y > window.innerHeight - zone ? (d.y - window.innerHeight + zone) / 4 : 0;
+      const el = scrollRef.current;
+      if (d?.active && d.over === 'day' && el) {
+        const r = el.getBoundingClientRect();
+        const zone = 70;
+        const v = d.x < r.left + zone ? -(r.left + zone - d.x) / 4 : d.x > r.right - zone ? (d.x - r.right + zone) / 4 : 0;
         if (v) {
-          window.scrollBy(0, v);
+          el.scrollLeft += v;
           setDrag({ ...d, ...previewAt(d.x, d.y, d) });
         }
       }
@@ -580,15 +608,16 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
 
         <div className="ml-auto flex items-center gap-2">
           <div className="flex rounded-md border border-white/12 p-0.5" title="Zoom">
-            {ZOOMS.map((z) => (
+            {(['fit', ...ZOOMS] as (number | 'fit')[]).map((z) => (
               <button
                 key={z}
                 onClick={() => zoomTo(z)}
+                title={z === 'fit' ? 'The whole day' : undefined}
                 className={`h-6 px-2 rounded font-mono text-[10.5px] transition-colors ${
-                  ppm === z ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white'
+                  zoom === z ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white'
                 }`}
               >
-                {z}×
+                {z === 'fit' ? 'Day' : `${z}×`}
               </button>
             ))}
           </div>
@@ -645,107 +674,38 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         </Banner>
       )}
 
-      <div className="grid grid-cols-[260px_minmax(0,1fr)_320px] gap-6 items-start">
-        {/* Library */}
-        <div
-          ref={libraryRef}
-          className={`sticky top-[72px] max-h-[calc(100vh-150px)] overflow-y-auto rounded-lg border p-3 transition-colors ${
-            drag?.over === 'library' && drag.from === 'block' ? 'border-white/40 bg-white/[0.04]' : 'border-white/10'
-          }`}
-        >
-          <div className="mb-4">
-            <span className={LABEL}>Empty time plays</span>
-            <select
-              className={`${INPUT} [color-scheme:dark]`}
-              value={filler ?? ''}
-              onChange={(e) => setFiller(e.target.value || undefined)}
-              title="What airs wherever nothing is scheduled"
-            >
-              <option value="">Silence</option>
-              {library.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.title || 'untitled'} · {formatDuration(e.durationSec)} (loops)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-sans text-[13px] font-medium text-white/90">Library</span>
-            <button onClick={() => setAdding(true)} className={`${BTN} h-7 px-2.5`}>
-              + Add
-            </button>
-          </div>
-          {(unmeasured.length > 0 || measuring) && (
-            <button
-              onClick={measureAll}
-              disabled={!!measuring}
-              className={`${BTN} mb-3 w-full h-7 text-[11.5px]`}
-              title={`Measures each file's loudness so loud masters play at ${TARGET_LUFS} LUFS, like Spotify`}
-            >
-              {measuring ? `Measuring loudness ${measuring}…` : `Measure loudness · ${unmeasured.length} file${unmeasured.length > 1 ? 's' : ''}`}
-            </button>
-          )}
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className={`${INPUT} mb-4`} />
-          {drag?.active && drag.from === 'block' && (
-            <p className="mb-3 rounded-md border border-dashed border-white/25 px-2.5 py-2 font-sans text-[11.5px] text-white/60">
-              Drop here to take this block off the day
-            </p>
-          )}
-          {library.filter(matches).map((e) => (
-            <div
-              key={e.id}
-              onPointerDown={(ev) => startDrag(ev, e.id, 'library')}
-              title="Drag onto the day to schedule it"
-              className={`flex items-center gap-2.5 rounded-md px-2 h-8 cursor-grab select-none transition-colors ${
-                selEntry?.id === e.id ? 'bg-white/[0.09]' : 'hover:bg-white/[0.05]'
-              } ${drag?.active && drag.from === 'library' && drag.id === e.id ? 'opacity-30' : ''}`}
-            >
-              <span className="w-2 h-2 shrink-0 rounded-full" style={{ background: inkOf(e) }} />
-              <span className="font-sans text-[12.5px] truncate text-white/85">{e.title || 'untitled'}</span>
-              {playsPerDay.get(e.id) ? (
-                <span className="font-mono text-[9.5px] text-white/35 tabular-nums">×{playsPerDay.get(e.id)}</span>
-              ) : null}
-              <span className="ml-auto font-mono text-[10px] text-white/30 tabular-nums">{formatDuration(e.durationSec)}</span>
-            </div>
-          ))}
-          {entries.length === 0 && <p className="px-1 font-sans text-[11.5px] text-white/25">Nothing yet — add audio.</p>}
-        </div>
-
-        {/* The day */}
-        <div className="min-w-0">
+      {/* The day, left to right — pinned under the toolbar, so it's always there to drop onto */}
+      <div className="sticky top-14 z-30 -mx-4 md:-mx-6 mb-5 px-4 md:px-6 pt-3 pb-2 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
+        <div ref={scrollRef} className="overflow-x-auto overscroll-x-contain">
           <div
             ref={dayRef}
-            className="relative"
-            style={{ height: y(DAY) }}
+            className="relative h-[118px]"
+            style={{ width: tx(DAY) }}
             // Clicking empty space on the day clears the selection.
             onPointerDown={(e) => !(e.target as HTMLElement).closest('[data-block]') && setSel(null)}
           >
             {Array.from({ length: 24 }, (_, h) => (
-              <div key={h} className="absolute left-0 right-0" style={{ top: y(h * 3600) }}>
-                <div className="ml-14 border-t border-white/[0.07]" />
-                {ppm >= 2 && (
-                  <div className="ml-14 border-t border-dashed border-white/[0.04]" style={{ marginTop: y(1800) - 1 }} />
+              <div key={h} className="absolute top-0 bottom-0 border-l border-white/[0.08]" style={{ left: tx(h * 3600) }}>
+                {h % (tx(3600) >= 44 ? 1 : tx(3600) >= 16 ? 3 : 6) === 0 && (
+                  <span className="absolute top-[3px] left-1 font-mono text-[10px] text-white/35 tabular-nums">
+                    {String(h).padStart(2, '0')}:00
+                  </span>
                 )}
-                <span
-                  className={`absolute top-0 left-0 w-11 text-right font-mono text-[10px] text-white/35 tabular-nums ${
-                    h ? '-translate-y-1/2' : ''
-                  }`}
-                >
-                  {String(h).padStart(2, '0')}:00
-                </span>
+                {ppm >= 2 && (
+                  <div className="absolute bottom-0 border-l border-dashed border-white/[0.05]" style={{ top: LANE_TOP, left: tx(1800) }} />
+                )}
               </div>
             ))}
 
             {/* empty time: silence */}
             {gaps.map(([a, b]) =>
-              y(b - a) >= 18 ? (
+              tx(b - a) >= 80 ? (
                 <div
                   key={`g${a}`}
-                  className="absolute left-14 right-0 flex items-start justify-center pointer-events-none"
-                  style={{ top: y(a), height: y(b - a) }}
+                  className="absolute bottom-0 flex items-center justify-center pointer-events-none"
+                  style={{ top: LANE_TOP, left: tx(a), width: tx(b - a) }}
                 >
-                  <span className="mt-1 font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/20">
+                  <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/20">
                     silence · {formatDuration(b - a)}
                   </span>
                 </div>
@@ -759,29 +719,30 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                   seg={s}
                   block={blockOf.get(s.pid)!}
                   entry={entries[s.idx]}
-                  top={y(s.start)}
-                  height={y(s.end - s.start)}
-                  playPx={y(s.loop)}
+                  left={tx(s.start)}
+                  width={tx(s.end - s.start)}
+                  playPx={tx(s.loop)}
                   selected={sel?.kind === 'block' && sel.id === s.pid}
                   sibling={sel?.kind === 'entry' && sel.id === entries[s.idx].id}
                   live={s === live}
                   placing={blockOf.get(s.pid) === placing}
                   ghosted={drag?.active === true && drag.from === 'block' && drag.id === s.pid && drag.over !== 'day'}
-                  onPointerDown={(e) => startDrag(e, s.pid!, 'block', ((e.clientY - e.currentTarget.getBoundingClientRect().top) / ppm) * 60)}
+                  onPointerDown={(e) => startDrag(e, s.pid!, 'block', ((e.clientX - e.currentTarget.getBoundingClientRect().left) / ppm) * 60)}
                 />
               ) : (
                 <div
                   key={`f${s.start}`}
-                  className="absolute left-14 right-0 pointer-events-none overflow-hidden rounded-[3px]"
+                  className="absolute bottom-0 pointer-events-none overflow-hidden rounded-[3px]"
                   style={{
-                    top: y(s.start),
-                    height: Math.max(y(s.end - s.start), 1),
+                    top: LANE_TOP,
+                    left: tx(s.start),
+                    width: Math.max(tx(s.end - s.start), 1),
                     background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 6px, transparent 6px 12px)',
                   }}
                   title={`filler: ${entries[s.idx]?.title}`}
                 >
-                  {y(s.end - s.start) >= 18 && (
-                    <span className="block px-3 pt-1 font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/25">
+                  {tx(s.end - s.start) >= 80 && (
+                    <span className="block truncate px-2.5 pt-1.5 font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/25">
                       filler · {entries[s.idx]?.title || 'untitled'}
                     </span>
                   )}
@@ -791,8 +752,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
 
             {placing && (
               <span
-                className="absolute right-2 z-30 -translate-y-full rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-black pointer-events-none"
-                style={{ top: y(placing.start) - 2 }}
+                className="absolute top-0 z-30 whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-black pointer-events-none"
+                style={{ left: Math.max(0, Math.min(tx(placing.start), tx(DAY) - 280)) }}
               >
                 {hms(placing.start)} – {hms(Math.min(endOf(placing), DAY))}
                 {placing.plays > 1 ? ` · ×${placing.plays}` : ''}
@@ -801,9 +762,9 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
             )}
 
             {now !== null && (
-              <div className="absolute left-12 right-0 z-20 h-px pointer-events-none" style={{ top: y(now), background: NOW_RED }}>
+              <div className="absolute top-0 bottom-0 z-20 w-px pointer-events-none" style={{ left: tx(now), background: NOW_RED }}>
                 <span
-                  className="absolute -left-12 -translate-y-1/2 rounded px-1 font-mono text-[10px] leading-[15px] text-white tabular-nums"
+                  className="absolute top-0 -translate-x-1/2 rounded px-1 font-mono text-[10px] leading-[15px] text-white tabular-nums"
                   style={{ background: NOW_RED }}
                 >
                   {hms(now).slice(0, 5)}
@@ -811,13 +772,84 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
               </div>
             )}
           </div>
-          <p className="mt-3 ml-14 font-mono text-[10px] text-white/30">
-            day starts 00:00 · {BROADCAST_TZ.replace('_', ' ')} · drops snap to the minute and to neighbouring blocks
-          </p>
+        </div>
+        <p className="mt-1.5 font-mono text-[10px] text-white/30">
+          day starts 00:00 · {BROADCAST_TZ.replace('_', ' ')} · drops snap to the minute and to neighbouring blocks · zoomed in, the wheel scrolls the day
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+        {/* Library */}
+        <div
+          ref={libraryRef}
+          className={`rounded-lg border p-3 transition-colors ${
+            drag?.over === 'library' && drag.from === 'block' ? 'border-white/40 bg-white/[0.04]' : 'border-white/10'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-sans text-[13px] font-medium text-white/90">Library</span>
+            <button onClick={() => setAdding(true)} className={`${BTN} h-7 px-2.5`}>
+              + Add
+            </button>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3 mb-4">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className={`${INPUT} self-end`} />
+            <div>
+              <span className={LABEL}>Empty time plays</span>
+              <select
+                className={`${INPUT} [color-scheme:dark]`}
+                value={filler ?? ''}
+                onChange={(e) => setFiller(e.target.value || undefined)}
+                title="What airs wherever nothing is scheduled"
+              >
+                <option value="">Silence</option>
+                {library.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.title || 'untitled'} · {formatDuration(e.durationSec)} (loops)
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {(unmeasured.length > 0 || measuring) && (
+            <button
+              onClick={measureAll}
+              disabled={!!measuring}
+              className={`${BTN} mb-3 w-full h-7 text-[11.5px]`}
+              title={`Measures each file's loudness so loud masters play at ${TARGET_LUFS} LUFS, like Spotify`}
+            >
+              {measuring ? `Measuring loudness ${measuring}…` : `Measure loudness · ${unmeasured.length} file${unmeasured.length > 1 ? 's' : ''}`}
+            </button>
+          )}
+          {drag?.active && drag.from === 'block' && (
+            <p className="mb-3 rounded-md border border-dashed border-white/25 px-2.5 py-2 font-sans text-[11.5px] text-white/60">
+              Drop here to take this block off the day
+            </p>
+          )}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-3">
+            {library.filter(matches).map((e) => (
+              <div
+                key={e.id}
+                onPointerDown={(ev) => startDrag(ev, e.id, 'library')}
+                title="Drag onto the day to schedule it"
+                className={`flex items-center gap-2.5 rounded-md px-2 h-8 cursor-grab select-none transition-colors ${
+                  selEntry?.id === e.id ? 'bg-white/[0.09]' : 'hover:bg-white/[0.05]'
+                } ${drag?.active && drag.from === 'library' && drag.id === e.id ? 'opacity-30' : ''}`}
+              >
+                <span className="w-2 h-2 shrink-0 rounded-full" style={{ background: inkOf(e) }} />
+                <span className="font-sans text-[12.5px] truncate text-white/85">{e.title || 'untitled'}</span>
+                {playsPerDay.get(e.id) ? (
+                  <span className="font-mono text-[9.5px] text-white/35 tabular-nums">×{playsPerDay.get(e.id)}</span>
+                ) : null}
+                <span className="ml-auto font-mono text-[10px] text-white/30 tabular-nums">{formatDuration(e.durationSec)}</span>
+              </div>
+            ))}
+          </div>
+          {entries.length === 0 && <p className="px-1 font-sans text-[11.5px] text-white/25">Nothing yet — add audio.</p>}
         </div>
 
         {/* Inspector */}
-        <div className="sticky top-[72px] max-h-[calc(100vh-150px)] overflow-y-auto">
+        <div>
           {selEntry ? (
             <Inspector
               entry={selEntry}
@@ -838,10 +870,10 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
             <div className="rounded-lg border border-dashed border-white/12 p-5 font-sans text-[12.5px] leading-relaxed text-white/45">
               <p className="text-white/70 mb-2">Nothing selected</p>
               <p>Drag anything from the library onto the day, at any time. Drop a copy against the same mix to repeat it — the block grows.</p>
-              <p className="mt-2">Drag a block back to the library to take it off the day. Anything unscheduled plays the empty-time choice above the library.</p>
+              <p className="mt-2">Drag a block back to the library to take it off the day. Anything unscheduled plays the empty-time choice in the library.</p>
               <div className="mt-4 space-y-1 font-mono text-[10.5px] text-white/35">
-                <p><Kbd>↑ ↓</Kbd> walk the blocks</p>
-                <p><Kbd>Alt ↑↓</Kbd> nudge a minute · <Kbd>Alt ⇧ ↑↓</Kbd> a second</p>
+                <p><Kbd>← →</Kbd> walk the blocks</p>
+                <p><Kbd>Alt ←→</Kbd> nudge a minute · <Kbd>Alt ⇧ ←→</Kbd> a second</p>
                 <p><Kbd>Del</Kbd> remove block · <Kbd>Esc</Kbd> deselect</p>
                 <p><Kbd>Ctrl Z</Kbd> undo · <Kbd>Ctrl ⇧ Z</Kbd> redo</p>
                 <p><Kbd>Ctrl S</Kbd> publish</p>
@@ -928,8 +960,8 @@ function Block({
   seg: s,
   block: b,
   entry: e,
-  top,
-  height: h,
+  left,
+  width: w,
   playPx,
   selected,
   sibling,
@@ -941,8 +973,8 @@ function Block({
   seg: Segment;
   block: Placement;
   entry: BroadcastEntry;
-  top: number;
-  height: number;
+  left: number;
+  width: number;
   playPx: number;
   selected: boolean;
   sibling: boolean;
@@ -958,16 +990,17 @@ function Block({
       data-block
       onPointerDown={onPointerDown}
       title={`${e.title || 'untitled'} · ${hms(s.start)}–${hms(s.end)} · ${formatDuration(e.durationSec)}${b.plays > 1 ? ` ×${b.plays}` : ''}${cut ? ' · cut at midnight' : ''}`}
-      className={`absolute left-14 right-0 cursor-grab select-none overflow-hidden transition-[filter,opacity] duration-150 hover:brightness-125 ${
-        h >= 8 ? 'rounded-[6px]' : 'rounded-[2px]'
+      className={`absolute bottom-0 cursor-grab select-none overflow-hidden transition-[filter,opacity] duration-150 hover:brightness-125 ${
+        w >= 8 ? 'rounded-[6px]' : 'rounded-[2px]'
       }`}
       style={{
-        top: top + 1,
-        height: Math.max(h - 2, 2),
+        top: LANE_TOP,
+        left: left + 1,
+        width: Math.max(w - 2, 2),
         background: `color-mix(in oklab, ${ink} ${selected || placing ? 40 : sibling ? 30 : 22}%, #0c0c0c)`,
         boxShadow: `inset 3px 0 0 ${ink}${
           selected || placing ? ', 0 0 0 2px #fff' : sibling ? ', inset 0 0 0 1px rgba(255,255,255,0.22)' : ''
-        }${live ? `, inset -3px 0 0 ${NOW_RED}` : ''}`,
+        }${live ? `, inset 0 -3px 0 ${NOW_RED}` : ''}`,
         opacity: ghosted ? 0.3 : 1,
         zIndex: selected || placing ? 3 : live ? 2 : 1,
       }}
@@ -975,32 +1008,36 @@ function Block({
       {/* one hairline per repeat */}
       {playPx >= 6 &&
         Array.from({ length: b.plays - 1 }, (_, k) => (
-          <span key={k} className="absolute left-[3px] right-0 border-t border-dashed border-white/20" style={{ top: (k + 1) * playPx - 1 }} />
+          <span key={k} className="absolute top-0 bottom-0 border-l border-dashed border-white/20" style={{ left: (k + 1) * playPx - 1 }} />
         ))}
-      {/* thin interludes get a taller invisible grab area */}
-      {h < 10 && <span className="absolute inset-x-0 -top-1.5 -bottom-1.5" />}
-      {h >= 20 && (
-        <div className="flex items-baseline gap-3 px-3 pt-[4px] min-w-0">
-          <span className="font-sans text-[12.5px] font-medium text-white/90 truncate">
-            {e.title || 'untitled'}
-            {b.plays > 1 && <span className="ml-1.5 font-mono text-[10.5px] text-white/50">×{b.plays}</span>}
-          </span>
-          {live && (
-            <span className="shrink-0 rounded px-1 font-mono text-[9px] tracking-[0.12em] text-white" style={{ background: NOW_RED }}>
-              ON AIR
+      {/* thin interludes get a wider invisible grab area */}
+      {w < 10 && <span className="absolute inset-y-0 -left-1.5 -right-1.5" />}
+      {w >= 28 && (
+        <div className="px-2.5 pt-[6px] min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-sans text-[12.5px] font-medium text-white/90 truncate">
+              {e.title || 'untitled'}
+              {b.plays > 1 && <span className="ml-1.5 font-mono text-[10.5px] text-white/50">×{b.plays}</span>}
             </span>
+            {live && w >= 110 && (
+              <span className="shrink-0 rounded px-1 font-mono text-[9px] tracking-[0.12em] text-white" style={{ background: NOW_RED }}>
+                ON AIR
+              </span>
+            )}
+          </div>
+          {w >= 100 && (
+            <div className="mt-1 truncate font-mono text-[10px] text-white/40 tabular-nums">
+              {hms(s.start)} – {hms(s.end)}
+            </div>
           )}
-          <span className="ml-auto shrink-0 font-mono text-[10px] text-white/40 tabular-nums">
-            {hms(s.start)} – {hms(s.end)}
-          </span>
-        </div>
-      )}
-      {h >= 38 && (
-        <div className="px-3 font-mono text-[10px] text-white/35">
-          {formatDuration(e.durationSec)}
-          {b.plays > 1 ? ` × ${b.plays} = ${formatDuration(e.durationSec * b.plays)}` : ''}
-          {e.kind === 'inter' ? ' · interlude' : e.series ? ` · ${e.series}` : ''}
-          {cut && ' · cut at midnight'}
+          {w >= 150 && (
+            <div className="mt-0.5 truncate font-mono text-[10px] text-white/35">
+              {formatDuration(e.durationSec)}
+              {b.plays > 1 ? ` × ${b.plays} = ${formatDuration(e.durationSec * b.plays)}` : ''}
+              {e.kind === 'inter' ? ' · interlude' : e.series ? ` · ${e.series}` : ''}
+              {cut && ' · cut at midnight'}
+            </div>
+          )}
         </div>
       )}
     </div>
