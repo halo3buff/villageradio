@@ -41,7 +41,8 @@ const DAY = 86_400;
 const ZOOMS = [1, 2, 4, 8]; // px per minute; 'fit' lays the whole day across the screen
 const LABEL_W = 176; // the lane names down the chart's left side
 const HEAD_H = 24; // the hour ruler
-const ROW_H = 40; // one lane per colour
+const ROW_MIN = 40; // a lane's least height; the lanes share whatever room the day has
+const BAR_H = 34;
 const MAX_PPM = 16;
 const NOW_RED = '#ff4d3d';
 const MAGNET_PX = 8; // drops this close to another block's edge snap onto it
@@ -50,7 +51,7 @@ const INPUT =
   'w-full rounded-md bg-white/[0.04] border border-white/10 px-2.5 h-8 font-sans text-[12.5px] text-white outline-none focus:border-white/35 transition-colors placeholder:text-white/25';
 const LABEL = 'block font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/40 mb-1.5';
 // Panels over the photo background: frosted, so what's in them reads.
-const PANEL = 'bg-[rgb(14_14_14/0.62)] backdrop-blur-xl';
+const PANEL = 'bg-[rgb(30_30_30/0.2)] backdrop-blur-lg';
 const BTN =
   'h-8 rounded-md border border-white/12 px-3 font-sans text-[12px] text-white/80 hover:bg-white/[0.06] hover:text-white active:scale-[0.97] transition-[transform,background-color,color] duration-150 disabled:opacity-30 disabled:pointer-events-none';
 
@@ -110,6 +111,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   const [future, setFuture] = useState<Doc[]>([]);
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   const [width, setWidth] = useState(1440); // the day's visible width
+  const [rowH, setRowH] = useState(ROW_MIN);
   const [query, setQuery] = useState('');
   const [now, setNow] = useState<number | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -273,12 +275,16 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     return () => window.removeEventListener('resize', measure);
   }, []);
 
-  // 'fit' follows the window.
+  // 'fit' follows the window; the lanes split the day's height.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    setWidth(el.clientWidth - LABEL_W);
-    const ro = new ResizeObserver(() => setWidth(el.clientWidth - LABEL_W));
+    const fit = () => {
+      setWidth(el.clientWidth - LABEL_W);
+      setRowH(Math.max(ROW_MIN, (el.clientHeight - HEAD_H) / (LANES.length + 1)));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -753,8 +759,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         {/* Library */}
         <div
           ref={libraryRef}
-          className={`rounded-lg border p-3 transition-colors md:overflow-y-auto ${
-            drag?.over === 'library' && drag.from === 'block' ? 'border-white/40 bg-white/[0.04]' : 'border-white/10'
+          className={`rounded-lg border p-3 transition-colors md:overflow-y-auto ${PANEL} ${
+            drag?.over === 'library' && drag.from === 'block' ? 'border-white/40' : 'border-white/10'
           }`}
         >
           <div className="flex items-center justify-between mb-3">
@@ -821,8 +827,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
 
         <div className="min-w-0 md:min-h-0 flex flex-col gap-4">
           {/* The day: the hours across, one lane per colour down — it never grows taller */}
-          <div className="shrink-0 rounded-lg border border-white/10 overflow-hidden">
-            <div ref={scrollRef} className="overflow-x-auto overscroll-x-contain">
+          <div className={`h-[300px] md:h-auto md:flex-1 md:min-h-0 rounded-lg border border-white/10 overflow-hidden ${PANEL}`}>
+            <div ref={scrollRef} className="h-full overflow-x-auto overflow-y-hidden overscroll-x-contain">
               <div className="flex" style={{ width: LABEL_W + tx(DAY) }}>
                 {/* the lanes' names, pinned to the left */}
                 <div className="sticky left-0 z-30 shrink-0 border-r border-white/10 [background:var(--vlg-bg,#000)]" style={{ width: LABEL_W }}>
@@ -836,7 +842,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                     <div
                       key={l.key}
                       className={`flex items-center gap-2 px-3 border-b border-white/[0.05] ${selEntry && laneOf(selEntry) === i ? 'bg-white/[0.07]' : ''}`}
-                      style={{ height: ROW_H }}
+                      style={{ height: rowH }}
                     >
                       <span className="w-1 h-4 shrink-0 rounded-full" style={{ background: l.ink }} />
                       <span className="font-sans text-[12px] text-white/85">{l.name}</span>
@@ -849,7 +855,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                       ) : null}
                     </div>
                   ))}
-                  <div className="flex flex-col justify-center px-3" style={{ height: ROW_H }} title="What airs wherever nothing is scheduled — set in the library">
+                  <div className="flex flex-col justify-center px-3" style={{ height: rowH }} title="What airs wherever nothing is scheduled — set in the library">
                     <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/35">Empty time</span>
                     <span className="font-sans text-[11px] truncate text-white/40">{fillerEntry ? fillerEntry.title || 'untitled' : 'silence'}</span>
                   </div>
@@ -895,12 +901,12 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                     )}
                   </div>
 
-                  <div className="relative" style={{ height: (LANES.length + 1) * ROW_H }}>
+                  <div className="relative" style={{ height: (LANES.length + 1) * rowH }}>
                     {LANES.map((l, i) => (
                       <div
                         key={l.key}
                         className={`absolute inset-x-0 border-b border-white/[0.05] ${selEntry && laneOf(selEntry) === i ? 'bg-white/[0.03]' : ''}`}
-                        style={{ top: i * ROW_H, height: ROW_H }}
+                        style={{ top: i * rowH, height: rowH }}
                       />
                     ))}
                     {Array.from({ length: 24 }, (_, h) => (
@@ -915,7 +921,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                         <div
                           key={`g${a}`}
                           className="absolute flex items-center justify-center pointer-events-none"
-                          style={{ top: LANES.length * ROW_H, height: ROW_H, left: tx(a), width: tx(b - a) }}
+                          style={{ top: LANES.length * rowH, height: rowH, left: tx(a), width: tx(b - a) }}
                         >
                           <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/20">
                             silence · {formatDuration(b - a)}
@@ -931,7 +937,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                           seg={s}
                           block={blockOf.get(s.pid)!}
                           entry={entries[s.idx]}
-                          top={laneOf(entries[s.idx]) * ROW_H + 5}
+                          top={laneOf(entries[s.idx]) * rowH + (rowH - BAR_H) / 2}
                           left={tx(s.start)}
                           width={tx(s.end - s.start)}
                           playPx={tx(s.loop)}
@@ -951,8 +957,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                           key={`f${s.start}`}
                           className="absolute pointer-events-none overflow-hidden rounded-[3px]"
                           style={{
-                            top: LANES.length * ROW_H + 5,
-                            height: ROW_H - 10,
+                            top: LANES.length * rowH + (rowH - BAR_H) / 2,
+                            height: BAR_H,
                             left: tx(s.start),
                             width: Math.max(tx(s.end - s.start), 1),
                             background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 6px, transparent 6px 12px)',
@@ -960,7 +966,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                           title={`filler: ${entries[s.idx]?.title}`}
                         >
                           {tx(s.end - s.start) >= 80 && (
-                            <span className="block truncate px-2.5 leading-[30px] font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/30">
+                            <span className="block truncate px-2.5 leading-[34px] font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/30">
                               filler · {entries[s.idx]?.title || 'untitled'}
                             </span>
                           )}
@@ -978,7 +984,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
           </div>
 
           {/* The selected mix, in the room under the day */}
-          <div className="md:flex-1 md:min-h-0">
+          <div className="shrink-0">
             {selEntry ? (
               <Inspector
                 entry={selEntry}
@@ -996,7 +1002,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                 onClose={() => setSel(null)}
               />
             ) : (
-              <div className={`h-full overflow-y-auto rounded-lg border border-white/10 ${PANEL} p-5 grid gap-6 lg:grid-cols-3 content-start font-sans text-[12.5px] leading-relaxed text-white/55`}>
+              <div className={`rounded-lg border border-white/10 ${PANEL} p-5 grid gap-6 lg:grid-cols-3 content-start font-sans text-[12.5px] leading-relaxed text-white/55`}>
                 <div>
                   <p className="text-white/80 mb-2">Nothing selected</p>
                   <p>Click a bar on the day, or a mix in the library, to see and edit it here.</p>
@@ -1134,7 +1140,7 @@ function Block({
       }`}
       style={{
         top,
-        height: ROW_H - 10,
+        height: BAR_H,
         left: left + 1,
         width: Math.max(w - 2, 2),
         background: `color-mix(in oklab, ${ink} ${selected || placing ? 40 : sibling ? 30 : 22}%, #0c0c0c)`,
@@ -1228,7 +1234,7 @@ function Inspector({
   const playing = now !== null && block && now >= block.start && now < blockEnd;
   const COL = 'min-w-0 space-y-3.5';
   return (
-    <div className={`h-full flex flex-col rounded-lg border border-white/10 ${PANEL}`}>
+    <div className={`flex flex-col rounded-lg border border-white/10 ${PANEL}`}>
       <div className="shrink-0 flex items-center gap-3 px-4 h-12 border-b border-white/10">
         <span className="w-1 h-8 shrink-0 rounded-full" style={{ background: inkOf(entry) }} />
         <div className="min-w-0 flex-1">
@@ -1251,7 +1257,7 @@ function Inspector({
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
+      <div className="overflow-x-hidden px-4 py-3">
         {problems.length > 0 && (
           <div className="mb-4 rounded-md border border-[#ff6b5b]/30 bg-[#ff6b5b]/[0.06] px-3 py-2 font-sans text-[11.5px] text-[#ff8a7d]">
             {problems.map((p, i) => (
