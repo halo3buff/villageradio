@@ -31,6 +31,7 @@ const inkOf = (e: BroadcastEntry) =>
 const DAY = 86_400;
 const ZOOMS = [1, 2, 4, 8]; // px per minute; 'fit' lays the whole day across the screen
 const LANE_TOP = 22; // the hour ruler sits above the blocks
+const MAX_PPM = 16;
 const NOW_RED = '#ff4d3d';
 const MAGNET_PX = 8; // drops this close to another block's edge snap onto it
 
@@ -66,7 +67,7 @@ function normalize(e: BroadcastEntry): BroadcastEntry {
 type Preview = { schedule: Placement[]; id: string; dropped: number };
 type Drag = {
   id: string; // block id, or the entry id when dragged from the library
-  from: 'library' | 'block';
+  from: 'library' | 'block' | 'resize'; // resize: dragging a block's right edge sets its plays
   grab: number; // seconds between the block's start and the pointer
   startX: number;
   startY: number;
@@ -218,15 +219,29 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     el.scrollTo({ left: Math.max(0, (sec / 60) * px - el.clientWidth / 3), behavior });
   }
 
-  /** Change zoom, keeping the time under the middle of the day in place. */
-  function zoomTo(next: number | 'fit') {
+  // A zoom keeps one moment where it was on screen: `at` px from the day's left edge.
+  const anchor = useRef<{ sec: number; at: number } | null>(null);
+  const ppmRef = useRef(ppm);
+  ppmRef.current = ppm;
+  useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!el || next === zoom) return;
-    const mid = ((el.scrollLeft + el.clientWidth / 2) / ppm) * 60;
-    const px = next === 'fit' ? width / 1440 : next;
+    if (el && anchor.current) el.scrollLeft = (anchor.current.sec / 60) * ppm - anchor.current.at;
+    anchor.current = null;
+  }, [ppm]);
+
+  /** Change zoom, keeping the time under `at` (default: the middle of the day) in place. */
+  function zoomTo(next: number | 'fit', at?: number) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const fit = el.clientWidth / 1440;
+    if (next !== 'fit' && next <= fit * 1.02) next = 'fit';
+    if (next === zoom) return;
+    at ??= el.clientWidth / 2;
+    anchor.current = { sec: ((el.scrollLeft + at) / ppmRef.current) * 60, at };
     setZoom(next);
-    requestAnimationFrame(() => el.scrollTo({ left: (mid / 60) * px - el.clientWidth / 2 }));
   }
+  const zoomRef = useRef(zoomTo);
+  zoomRef.current = zoomTo;
 
   // 'fit' follows the window.
   useLayoutEffect(() => {
@@ -238,12 +253,19 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // Zoomed in, the wheel scrolls the day sideways, as in a DAW.
+  // As in a DAW: Ctrl/⌘ + wheel (or a trackpad pinch) zooms round the pointer; zoomed in, the wheel
+  // scrolls the day sideways.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || Math.abs(e.deltaX) >= Math.abs(e.deltaY) || el.scrollWidth <= el.clientWidth) return;
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const next = Math.min(MAX_PPM, ppmRef.current * Math.exp(-e.deltaY * 0.004));
+        zoomRef.current(next, e.clientX - el.getBoundingClientRect().left);
+        return;
+      }
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY) || el.scrollWidth <= el.clientWidth) return;
       e.preventDefault();
       el.scrollLeft += e.deltaY;
     };
@@ -384,6 +406,13 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
 
   /** Where a drag at (x, y) would land: snapped to the minute, magnetised to nearby block edges. */
   function previewAt(x: number, yPx: number, d: Drag): Pick<Drag, 'over' | 'preview'> {
+    if (d.from === 'resize') {
+      const b = schedule.find((b) => b.id === d.id)!;
+      const len = lenOf(b.entry) || 1;
+      const end = ((x - (dayRef.current?.getBoundingClientRect().left ?? 0)) / ppm) * 60;
+      const plays = Math.max(1, Math.min(99, Math.round((end - b.start) / len)));
+      return { over: 'day', preview: placeAt(schedule, lenOf, { ...b, plays }) };
+    }
     const lib = libraryRef.current?.getBoundingClientRect();
     if (lib && x >= lib.left && x <= lib.right && yPx >= lib.top && yPx <= lib.bottom) return { over: 'library', preview: null };
     const lane = scrollRef.current?.getBoundingClientRect();
@@ -437,7 +466,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
       setDrag(null);
       if (!d) return;
       if (!d.active) {
-        if (d.from === 'block') selectBlock(d.id);
+        if (d.from !== 'library') selectBlock(d.id);
         else setSel({ kind: 'entry', id: d.id });
       } else if (d.over === 'library' && d.from === 'block') removeBlock(d.id);
       else if (d.over === 'day' && d.preview) {
@@ -467,11 +496,17 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     raf = requestAnimationFrame(edge);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up, { once: true });
+    const cancel = () => {
+      dragRef.current = null;
+      setDrag(null);
+    };
+    window.addEventListener('pointercancel', cancel);
     document.body.style.userSelect = 'none';
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
       document.body.style.userSelect = '';
     };
     // Re-binding on every drag frame would drop the `once` pointerup; deps are read through refs.
@@ -564,9 +599,9 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   const library = [...entries].sort((a, b) => a.title.localeCompare(b.title));
 
   return (
-    <div className={drag?.active ? 'cursor-grabbing' : ''}>
+    <div className={drag?.active ? (drag.from === 'resize' ? 'cursor-ew-resize' : 'cursor-grabbing') : ''}>
       {/* Toolbar */}
-      <div className="sticky top-0 z-40 -mx-6 -mt-7 mb-5 px-6 h-14 flex items-center gap-4 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
+      <div className="sticky top-0 z-40 -mx-6 -mt-7 px-6 h-14 flex items-center gap-4 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
         <h1 className="font-sans text-[15px] font-medium text-white">Broadcast</h1>
         <div className="flex items-center gap-1.5 font-mono text-[10.5px] text-white/50">
           <Chip>{schedule.length} blocks</Chip>
@@ -650,30 +685,6 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         </div>
       </div>
 
-      {legacy && baseline === null && (
-        <Banner tone="warn">
-          The old looping lineup has been laid out as blocks. Nothing changes on air until you publish.
-        </Banner>
-      )}
-      {status === 'conflict' && (
-        <Banner tone="warn">
-          <span className="flex flex-wrap items-center gap-3">
-            Someone published a different lineup since you opened this page.
-            <button onClick={loadLive} className={BTN}>Load theirs</button>
-            <button onClick={overwriteLive} className={BTN}>Publish mine over it</button>
-          </span>
-        </Banner>
-      )}
-      {status === 'error' && errors.length > 0 && (
-        <Banner tone="warn">
-          {errors.map((e, i) => (
-            <span key={i} className="block">
-              {e}
-            </span>
-          ))}
-        </Banner>
-      )}
-
       {/* The day, left to right — pinned under the toolbar, so it's always there to drop onto */}
       <div className="sticky top-14 z-30 -mx-4 md:-mx-6 mb-5 px-4 md:px-6 pt-3 pb-2 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
         <div ref={scrollRef} className="overflow-x-auto overscroll-x-contain">
@@ -728,6 +739,10 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                   placing={blockOf.get(s.pid) === placing}
                   ghosted={drag?.active === true && drag.from === 'block' && drag.id === s.pid && drag.over !== 'day'}
                   onPointerDown={(e) => startDrag(e, s.pid!, 'block', ((e.clientX - e.currentTarget.getBoundingClientRect().left) / ppm) * 60)}
+                  onResize={(e) => {
+                    e.stopPropagation();
+                    startDrag(e, s.pid!, 'resize');
+                  }}
                 />
               ) : (
                 <div
@@ -777,6 +792,30 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
           day starts 00:00 · {BROADCAST_TZ.replace('_', ' ')} · drops snap to the minute and to neighbouring blocks · zoomed in, the wheel scrolls the day
         </p>
       </div>
+
+      {legacy && baseline === null && (
+        <Banner tone="warn">
+          The old looping lineup has been laid out as blocks. Nothing changes on air until you publish.
+        </Banner>
+      )}
+      {status === 'conflict' && (
+        <Banner tone="warn">
+          <span className="flex flex-wrap items-center gap-3">
+            Someone published a different lineup since you opened this page.
+            <button onClick={loadLive} className={BTN}>Load theirs</button>
+            <button onClick={overwriteLive} className={BTN}>Publish mine over it</button>
+          </span>
+        </Banner>
+      )}
+      {status === 'error' && errors.length > 0 && (
+        <Banner tone="warn">
+          {errors.map((e, i) => (
+            <span key={i} className="block">
+              {e}
+            </span>
+          ))}
+        </Banner>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
         {/* Library */}
@@ -870,9 +909,9 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
             <div className="rounded-lg border border-dashed border-white/12 p-5 font-sans text-[12.5px] leading-relaxed text-white/45">
               <p className="text-white/70 mb-2">Nothing selected</p>
               <p>Drag anything from the library onto the day, at any time. Drop a copy against the same mix to repeat it — the block grows.</p>
-              <p className="mt-2">Drag a block back to the library to take it off the day. Anything unscheduled plays the empty-time choice in the library.</p>
+              <p className="mt-2">Drag a block&rsquo;s right edge to repeat it. Drag a block back to the library to take it off the day. Anything unscheduled plays the empty-time choice in the library.</p>
               <div className="mt-4 space-y-1 font-mono text-[10.5px] text-white/35">
-                <p><Kbd>← →</Kbd> walk the blocks</p>
+                <p><Kbd>← →</Kbd> walk the blocks · <Kbd>Ctrl</Kbd> + wheel zoom</p>
                 <p><Kbd>Alt ←→</Kbd> nudge a minute · <Kbd>Alt ⇧ ←→</Kbd> a second</p>
                 <p><Kbd>Del</Kbd> remove block · <Kbd>Esc</Kbd> deselect</p>
                 <p><Kbd>Ctrl Z</Kbd> undo · <Kbd>Ctrl ⇧ Z</Kbd> redo</p>
@@ -969,6 +1008,7 @@ function Block({
   placing,
   ghosted,
   onPointerDown,
+  onResize,
 }: {
   seg: Segment;
   block: Placement;
@@ -982,6 +1022,7 @@ function Block({
   placing: boolean;
   ghosted: boolean;
   onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onResize: (e: React.PointerEvent<HTMLSpanElement>) => void;
 }) {
   const ink = inkOf(e);
   const cut = s.end - s.start < s.loop * b.plays - 0.5;
@@ -1010,12 +1051,20 @@ function Block({
         Array.from({ length: b.plays - 1 }, (_, k) => (
           <span key={k} className="absolute top-0 bottom-0 border-l border-dashed border-white/20" style={{ left: (k + 1) * playPx - 1 }} />
         ))}
+      {/* the right edge: drag to repeat */}
+      {w >= 16 && (
+        <span
+          onPointerDown={onResize}
+          title="Drag to repeat"
+          className="absolute top-0 bottom-0 right-0 z-10 w-2 cursor-ew-resize hover:bg-white/25 transition-colors"
+        />
+      )}
       {/* thin interludes get a wider invisible grab area */}
       {w < 10 && <span className="absolute inset-y-0 -left-1.5 -right-1.5" />}
-      {w >= 28 && (
-        <div className="px-2.5 pt-[6px] min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-sans text-[12.5px] font-medium text-white/90 truncate">
+      {w >= 20 && (
+        <div className={`${w >= 60 ? 'px-2.5' : 'px-1.5'} pt-[6px] min-w-0`}>
+          <div className="flex items-start gap-2 min-w-0">
+            <span className={`font-sans font-medium text-white/90 break-words line-clamp-3 leading-[1.25] ${w >= 60 ? 'text-[12.5px]' : 'text-[11px]'}`}>
               {e.title || 'untitled'}
               {b.plays > 1 && <span className="ml-1.5 font-mono text-[10.5px] text-white/50">×{b.plays}</span>}
             </span>
