@@ -6,8 +6,6 @@ import { AudioProvider } from '@/lib/audio-context';
 import { getBroadcastManifest, getCommands, getTheme } from '@/lib/content/loaders';
 import { daySegments, manifestToMixes } from '@/lib/content/broadcast';
 import { DEFAULT_THEME, isThemeName, siteCssVars } from '@/lib/theme';
-import { Nav } from '@/components/Nav';
-import { AudioPlayer } from '@/components/AudioPlayer';
 import { SiteFrame } from '@/components/SiteFrame';
 import { ClearanceWarden } from '@/components/ClearanceWarden';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -122,7 +120,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <AudioProvider playlist={playlist} segments={daySegments(manifest)}>
             {/* Burns a gated page's clearance the moment the visitor leaves it */}
             <ClearanceWarden />
-            <SiteFrame nav={<Nav />} audioPlayer={<AudioPlayer />} commands={commands}>
+            <SiteFrame commands={commands}>
               {children}
             </SiteFrame>
           </AudioProvider>

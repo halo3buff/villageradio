@@ -30,7 +30,9 @@ const inkOf = (e: BroadcastEntry) =>
 
 const DAY = 86_400;
 const ZOOMS = [1, 2, 4, 8]; // px per minute; 'fit' lays the whole day across the screen
-const LANE_TOP = 22; // the hour ruler sits above the blocks
+const LABEL_W = 176; // the mix names down the chart's left side
+const HEAD_H = 24; // the hour ruler
+const ROW_H = 34; // one row per mix
 const MAX_PPM = 16;
 const NOW_RED = '#ff4d3d';
 const MAGNET_PX = 8; // drops this close to another block's edge snap onto it
@@ -118,6 +120,20 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     [entries, shown, filler],
   );
   const blockOf = useMemo(() => new Map(shown.map((b) => [b.id, b])), [shown]);
+  // The chart's rows, a Gantt: one per mix on the day, in the order they first air. The order comes
+  // from the day before any drag, so rows hold still while a block moves; a new mix slots in live.
+  const rows = useMemo(() => {
+    const first = (bs: Placement[]) => {
+      const m = new Map<string, number>();
+      for (const b of bs) m.set(b.entry, Math.min(b.start, m.get(b.entry) ?? DAY));
+      return m;
+    };
+    const held = first(schedule);
+    const at = first(shown);
+    const key = (id: string) => held.get(id) ?? at.get(id)!;
+    return [...at.keys()].sort((a, b) => key(a) - key(b));
+  }, [schedule, shown]);
+  const rowOf = new Map(rows.map((id, i) => [id, i]));
   const live = now === null ? undefined : segs.find((s) => now >= s.start && now < s.end);
   const scheduledSec = segs.reduce((a, s) => a + (s.pid ? s.end - s.start : 0), 0);
   const playsPerDay = useMemo(() => {
@@ -216,7 +232,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   function scrollToSec(sec: number, behavior: ScrollBehavior, px = ppm) {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({ left: Math.max(0, (sec / 60) * px - el.clientWidth / 3), behavior });
+    el.scrollTo({ left: Math.max(0, (sec / 60) * px - (el.clientWidth - LABEL_W) / 3), behavior });
   }
 
   // A zoom keeps one moment where it was on screen: `at` px from the day's left edge.
@@ -233,18 +249,18 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   function zoomTo(next: number | 'fit', at?: number) {
     const el = scrollRef.current;
     if (!el) return;
-    const fit = el.clientWidth / 1440;
+    const fit = (el.clientWidth - LABEL_W) / 1440;
     if (next !== 'fit' && next <= fit * 1.02) next = 'fit';
     if (next === zoom) return;
-    at ??= el.clientWidth / 2;
+    at ??= (el.clientWidth - LABEL_W) / 2;
     anchor.current = { sec: ((el.scrollLeft + at) / ppmRef.current) * 60, at };
     setZoom(next);
   }
   const zoomRef = useRef(zoomTo);
   zoomRef.current = zoomTo;
 
-  // From md up the page is one screen, like a DAW: the day across the top, the library and the
-  // inspector below it, each scrolling on its own. 76px is SiteFrame's room for the audio bar.
+  // From md up the page is one screen, like a DAW: the library and the day side by side, the
+  // inspector under them, each scrolling on its own.
   const rootRef = useRef<HTMLDivElement>(null);
   const [fill, setFill] = useState<number>();
   useLayoutEffect(() => {
@@ -252,7 +268,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
       const el = rootRef.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
-      setFill(window.innerWidth >= 768 ? Math.max(520, window.innerHeight - top - 76) : undefined);
+      setFill(window.innerWidth >= 768 ? Math.max(520, window.innerHeight - top - 16) : undefined);
     };
     measure();
     window.addEventListener('resize', measure);
@@ -263,14 +279,14 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    setWidth(el.clientWidth);
-    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    setWidth(el.clientWidth - LABEL_W);
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth - LABEL_W));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  // As in a DAW: Ctrl/⌘ + wheel (or a trackpad pinch) zooms round the pointer; zoomed in, the wheel
-  // scrolls the day sideways.
+  // As in a DAW: Ctrl/⌘ + wheel (or a trackpad pinch) zooms round the pointer; the wheel scrolls the
+  // rows, or the day sideways when every row is in view.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -278,10 +294,10 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const next = Math.min(MAX_PPM, ppmRef.current * Math.exp(-e.deltaY * 0.004));
-        zoomRef.current(next, e.clientX - el.getBoundingClientRect().left);
+        zoomRef.current(next, e.clientX - el.getBoundingClientRect().left - LABEL_W);
         return;
       }
-      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY) || el.scrollWidth <= el.clientWidth) return;
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY) || el.scrollWidth <= el.clientWidth || el.scrollHeight > el.clientHeight) return;
       e.preventDefault();
       el.scrollLeft += e.deltaY;
     };
@@ -361,7 +377,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     const el = scrollRef.current;
     if (!el) return;
     const left = tx(sec) - el.scrollLeft;
-    if (left < 20 || left + Math.min(tx(len), 200) > el.clientWidth - 20) scrollToSec(sec, 'smooth');
+    if (left < 20 || left + Math.min(tx(len), 200) > el.clientWidth - LABEL_W - 20) scrollToSec(sec, 'smooth');
   }
 
   function selectBlock(id: string, scroll = false) {
@@ -501,7 +517,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
       if (d?.active && d.over === 'day' && el) {
         const r = el.getBoundingClientRect();
         const zone = 70;
-        const v = d.x < r.left + zone ? -(r.left + zone - d.x) / 4 : d.x > r.right - zone ? (d.x - r.right + zone) / 4 : 0;
+        const l = r.left + LABEL_W;
+        const v = d.x < l + zone ? -(l + zone - d.x) / 4 : d.x > r.right - zone ? (d.x - r.right + zone) / 4 : 0;
         if (v) {
           el.scrollLeft += v;
           setDrag({ ...d, ...previewAt(d.x, d.y, d) });
@@ -708,139 +725,33 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         </div>
       </div>
 
-      {/* The day, left to right, across the top */}
-      <div className="relative z-30 shrink-0 -mx-4 md:-mx-6 mb-4 px-4 md:px-6 pt-3 pb-2 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
-        <div ref={scrollRef} className="overflow-x-auto overscroll-x-contain">
-          <div
-            ref={dayRef}
-            className="relative h-[118px]"
-            style={{ width: tx(DAY) }}
-            // Clicking empty space on the day clears the selection.
-            onPointerDown={(e) => !(e.target as HTMLElement).closest('[data-block]') && setSel(null)}
-          >
-            {Array.from({ length: 24 }, (_, h) => (
-              <div key={h} className="absolute top-0 bottom-0 border-l border-white/[0.08]" style={{ left: tx(h * 3600) }}>
-                {h % (tx(3600) >= 44 ? 1 : tx(3600) >= 16 ? 3 : 6) === 0 && (
-                  <span className="absolute top-[3px] left-1 font-mono text-[10px] text-white/35 tabular-nums">
-                    {String(h).padStart(2, '0')}:00
-                  </span>
-                )}
-                {ppm >= 2 && (
-                  <div className="absolute bottom-0 border-l border-dashed border-white/[0.05]" style={{ top: LANE_TOP, left: tx(1800) }} />
-                )}
-              </div>
-            ))}
-
-            {/* empty time: silence */}
-            {gaps.map(([a, b]) =>
-              tx(b - a) >= 80 ? (
-                <div
-                  key={`g${a}`}
-                  className="absolute bottom-0 flex items-center justify-center pointer-events-none"
-                  style={{ top: LANE_TOP, left: tx(a), width: tx(b - a) }}
-                >
-                  <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/20">
-                    silence · {formatDuration(b - a)}
-                  </span>
-                </div>
-              ) : null,
-            )}
-
-            {segs.map((s) =>
-              s.pid ? (
-                <Block
-                  key={s.pid}
-                  seg={s}
-                  block={blockOf.get(s.pid)!}
-                  entry={entries[s.idx]}
-                  left={tx(s.start)}
-                  width={tx(s.end - s.start)}
-                  playPx={tx(s.loop)}
-                  selected={sel?.kind === 'block' && sel.id === s.pid}
-                  sibling={sel?.kind === 'entry' && sel.id === entries[s.idx].id}
-                  live={s === live}
-                  placing={blockOf.get(s.pid) === placing}
-                  ghosted={drag?.active === true && drag.from === 'block' && drag.id === s.pid && drag.over !== 'day'}
-                  onPointerDown={(e) => startDrag(e, s.pid!, 'block', ((e.clientX - e.currentTarget.getBoundingClientRect().left) / ppm) * 60)}
-                  onResize={(e) => {
-                    e.stopPropagation();
-                    startDrag(e, s.pid!, 'resize');
-                  }}
-                />
-              ) : (
-                <div
-                  key={`f${s.start}`}
-                  className="absolute bottom-0 pointer-events-none overflow-hidden rounded-[3px]"
-                  style={{
-                    top: LANE_TOP,
-                    left: tx(s.start),
-                    width: Math.max(tx(s.end - s.start), 1),
-                    background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 6px, transparent 6px 12px)',
-                  }}
-                  title={`filler: ${entries[s.idx]?.title}`}
-                >
-                  {tx(s.end - s.start) >= 80 && (
-                    <span className="block truncate px-2.5 pt-1.5 font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/25">
-                      filler · {entries[s.idx]?.title || 'untitled'}
-                    </span>
-                  )}
-                </div>
-              ),
-            )}
-
-            {placing && (
-              <span
-                className="absolute top-0 z-30 whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-black pointer-events-none"
-                style={{ left: Math.max(0, Math.min(tx(placing.start), tx(DAY) - 280)) }}
-              >
-                {hms(placing.start)} – {hms(Math.min(endOf(placing), DAY))}
-                {placing.plays > 1 ? ` · ×${placing.plays}` : ''}
-                {drag?.preview?.dropped ? ` · ${drag.preview.dropped} fall off at midnight` : ''}
+      <div className="shrink-0 mt-4 -mb-1 empty:hidden">
+        {legacy && baseline === null && (
+          <Banner tone="warn">
+            The old looping lineup has been laid out as blocks. Nothing changes on air until you publish.
+          </Banner>
+        )}
+        {status === 'conflict' && (
+          <Banner tone="warn">
+            <span className="flex flex-wrap items-center gap-3">
+              Someone published a different lineup since you opened this page.
+              <button onClick={loadLive} className={BTN}>Load theirs</button>
+              <button onClick={overwriteLive} className={BTN}>Publish mine over it</button>
+            </span>
+          </Banner>
+        )}
+        {status === 'error' && errors.length > 0 && (
+          <Banner tone="warn">
+            {errors.map((e, i) => (
+              <span key={i} className="block">
+                {e}
               </span>
-            )}
-
-            {now !== null && (
-              <div className="absolute top-0 bottom-0 z-20 w-px pointer-events-none" style={{ left: tx(now), background: NOW_RED }}>
-                <span
-                  className="absolute top-0 -translate-x-1/2 rounded px-1 font-mono text-[10px] leading-[15px] text-white tabular-nums"
-                  style={{ background: NOW_RED }}
-                >
-                  {hms(now).slice(0, 5)}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        <p className="mt-1.5 font-mono text-[10px] text-white/30">
-          day starts 00:00 · {BROADCAST_TZ.replace('_', ' ')} · drops snap to the minute and to neighbouring blocks · zoomed in, the wheel scrolls the day
-        </p>
+            ))}
+          </Banner>
+        )}
       </div>
 
-      {legacy && baseline === null && (
-        <Banner tone="warn">
-          The old looping lineup has been laid out as blocks. Nothing changes on air until you publish.
-        </Banner>
-      )}
-      {status === 'conflict' && (
-        <Banner tone="warn">
-          <span className="flex flex-wrap items-center gap-3">
-            Someone published a different lineup since you opened this page.
-            <button onClick={loadLive} className={BTN}>Load theirs</button>
-            <button onClick={overwriteLive} className={BTN}>Publish mine over it</button>
-          </span>
-        </Banner>
-      )}
-      {status === 'error' && errors.length > 0 && (
-        <Banner tone="warn">
-          {errors.map((e, i) => (
-            <span key={i} className="block">
-              {e}
-            </span>
-          ))}
-        </Banner>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 md:flex-1 md:min-h-0 md:grid-cols-[290px_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:flex-1 md:min-h-0 md:grid-cols-[260px_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
         {/* Library */}
         <div
           ref={libraryRef}
@@ -910,9 +821,174 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
           {entries.length === 0 && <p className="px-1 font-sans text-[11.5px] text-white/25">Nothing yet — add audio.</p>}
         </div>
 
-        {/* Inspector */}
-        <div className="md:min-h-0">
-          {selEntry ? (
+        {/* The day: a Gantt — the hours across, one row per mix down */}
+        <div className="min-w-0 md:min-h-0 flex flex-col rounded-lg border border-white/10 overflow-hidden">
+          <div ref={scrollRef} className="relative max-h-[65vh] md:max-h-none md:flex-1 md:min-h-0 overflow-auto overscroll-contain">
+            <div className="flex" style={{ width: LABEL_W + tx(DAY) }}>
+              {/* the names, pinned to the left */}
+              <div className="sticky left-0 z-30 shrink-0 border-r border-white/10 [background:var(--vlg-bg,#000)]" style={{ width: LABEL_W }}>
+                <div
+                  className="sticky top-0 z-10 flex items-center px-3 border-b border-white/10 font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/30 [background:var(--vlg-bg,#000)]"
+                  style={{ height: HEAD_H }}
+                >
+                  {BROADCAST_TZ.replace('_', ' ')}
+                </div>
+                {rows.map((id) => {
+                  const e = byId.get(id)!;
+                  return (
+                    <div
+                      key={id}
+                      onPointerDown={(ev) => startDrag(ev, id, 'library')}
+                      title="Click to edit · drag onto the day to air it again"
+                      className={`flex items-center gap-2 px-3 border-b border-white/[0.05] cursor-grab select-none transition-colors ${
+                        selEntry?.id === id ? 'bg-white/[0.09]' : 'hover:bg-white/[0.04]'
+                      }`}
+                      style={{ height: ROW_H }}
+                    >
+                      <span className="w-1 h-4 shrink-0 rounded-full" style={{ background: inkOf(e) }} />
+                      <span className="font-sans text-[12px] truncate text-white/85">{e.title || 'untitled'}</span>
+                      {live && !live.filler && entries[live.idx]?.id === id && (
+                        <span className="w-1.5 h-1.5 shrink-0 rounded-full animate-pulse" style={{ background: NOW_RED }} title="On air" />
+                      )}
+                      {playsPerDay.get(id) ? (
+                        <span className="ml-auto font-mono text-[9.5px] text-white/35 tabular-nums">×{playsPerDay.get(id)}</span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                <div className="flex flex-col justify-center px-3" style={{ height: ROW_H }} title="What airs wherever nothing is scheduled — set in the library">
+                  <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/35">Empty time</span>
+                  <span className="font-sans text-[11px] truncate text-white/40">{fillerEntry ? fillerEntry.title || 'untitled' : 'silence'}</span>
+                </div>
+              </div>
+
+              <div
+                ref={dayRef}
+                className="relative shrink-0"
+                style={{ width: tx(DAY) }}
+                // Clicking empty space on the day clears the selection.
+                onPointerDown={(e) => !(e.target as HTMLElement).closest('[data-block]') && setSel(null)}
+              >
+                {/* the hour ruler, pinned to the top */}
+                <div className="sticky top-0 z-20 border-b border-white/10 [background:var(--vlg-bg,#000)]" style={{ height: HEAD_H }}>
+                  {Array.from({ length: 24 }, (_, h) =>
+                    h % (tx(3600) >= 44 ? 1 : tx(3600) >= 16 ? 3 : 6) === 0 ? (
+                      <span
+                        key={h}
+                        className="absolute top-[5px] pl-1 border-l border-white/[0.08] font-mono text-[10px] leading-[14px] text-white/35 tabular-nums"
+                        style={{ left: tx(h * 3600) }}
+                      >
+                        {String(h).padStart(2, '0')}:00
+                      </span>
+                    ) : null,
+                  )}
+                  {now !== null && (
+                    <span
+                      className="absolute top-[4px] z-10 -translate-x-1/2 rounded px-1 font-mono text-[10px] leading-[15px] text-white tabular-nums"
+                      style={{ left: Math.max(tx(now), 18), background: NOW_RED }}
+                    >
+                      {hms(now).slice(0, 5)}
+                    </span>
+                  )}
+                  {placing && (
+                    <span
+                      className="absolute top-[3px] z-20 whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-black pointer-events-none"
+                      style={{ left: Math.max(0, Math.min(tx(placing.start), tx(DAY) - 280)) }}
+                    >
+                      {hms(placing.start)} – {hms(Math.min(endOf(placing), DAY))}
+                      {placing.plays > 1 ? ` · ×${placing.plays}` : ''}
+                      {drag?.preview?.dropped ? ` · ${drag.preview.dropped} fall off at midnight` : ''}
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative" style={{ height: (rows.length + 1) * ROW_H }}>
+                  {rows.map((id, i) => (
+                    <div
+                      key={id}
+                      className={`absolute inset-x-0 border-b border-white/[0.05] ${selEntry?.id === id ? 'bg-white/[0.04]' : ''}`}
+                      style={{ top: i * ROW_H, height: ROW_H }}
+                    />
+                  ))}
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <div key={h} className="absolute top-0 bottom-0 border-l border-white/[0.07]" style={{ left: tx(h * 3600) }}>
+                      {ppm >= 2 && <div className="absolute top-0 bottom-0 border-l border-dashed border-white/[0.04]" style={{ left: tx(1800) }} />}
+                    </div>
+                  ))}
+
+                  {/* empty time: silence */}
+                  {gaps.map(([a, b]) =>
+                    tx(b - a) >= 80 ? (
+                      <div
+                        key={`g${a}`}
+                        className="absolute flex items-center justify-center pointer-events-none"
+                        style={{ top: rows.length * ROW_H, height: ROW_H, left: tx(a), width: tx(b - a) }}
+                      >
+                        <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/20">
+                          silence · {formatDuration(b - a)}
+                        </span>
+                      </div>
+                    ) : null,
+                  )}
+
+                  {segs.map((s) =>
+                    s.pid ? (
+                      <Block
+                        key={s.pid}
+                        seg={s}
+                        block={blockOf.get(s.pid)!}
+                        entry={entries[s.idx]}
+                        top={(rowOf.get(entries[s.idx].id) ?? 0) * ROW_H + 5}
+                        left={tx(s.start)}
+                        width={tx(s.end - s.start)}
+                        playPx={tx(s.loop)}
+                        selected={sel?.kind === 'block' && sel.id === s.pid}
+                        sibling={sel?.kind === 'entry' && sel.id === entries[s.idx].id}
+                        live={s === live}
+                        placing={blockOf.get(s.pid) === placing}
+                        ghosted={drag?.active === true && drag.from === 'block' && drag.id === s.pid && drag.over !== 'day'}
+                        onPointerDown={(e) => startDrag(e, s.pid!, 'block', ((e.clientX - e.currentTarget.getBoundingClientRect().left) / ppm) * 60)}
+                        onResize={(e) => {
+                          e.stopPropagation();
+                          startDrag(e, s.pid!, 'resize');
+                        }}
+                      />
+                    ) : (
+                      <div
+                        key={`f${s.start}`}
+                        className="absolute pointer-events-none overflow-hidden rounded-[3px]"
+                        style={{
+                          top: rows.length * ROW_H + 5,
+                          height: ROW_H - 10,
+                          left: tx(s.start),
+                          width: Math.max(tx(s.end - s.start), 1),
+                          background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 6px, transparent 6px 12px)',
+                        }}
+                        title={`filler: ${entries[s.idx]?.title}`}
+                      >
+                        {tx(s.end - s.start) >= 80 && (
+                          <span className="block truncate px-2.5 leading-[24px] font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/30">
+                            filler · {entries[s.idx]?.title || 'untitled'}
+                          </span>
+                        )}
+                      </div>
+                    ),
+                  )}
+
+                  {now !== null && (
+                    <div className="absolute top-0 bottom-0 z-10 w-px pointer-events-none" style={{ left: tx(now), background: NOW_RED }} />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Inspector, under the day */}
+      <div className="mt-4 md:shrink-0">
+        {selEntry ? (
+          <div className="md:h-[268px]">
             <Inspector
               entry={selEntry}
               block={selBlock}
@@ -928,26 +1004,16 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
               onDelete={() => deleteEntry(selEntry.id)}
               onClose={() => setSel(null)}
             />
-          ) : (
-            <div className="h-full overflow-y-auto rounded-lg border border-dashed border-white/12 p-5 grid gap-6 lg:grid-cols-3 content-start font-sans text-[12.5px] leading-relaxed text-white/45">
-              <div>
-                <p className="text-white/70 mb-2">Nothing selected</p>
-                <p>Click a block on the day, or a mix in the library, to see and edit it here.</p>
-              </div>
-              <div>
-                <p>Drag anything from the library onto the day, at any time. Drop a copy against the same mix to repeat it — the block grows, as it does when you drag a block&rsquo;s right edge.</p>
-                <p className="mt-2">Drag a block back to the library to take it off the day. Anything unscheduled plays the empty-time choice in the library.</p>
-              </div>
-              <div className="space-y-1 font-mono text-[10.5px] text-white/35">
-                <p><Kbd>← →</Kbd> walk the blocks · <Kbd>Ctrl</Kbd> + wheel zoom</p>
-                <p><Kbd>Alt ←→</Kbd> nudge a minute · <Kbd>Alt ⇧ ←→</Kbd> a second</p>
-                <p><Kbd>Del</Kbd> remove block · <Kbd>Esc</Kbd> deselect</p>
-                <p><Kbd>Ctrl Z</Kbd> undo · <Kbd>Ctrl ⇧ Z</Kbd> redo</p>
-                <p><Kbd>Ctrl S</Kbd> publish</p>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-dashed border-white/12 px-4 py-2.5 font-mono text-[10.5px] text-white/35">
+            <span className="font-sans text-[12px] text-white/50">
+              Click a bar or a mix to edit it. Drag mixes from the library onto the day; drag a bar&rsquo;s right edge to repeat it, or drag it back to the library to take it off.
+            </span>
+            <span><Kbd>← →</Kbd> walk · <Kbd>Alt ←→</Kbd> nudge · <Kbd>Ctrl</Kbd> + wheel zoom</span>
+            <span><Kbd>Del</Kbd> remove · <Kbd>Ctrl Z</Kbd> undo · <Kbd>Ctrl S</Kbd> publish</span>
+          </div>
+        )}
       </div>
 
       {/* Drag ghost */}
@@ -1027,6 +1093,7 @@ function Block({
   seg: s,
   block: b,
   entry: e,
+  top,
   left,
   width: w,
   playPx,
@@ -1041,6 +1108,7 @@ function Block({
   seg: Segment;
   block: Placement;
   entry: BroadcastEntry;
+  top: number;
   left: number;
   width: number;
   playPx: number;
@@ -1059,11 +1127,12 @@ function Block({
       data-block
       onPointerDown={onPointerDown}
       title={`${e.title || 'untitled'} · ${hms(s.start)}–${hms(s.end)} · ${formatDuration(e.durationSec)}${b.plays > 1 ? ` ×${b.plays}` : ''}${cut ? ' · cut at midnight' : ''}`}
-      className={`absolute bottom-0 cursor-grab select-none overflow-hidden transition-[filter,opacity] duration-150 hover:brightness-125 ${
-        w >= 8 ? 'rounded-[6px]' : 'rounded-[2px]'
+      className={`absolute cursor-grab select-none overflow-hidden transition-[filter,opacity] duration-150 hover:brightness-125 ${
+        w >= 8 ? 'rounded-[5px]' : 'rounded-[2px]'
       }`}
       style={{
-        top: LANE_TOP,
+        top,
+        height: ROW_H - 10,
         left: left + 1,
         width: Math.max(w - 2, 2),
         background: `color-mix(in oklab, ${ink} ${selected || placing ? 40 : sibling ? 30 : 22}%, #0c0c0c)`,
@@ -1089,31 +1158,19 @@ function Block({
       )}
       {/* thin interludes get a wider invisible grab area */}
       {w < 10 && <span className="absolute inset-y-0 -left-1.5 -right-1.5" />}
-      {w >= 20 && (
-        <div className={`${w >= 60 ? 'px-2.5' : 'px-1.5'} pt-[6px] min-w-0`}>
-          <div className="flex items-start gap-2 min-w-0">
-            <span className={`font-sans font-medium text-white/90 break-words line-clamp-3 leading-[1.25] ${w >= 60 ? 'text-[12.5px]' : 'text-[11px]'}`}>
-              {e.title || 'untitled'}
-              {b.plays > 1 && <span className="ml-1.5 font-mono text-[10.5px] text-white/50">×{b.plays}</span>}
+      {w >= 24 && (
+        <div className={`h-full flex items-center gap-2 min-w-0 ${w >= 60 ? 'px-2.5' : 'px-1.5'}`}>
+          <span className={`truncate font-sans font-medium text-white/90 ${w >= 60 ? 'text-[12px]' : 'text-[10.5px]'}`}>{e.title || 'untitled'}</span>
+          {b.plays > 1 && <span className="shrink-0 font-mono text-[10px] text-white/50">×{b.plays}</span>}
+          {w >= 190 && (
+            <span className="ml-auto shrink-0 font-mono text-[10px] text-white/40 tabular-nums">
+              {hms(s.start).slice(0, 5)}–{hms(s.end).slice(0, 5)}
             </span>
-            {live && w >= 110 && (
-              <span className="shrink-0 rounded px-1 font-mono text-[9px] tracking-[0.12em] text-white" style={{ background: NOW_RED }}>
-                ON AIR
-              </span>
-            )}
-          </div>
-          {w >= 100 && (
-            <div className="mt-1 truncate font-mono text-[10px] text-white/40 tabular-nums">
-              {hms(s.start)} – {hms(s.end)}
-            </div>
           )}
-          {w >= 150 && (
-            <div className="mt-0.5 truncate font-mono text-[10px] text-white/35">
-              {formatDuration(e.durationSec)}
-              {b.plays > 1 ? ` × ${b.plays} = ${formatDuration(e.durationSec * b.plays)}` : ''}
-              {e.kind === 'inter' ? ' · interlude' : e.series ? ` · ${e.series}` : ''}
-              {cut && ' · cut at midnight'}
-            </div>
+          {live && w >= 130 && (
+            <span className={`${w >= 190 ? '' : 'ml-auto '}shrink-0 rounded px-1 font-mono text-[9px] tracking-[0.12em] text-white`} style={{ background: NOW_RED }}>
+              ON AIR
+            </span>
           )}
         </div>
       )}

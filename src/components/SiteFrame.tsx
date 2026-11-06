@@ -9,25 +9,18 @@ import { useTrail } from '@/components/BackLink';
 import type { NavCommand } from '@/lib/types';
 
 /**
- * Wraps the global site chrome. The old chrome (nav, news strip, audio player) is
- * retired from every public route: they carry only the command prompt, and the
- * station's pages the station bar. Only /admin keeps the legacy chrome, exactly
- * as before.
+ * Wraps the global site chrome: public routes carry only the command prompt, and the
+ * station's pages the station bar. /admin brings its own chrome (AdminShell).
  */
 
-// /admin is a different machine and keeps the legacy chrome.
 // The station's top bar belongs to the station only (which keeps it off for now).
 const HAS_BAR = (p: string) => p === '/station';
 
 const NO_PROMPT = (p: string) => p === '/admin' || p.startsWith('/admin/');
 export function SiteFrame({
-  nav,
-  audioPlayer,
   commands,
   children,
 }: {
-  nav: React.ReactNode;
-  audioPlayer: React.ReactNode;
   commands: NavCommand[];
   children: React.ReactNode;
 }) {
@@ -42,15 +35,7 @@ export function SiteFrame({
 
   const prompt = NO_PROMPT(pathname) ? null : <CommandPrompt commands={commands} />;
 
-  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
-    return (
-      <>
-        {nav}
-        <div className="pb-[76px]">{children}</div>
-        {audioPlayer}
-      </>
-    );
-  }
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) return <>{children}</>;
 
   return (
     <>
