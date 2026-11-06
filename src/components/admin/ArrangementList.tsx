@@ -27,12 +27,21 @@ const SERIES_INK: Record<BroadcastSeries, string> = {
 };
 const inkOf = (e: BroadcastEntry) =>
   e.kind === 'mix' ? (e.series ? SERIES_INK[e.series] : '#c8c4bb') : '#8b8b8b';
+/** The day's lanes, one per colour, so the chart stays the same height however big the library gets. */
+const LANES = [
+  { key: 'none', name: 'Light grey', note: 'mixes', ink: '#c8c4bb' },
+  { key: 'inter', name: 'Grey', note: 'interludes', ink: '#8b8b8b' },
+  { key: 'green', name: 'Green', ink: SERIES_INK.green },
+  { key: 'yellow', name: 'Yellow', ink: SERIES_INK.yellow },
+  { key: 'red', name: 'Red', ink: SERIES_INK.red },
+] as const;
+const laneOf = (e: BroadcastEntry) => LANES.findIndex((l) => l.key === (e.kind === 'inter' ? 'inter' : (e.series ?? 'none')));
 
 const DAY = 86_400;
 const ZOOMS = [1, 2, 4, 8]; // px per minute; 'fit' lays the whole day across the screen
-const LABEL_W = 176; // the mix names down the chart's left side
+const LABEL_W = 176; // the lane names down the chart's left side
 const HEAD_H = 24; // the hour ruler
-const ROW_H = 34; // one row per mix
+const ROW_H = 40; // one lane per colour
 const MAX_PPM = 16;
 const NOW_RED = '#ff4d3d';
 const MAGNET_PX = 8; // drops this close to another block's edge snap onto it
@@ -40,6 +49,8 @@ const MAGNET_PX = 8; // drops this close to another block's edge snap onto it
 const INPUT =
   'w-full rounded-md bg-white/[0.04] border border-white/10 px-2.5 h-8 font-sans text-[12.5px] text-white outline-none focus:border-white/35 transition-colors placeholder:text-white/25';
 const LABEL = 'block font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/40 mb-1.5';
+// Panels over the photo background: frosted, so what's in them reads.
+const PANEL = 'bg-[rgb(14_14_14/0.62)] backdrop-blur-xl';
 const BTN =
   'h-8 rounded-md border border-white/12 px-3 font-sans text-[12px] text-white/80 hover:bg-white/[0.06] hover:text-white active:scale-[0.97] transition-[transform,background-color,color] duration-150 disabled:opacity-30 disabled:pointer-events-none';
 
@@ -120,20 +131,6 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     [entries, shown, filler],
   );
   const blockOf = useMemo(() => new Map(shown.map((b) => [b.id, b])), [shown]);
-  // The chart's rows, a Gantt: one per mix on the day, in the order they first air. The order comes
-  // from the day before any drag, so rows hold still while a block moves; a new mix slots in live.
-  const rows = useMemo(() => {
-    const first = (bs: Placement[]) => {
-      const m = new Map<string, number>();
-      for (const b of bs) m.set(b.entry, Math.min(b.start, m.get(b.entry) ?? DAY));
-      return m;
-    };
-    const held = first(schedule);
-    const at = first(shown);
-    const key = (id: string) => held.get(id) ?? at.get(id)!;
-    return [...at.keys()].sort((a, b) => key(a) - key(b));
-  }, [schedule, shown]);
-  const rowOf = new Map(rows.map((id, i) => [id, i]));
   const live = now === null ? undefined : segs.find((s) => now >= s.start && now < s.end);
   const scheduledSec = segs.reduce((a, s) => a + (s.pid ? s.end - s.start : 0), 0);
   const playsPerDay = useMemo(() => {
@@ -141,6 +138,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     for (const b of schedule) m.set(b.entry, (m.get(b.entry) ?? 0) + b.plays);
     return m;
   }, [schedule]);
+  const playsPerLane = LANES.map((_, i) => entries.reduce((n, e) => n + (laneOf(e) === i ? (playsPerDay.get(e.id) ?? 0) : 0), 0));
 
   const selBlock = sel?.kind === 'block' ? schedule.find((b) => b.id === sel.id) : undefined;
   const selEntry = sel ? byId.get(sel.kind === 'block' ? (selBlock?.entry ?? '') : sel.id) : undefined;
@@ -259,8 +257,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   const zoomRef = useRef(zoomTo);
   zoomRef.current = zoomTo;
 
-  // From md up the page is one screen, like a DAW: the library and the day side by side, the
-  // inspector under them, each scrolling on its own.
+  // From md up the page is one screen, like a DAW: the library down the left, the day and the
+  // selected mix under it on the right.
   const rootRef = useRef<HTMLDivElement>(null);
   const [fill, setFill] = useState<number>();
   useLayoutEffect(() => {
@@ -285,8 +283,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // As in a DAW: Ctrl/⌘ + wheel (or a trackpad pinch) zooms round the pointer; the wheel scrolls the
-  // rows, or the day sideways when every row is in view.
+  // As in a DAW: Ctrl/⌘ + wheel (or a trackpad pinch) zooms round the pointer; zoomed in, the wheel
+  // scrolls the day sideways.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -297,7 +295,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         zoomRef.current(next, e.clientX - el.getBoundingClientRect().left - LABEL_W);
         return;
       }
-      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY) || el.scrollWidth <= el.clientWidth || el.scrollHeight > el.clientHeight) return;
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY) || el.scrollWidth <= el.clientWidth) return;
       e.preventDefault();
       el.scrollLeft += e.deltaY;
     };
@@ -821,199 +819,203 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
           {entries.length === 0 && <p className="px-1 font-sans text-[11.5px] text-white/25">Nothing yet — add audio.</p>}
         </div>
 
-        {/* The day: a Gantt — the hours across, one row per mix down */}
-        <div className="min-w-0 md:min-h-0 flex flex-col rounded-lg border border-white/10 overflow-hidden">
-          <div ref={scrollRef} className="relative max-h-[65vh] md:max-h-none md:flex-1 md:min-h-0 overflow-auto overscroll-contain">
-            <div className="flex" style={{ width: LABEL_W + tx(DAY) }}>
-              {/* the names, pinned to the left */}
-              <div className="sticky left-0 z-30 shrink-0 border-r border-white/10 [background:var(--vlg-bg,#000)]" style={{ width: LABEL_W }}>
-                <div
-                  className="sticky top-0 z-10 flex items-center px-3 border-b border-white/10 font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/30 [background:var(--vlg-bg,#000)]"
-                  style={{ height: HEAD_H }}
-                >
-                  {BROADCAST_TZ.replace('_', ' ')}
-                </div>
-                {rows.map((id) => {
-                  const e = byId.get(id)!;
-                  return (
+        <div className="min-w-0 md:min-h-0 flex flex-col gap-4">
+          {/* The day: the hours across, one lane per colour down — it never grows taller */}
+          <div className="shrink-0 rounded-lg border border-white/10 overflow-hidden">
+            <div ref={scrollRef} className="overflow-x-auto overscroll-x-contain">
+              <div className="flex" style={{ width: LABEL_W + tx(DAY) }}>
+                {/* the lanes' names, pinned to the left */}
+                <div className="sticky left-0 z-30 shrink-0 border-r border-white/10 [background:var(--vlg-bg,#000)]" style={{ width: LABEL_W }}>
+                  <div
+                    className="flex items-center px-3 border-b border-white/10 font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/30"
+                    style={{ height: HEAD_H }}
+                  >
+                    {BROADCAST_TZ.replace('_', ' ')}
+                  </div>
+                  {LANES.map((l, i) => (
                     <div
-                      key={id}
-                      onPointerDown={(ev) => startDrag(ev, id, 'library')}
-                      title="Click to edit · drag onto the day to air it again"
-                      className={`flex items-center gap-2 px-3 border-b border-white/[0.05] cursor-grab select-none transition-colors ${
-                        selEntry?.id === id ? 'bg-white/[0.09]' : 'hover:bg-white/[0.04]'
-                      }`}
+                      key={l.key}
+                      className={`flex items-center gap-2 px-3 border-b border-white/[0.05] ${selEntry && laneOf(selEntry) === i ? 'bg-white/[0.07]' : ''}`}
                       style={{ height: ROW_H }}
                     >
-                      <span className="w-1 h-4 shrink-0 rounded-full" style={{ background: inkOf(e) }} />
-                      <span className="font-sans text-[12px] truncate text-white/85">{e.title || 'untitled'}</span>
-                      {live && !live.filler && entries[live.idx]?.id === id && (
+                      <span className="w-1 h-4 shrink-0 rounded-full" style={{ background: l.ink }} />
+                      <span className="font-sans text-[12px] text-white/85">{l.name}</span>
+                      {'note' in l && <span className="font-mono text-[9.5px] text-white/35">{l.note}</span>}
+                      {live && !live.filler && laneOf(entries[live.idx]) === i && (
                         <span className="w-1.5 h-1.5 shrink-0 rounded-full animate-pulse" style={{ background: NOW_RED }} title="On air" />
                       )}
-                      {playsPerDay.get(id) ? (
-                        <span className="ml-auto font-mono text-[9.5px] text-white/35 tabular-nums">×{playsPerDay.get(id)}</span>
+                      {playsPerLane[i] ? (
+                        <span className="ml-auto font-mono text-[9.5px] text-white/35 tabular-nums">×{playsPerLane[i]}</span>
                       ) : null}
                     </div>
-                  );
-                })}
-                <div className="flex flex-col justify-center px-3" style={{ height: ROW_H }} title="What airs wherever nothing is scheduled — set in the library">
-                  <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/35">Empty time</span>
-                  <span className="font-sans text-[11px] truncate text-white/40">{fillerEntry ? fillerEntry.title || 'untitled' : 'silence'}</span>
-                </div>
-              </div>
-
-              <div
-                ref={dayRef}
-                className="relative shrink-0"
-                style={{ width: tx(DAY) }}
-                // Clicking empty space on the day clears the selection.
-                onPointerDown={(e) => !(e.target as HTMLElement).closest('[data-block]') && setSel(null)}
-              >
-                {/* the hour ruler, pinned to the top */}
-                <div className="sticky top-0 z-20 border-b border-white/10 [background:var(--vlg-bg,#000)]" style={{ height: HEAD_H }}>
-                  {Array.from({ length: 24 }, (_, h) =>
-                    h % (tx(3600) >= 44 ? 1 : tx(3600) >= 16 ? 3 : 6) === 0 ? (
-                      <span
-                        key={h}
-                        className="absolute top-[5px] pl-1 border-l border-white/[0.08] font-mono text-[10px] leading-[14px] text-white/35 tabular-nums"
-                        style={{ left: tx(h * 3600) }}
-                      >
-                        {String(h).padStart(2, '0')}:00
-                      </span>
-                    ) : null,
-                  )}
-                  {now !== null && (
-                    <span
-                      className="absolute top-[4px] z-10 -translate-x-1/2 rounded px-1 font-mono text-[10px] leading-[15px] text-white tabular-nums"
-                      style={{ left: Math.max(tx(now), 18), background: NOW_RED }}
-                    >
-                      {hms(now).slice(0, 5)}
-                    </span>
-                  )}
-                  {placing && (
-                    <span
-                      className="absolute top-[3px] z-20 whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-black pointer-events-none"
-                      style={{ left: Math.max(0, Math.min(tx(placing.start), tx(DAY) - 280)) }}
-                    >
-                      {hms(placing.start)} – {hms(Math.min(endOf(placing), DAY))}
-                      {placing.plays > 1 ? ` · ×${placing.plays}` : ''}
-                      {drag?.preview?.dropped ? ` · ${drag.preview.dropped} fall off at midnight` : ''}
-                    </span>
-                  )}
+                  ))}
+                  <div className="flex flex-col justify-center px-3" style={{ height: ROW_H }} title="What airs wherever nothing is scheduled — set in the library">
+                    <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/35">Empty time</span>
+                    <span className="font-sans text-[11px] truncate text-white/40">{fillerEntry ? fillerEntry.title || 'untitled' : 'silence'}</span>
+                  </div>
                 </div>
 
-                <div className="relative" style={{ height: (rows.length + 1) * ROW_H }}>
-                  {rows.map((id, i) => (
-                    <div
-                      key={id}
-                      className={`absolute inset-x-0 border-b border-white/[0.05] ${selEntry?.id === id ? 'bg-white/[0.04]' : ''}`}
-                      style={{ top: i * ROW_H, height: ROW_H }}
-                    />
-                  ))}
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <div key={h} className="absolute top-0 bottom-0 border-l border-white/[0.07]" style={{ left: tx(h * 3600) }}>
-                      {ppm >= 2 && <div className="absolute top-0 bottom-0 border-l border-dashed border-white/[0.04]" style={{ left: tx(1800) }} />}
-                    </div>
-                  ))}
-
-                  {/* empty time: silence */}
-                  {gaps.map(([a, b]) =>
-                    tx(b - a) >= 80 ? (
-                      <div
-                        key={`g${a}`}
-                        className="absolute flex items-center justify-center pointer-events-none"
-                        style={{ top: rows.length * ROW_H, height: ROW_H, left: tx(a), width: tx(b - a) }}
-                      >
-                        <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/20">
-                          silence · {formatDuration(b - a)}
+                <div
+                  ref={dayRef}
+                  className="relative shrink-0"
+                  style={{ width: tx(DAY) }}
+                  // Clicking empty space on the day clears the selection.
+                  onPointerDown={(e) => !(e.target as HTMLElement).closest('[data-block]') && setSel(null)}
+                >
+                  {/* the hour ruler */}
+                  <div className="relative z-20 border-b border-white/10" style={{ height: HEAD_H }}>
+                    {Array.from({ length: 24 }, (_, h) =>
+                      h % (tx(3600) >= 44 ? 1 : tx(3600) >= 16 ? 3 : 6) === 0 ? (
+                        <span
+                          key={h}
+                          className="absolute top-[5px] pl-1 border-l border-white/[0.08] font-mono text-[10px] leading-[14px] text-white/35 tabular-nums"
+                          style={{ left: tx(h * 3600) }}
+                        >
+                          {String(h).padStart(2, '0')}:00
                         </span>
-                      </div>
-                    ) : null,
-                  )}
-
-                  {segs.map((s) =>
-                    s.pid ? (
-                      <Block
-                        key={s.pid}
-                        seg={s}
-                        block={blockOf.get(s.pid)!}
-                        entry={entries[s.idx]}
-                        top={(rowOf.get(entries[s.idx].id) ?? 0) * ROW_H + 5}
-                        left={tx(s.start)}
-                        width={tx(s.end - s.start)}
-                        playPx={tx(s.loop)}
-                        selected={sel?.kind === 'block' && sel.id === s.pid}
-                        sibling={sel?.kind === 'entry' && sel.id === entries[s.idx].id}
-                        live={s === live}
-                        placing={blockOf.get(s.pid) === placing}
-                        ghosted={drag?.active === true && drag.from === 'block' && drag.id === s.pid && drag.over !== 'day'}
-                        onPointerDown={(e) => startDrag(e, s.pid!, 'block', ((e.clientX - e.currentTarget.getBoundingClientRect().left) / ppm) * 60)}
-                        onResize={(e) => {
-                          e.stopPropagation();
-                          startDrag(e, s.pid!, 'resize');
-                        }}
-                      />
-                    ) : (
-                      <div
-                        key={`f${s.start}`}
-                        className="absolute pointer-events-none overflow-hidden rounded-[3px]"
-                        style={{
-                          top: rows.length * ROW_H + 5,
-                          height: ROW_H - 10,
-                          left: tx(s.start),
-                          width: Math.max(tx(s.end - s.start), 1),
-                          background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 6px, transparent 6px 12px)',
-                        }}
-                        title={`filler: ${entries[s.idx]?.title}`}
+                      ) : null,
+                    )}
+                    {now !== null && (
+                      <span
+                        className="absolute top-[4px] z-10 -translate-x-1/2 rounded px-1 font-mono text-[10px] leading-[15px] text-white tabular-nums"
+                        style={{ left: Math.max(tx(now), 18), background: NOW_RED }}
                       >
-                        {tx(s.end - s.start) >= 80 && (
-                          <span className="block truncate px-2.5 leading-[24px] font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/30">
-                            filler · {entries[s.idx]?.title || 'untitled'}
-                          </span>
-                        )}
-                      </div>
-                    ),
-                  )}
+                        {hms(now).slice(0, 5)}
+                      </span>
+                    )}
+                    {placing && (
+                      <span
+                        className="absolute top-[3px] z-20 whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-black pointer-events-none"
+                        style={{ left: Math.max(0, Math.min(tx(placing.start), tx(DAY) - 280)) }}
+                      >
+                        {hms(placing.start)} – {hms(Math.min(endOf(placing), DAY))}
+                        {placing.plays > 1 ? ` · ×${placing.plays}` : ''}
+                        {drag?.preview?.dropped ? ` · ${drag.preview.dropped} fall off at midnight` : ''}
+                      </span>
+                    )}
+                  </div>
 
-                  {now !== null && (
-                    <div className="absolute top-0 bottom-0 z-10 w-px pointer-events-none" style={{ left: tx(now), background: NOW_RED }} />
-                  )}
+                  <div className="relative" style={{ height: (LANES.length + 1) * ROW_H }}>
+                    {LANES.map((l, i) => (
+                      <div
+                        key={l.key}
+                        className={`absolute inset-x-0 border-b border-white/[0.05] ${selEntry && laneOf(selEntry) === i ? 'bg-white/[0.03]' : ''}`}
+                        style={{ top: i * ROW_H, height: ROW_H }}
+                      />
+                    ))}
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <div key={h} className="absolute top-0 bottom-0 border-l border-white/[0.07]" style={{ left: tx(h * 3600) }}>
+                        {ppm >= 2 && <div className="absolute top-0 bottom-0 border-l border-dashed border-white/[0.04]" style={{ left: tx(1800) }} />}
+                      </div>
+                    ))}
+
+                    {/* empty time: silence */}
+                    {gaps.map(([a, b]) =>
+                      tx(b - a) >= 80 ? (
+                        <div
+                          key={`g${a}`}
+                          className="absolute flex items-center justify-center pointer-events-none"
+                          style={{ top: LANES.length * ROW_H, height: ROW_H, left: tx(a), width: tx(b - a) }}
+                        >
+                          <span className="whitespace-nowrap font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/20">
+                            silence · {formatDuration(b - a)}
+                          </span>
+                        </div>
+                      ) : null,
+                    )}
+
+                    {segs.map((s) =>
+                      s.pid ? (
+                        <Block
+                          key={s.pid}
+                          seg={s}
+                          block={blockOf.get(s.pid)!}
+                          entry={entries[s.idx]}
+                          top={laneOf(entries[s.idx]) * ROW_H + 5}
+                          left={tx(s.start)}
+                          width={tx(s.end - s.start)}
+                          playPx={tx(s.loop)}
+                          selected={sel?.kind === 'block' && sel.id === s.pid}
+                          sibling={sel?.kind === 'entry' && sel.id === entries[s.idx].id}
+                          live={s === live}
+                          placing={blockOf.get(s.pid) === placing}
+                          ghosted={drag?.active === true && drag.from === 'block' && drag.id === s.pid && drag.over !== 'day'}
+                          onPointerDown={(e) => startDrag(e, s.pid!, 'block', ((e.clientX - e.currentTarget.getBoundingClientRect().left) / ppm) * 60)}
+                          onResize={(e) => {
+                            e.stopPropagation();
+                            startDrag(e, s.pid!, 'resize');
+                          }}
+                        />
+                      ) : (
+                        <div
+                          key={`f${s.start}`}
+                          className="absolute pointer-events-none overflow-hidden rounded-[3px]"
+                          style={{
+                            top: LANES.length * ROW_H + 5,
+                            height: ROW_H - 10,
+                            left: tx(s.start),
+                            width: Math.max(tx(s.end - s.start), 1),
+                            background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 6px, transparent 6px 12px)',
+                          }}
+                          title={`filler: ${entries[s.idx]?.title}`}
+                        >
+                          {tx(s.end - s.start) >= 80 && (
+                            <span className="block truncate px-2.5 leading-[30px] font-mono text-[9.5px] tracking-[0.14em] uppercase text-white/30">
+                              filler · {entries[s.idx]?.title || 'untitled'}
+                            </span>
+                          )}
+                        </div>
+                      ),
+                    )}
+
+                    {now !== null && (
+                      <div className="absolute top-0 bottom-0 z-10 w-px pointer-events-none" style={{ left: tx(now), background: NOW_RED }} />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Inspector, under the day */}
-      <div className="mt-4 md:shrink-0">
-        {selEntry ? (
-          <div className="md:h-[268px]">
-            <Inspector
-              entry={selEntry}
-              block={selBlock}
-              blockEnd={selBlock ? Math.min(endOf(selBlock), DAY) : 0}
-              blocks={[...schedule].filter((b) => b.entry === selEntry.id).sort((a, b) => a.start - b.start)}
-              isFiller={filler === selEntry.id}
-              now={now}
-              problems={validateManifest({ version: 1, entries: [selEntry] }).errors.map((m) => m.replace(/^entry 0: /, ''))}
-              onPatch={(f, key) => patchEntry(selEntry.id, f, key)}
-              onBlock={(b, key) => setBlock(b, key)}
-              onSelectBlock={(id) => selectBlock(id, true)}
-              onRemoveBlock={() => selBlock && removeBlock(selBlock.id)}
-              onDelete={() => deleteEntry(selEntry.id)}
-              onClose={() => setSel(null)}
-            />
+          {/* The selected mix, in the room under the day */}
+          <div className="md:flex-1 md:min-h-0">
+            {selEntry ? (
+              <Inspector
+                entry={selEntry}
+                block={selBlock}
+                blockEnd={selBlock ? Math.min(endOf(selBlock), DAY) : 0}
+                blocks={[...schedule].filter((b) => b.entry === selEntry.id).sort((a, b) => a.start - b.start)}
+                isFiller={filler === selEntry.id}
+                now={now}
+                problems={validateManifest({ version: 1, entries: [selEntry] }).errors.map((m) => m.replace(/^entry 0: /, ''))}
+                onPatch={(f, key) => patchEntry(selEntry.id, f, key)}
+                onBlock={(b, key) => setBlock(b, key)}
+                onSelectBlock={(id) => selectBlock(id, true)}
+                onRemoveBlock={() => selBlock && removeBlock(selBlock.id)}
+                onDelete={() => deleteEntry(selEntry.id)}
+                onClose={() => setSel(null)}
+              />
+            ) : (
+              <div className={`h-full overflow-y-auto rounded-lg border border-white/10 ${PANEL} p-5 grid gap-6 lg:grid-cols-3 content-start font-sans text-[12.5px] leading-relaxed text-white/55`}>
+                <div>
+                  <p className="text-white/80 mb-2">Nothing selected</p>
+                  <p>Click a bar on the day, or a mix in the library, to see and edit it here.</p>
+                </div>
+                <div>
+                  <p>Drag anything from the library onto the day, at any time; it lands in its colour&rsquo;s lane. Drag a bar&rsquo;s right edge to repeat it.</p>
+                  <p className="mt-2">Drag a bar back to the library to take it off the day. Anything unscheduled plays the empty-time choice in the library.</p>
+                </div>
+                <div className="space-y-1 font-mono text-[10.5px] text-white/45">
+                  <p><Kbd>← →</Kbd> walk the blocks · <Kbd>Ctrl</Kbd> + wheel zoom</p>
+                  <p><Kbd>Alt ←→</Kbd> nudge a minute · <Kbd>Alt ⇧ ←→</Kbd> a second</p>
+                  <p><Kbd>Del</Kbd> remove block · <Kbd>Esc</Kbd> deselect</p>
+                  <p><Kbd>Ctrl Z</Kbd> undo · <Kbd>Ctrl ⇧ Z</Kbd> redo</p>
+                  <p><Kbd>Ctrl S</Kbd> publish</p>
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-dashed border-white/12 px-4 py-2.5 font-mono text-[10.5px] text-white/35">
-            <span className="font-sans text-[12px] text-white/50">
-              Click a bar or a mix to edit it. Drag mixes from the library onto the day; drag a bar&rsquo;s right edge to repeat it, or drag it back to the library to take it off.
-            </span>
-            <span><Kbd>← →</Kbd> walk · <Kbd>Alt ←→</Kbd> nudge · <Kbd>Ctrl</Kbd> + wheel zoom</span>
-            <span><Kbd>Del</Kbd> remove · <Kbd>Ctrl Z</Kbd> undo · <Kbd>Ctrl S</Kbd> publish</span>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Drag ghost */}
@@ -1226,8 +1228,8 @@ function Inspector({
   const playing = now !== null && block && now >= block.start && now < blockEnd;
   const COL = 'min-w-0 space-y-3.5';
   return (
-    <div className="h-full flex flex-col rounded-lg border border-white/10 bg-white/[0.025]">
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-white/10">
+    <div className={`h-full flex flex-col rounded-lg border border-white/10 ${PANEL}`}>
+      <div className="shrink-0 flex items-center gap-3 px-4 h-12 border-b border-white/10">
         <span className="w-1 h-8 shrink-0 rounded-full" style={{ background: inkOf(entry) }} />
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[15px] font-medium text-white truncate">{entry.title || 'untitled'}</p>
@@ -1249,7 +1251,7 @@ function Inspector({
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
         {problems.length > 0 && (
           <div className="mb-4 rounded-md border border-[#ff6b5b]/30 bg-[#ff6b5b]/[0.06] px-3 py-2 font-sans text-[11.5px] text-[#ff8a7d]">
             {problems.map((p, i) => (
@@ -1336,17 +1338,15 @@ function Inspector({
           </div>
 
           {/* Details */}
-          <div className={COL}>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className={LABEL}>Title</span>
-                <input className={INPUT} value={entry.title} onChange={(e) => onPatch({ title: e.target.value }, 'title')} />
-              </label>
-              <label className="block">
-                <span className={LABEL}>Artist</span>
-                <input className={INPUT} value={entry.artist} onChange={(e) => onPatch({ artist: e.target.value }, 'artist')} />
-              </label>
-            </div>
+          <div className="min-w-0 grid grid-cols-2 gap-x-3 gap-y-3.5 content-start">
+            <label className="block">
+              <span className={LABEL}>Title</span>
+              <input className={INPUT} value={entry.title} onChange={(e) => onPatch({ title: e.target.value }, 'title')} />
+            </label>
+            <label className="block">
+              <span className={LABEL}>Artist</span>
+              <input className={INPUT} value={entry.artist} onChange={(e) => onPatch({ artist: e.target.value }, 'artist')} />
+            </label>
             <div>
               <span className={LABEL}>Type</span>
               <Segmented
@@ -1359,7 +1359,7 @@ function Inspector({
               />
             </div>
             {entry.kind === 'mix' && (
-              <div className="grid grid-cols-2 gap-3">
+              <>
                 <div>
                   <span className={LABEL}>Series</span>
                   <div className="h-8 flex items-center">
@@ -1375,7 +1375,7 @@ function Inspector({
                     onChange={(e) => onPatch({ date: fromIso(e.target.value) }, 'date')}
                   />
                 </label>
-              </div>
+              </>
             )}
             <label className="block">
               <span className={LABEL}>Tags</span>
