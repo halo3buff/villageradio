@@ -17,7 +17,7 @@ const STEP = 8, TEST_STEP = 20;   // samples between dots, so each stays its own
 const FLOOR_DB = -30, LIFT_MAX_DB = 40, LIFT_EASE_S = 0.5;
 // on play the test figure's dots gather to the centre while the broadcast comes up (alongside it, never
 // holding it back), each on its own: a delay, a pace and a curve of its own, all done inside GATHER_MS
-const GATHER_MS = 350;
+const GATHER_MS = 200;
 const SWARM = Array.from({ length: 512 }, () => {
   const delay = Math.random() * 0.3;
   return { delay, pace: delay + 0.5 + Math.random() * (0.5 - delay), curl: (Math.random() - 0.5) * 0.6 };
