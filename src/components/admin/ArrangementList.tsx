@@ -243,6 +243,22 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   const zoomRef = useRef(zoomTo);
   zoomRef.current = zoomTo;
 
+  // From md up the page is one screen, like a DAW: the day across the top, the library and the
+  // inspector below it, each scrolling on its own. 76px is SiteFrame's room for the audio bar.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [fill, setFill] = useState<number>();
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = rootRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setFill(window.innerWidth >= 768 ? Math.max(520, window.innerHeight - top - 76) : undefined);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
   // 'fit' follows the window.
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -599,16 +615,23 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
   const library = [...entries].sort((a, b) => a.title.localeCompare(b.title));
 
   return (
-    <div className={drag?.active ? (drag.from === 'resize' ? 'cursor-ew-resize' : 'cursor-grabbing') : ''}>
+    <div
+      ref={rootRef}
+      style={{ height: fill }}
+      className={`md:flex md:flex-col md:-mb-7 ${drag?.active ? (drag.from === 'resize' ? 'cursor-ew-resize' : 'cursor-grabbing') : ''}`}
+    >
       {/* Toolbar */}
-      <div className="sticky top-0 z-40 -mx-6 -mt-7 px-6 h-14 flex items-center gap-4 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
+      <div className="relative z-40 shrink-0 -mx-4 md:-mx-6 -mt-7 px-4 md:px-6 py-2 md:py-0 md:h-14 flex flex-wrap md:flex-nowrap items-center gap-x-4 gap-y-2 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
         <h1 className="font-sans text-[15px] font-medium text-white">Broadcast</h1>
-        <div className="flex items-center gap-1.5 font-mono text-[10.5px] text-white/50">
+        <div className="shrink-0 flex items-center gap-1.5 font-mono text-[10.5px] text-white/50">
           <Chip>{schedule.length} blocks</Chip>
-          <Chip>{formatDuration(scheduledSec)} scheduled</Chip>
-          <Chip title="Time with nothing scheduled">
-            {formatDuration(DAY - scheduledSec)} {fillerEntry ? `filler` : 'silence'}
-          </Chip>
+          {/* the totals give way first when the toolbar is short of room */}
+          <span className="hidden min-[1380px]:contents">
+            <Chip>{formatDuration(scheduledSec)} scheduled</Chip>
+            <Chip title="Time with nothing scheduled">
+              {formatDuration(DAY - scheduledSec)} {fillerEntry ? `filler` : 'silence'}
+            </Chip>
+          </span>
           <button
             onClick={() => {
               update({ ...doc, schedule: [] });
@@ -616,7 +639,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
               notify('Cleared the day');
             }}
             disabled={!schedule.length}
-            className={`${BTN} h-6 px-2 text-[11px]`}
+            className={`${BTN} h-6 px-2 text-[11px] whitespace-nowrap`}
             title="Take every block off the day (undoable)"
           >
             Clear day
@@ -634,14 +657,14 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
               {live ? `${entries[live.idx]?.title || 'untitled'}${live.filler ? ' (filler)' : ''}` : 'silence'}
             </span>
             {live && (
-              <span className="font-mono text-[10.5px] text-white/40 tabular-nums">
+              <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] text-white/40 tabular-nums">
                 {formatDuration(live.end - now)} left
               </span>
             )}
           </button>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="flex rounded-md border border-white/12 p-0.5" title="Zoom">
             {(['fit', ...ZOOMS] as (number | 'fit')[]).map((z) => (
               <button
@@ -663,7 +686,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
             ↷
           </button>
           <span
-            className={`w-36 text-right font-mono text-[10.5px] ${issues.length && dirty ? 'text-[#ff8a7d]' : 'text-white/40'}`}
+            className={`md:w-36 md:text-right font-mono text-[10.5px] ${issues.length && dirty ? 'text-[#ff8a7d]' : 'text-white/40'}`}
             title={issues.join('\n')}
           >
             {status === 'published' && !dirty
@@ -685,8 +708,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         </div>
       </div>
 
-      {/* The day, left to right — pinned under the toolbar, so it's always there to drop onto */}
-      <div className="sticky top-14 z-30 -mx-4 md:-mx-6 mb-5 px-4 md:px-6 pt-3 pb-2 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
+      {/* The day, left to right, across the top */}
+      <div className="relative z-30 shrink-0 -mx-4 md:-mx-6 mb-4 px-4 md:px-6 pt-3 pb-2 border-b border-white/10 [background:var(--vlg-cover,rgb(0_0_0/0.85))] backdrop-blur-md">
         <div ref={scrollRef} className="overflow-x-auto overscroll-x-contain">
           <div
             ref={dayRef}
@@ -817,11 +840,11 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         </Banner>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+      <div className="grid grid-cols-1 gap-4 md:flex-1 md:min-h-0 md:grid-cols-[290px_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
         {/* Library */}
         <div
           ref={libraryRef}
-          className={`rounded-lg border p-3 transition-colors ${
+          className={`rounded-lg border p-3 transition-colors md:overflow-y-auto ${
             drag?.over === 'library' && drag.from === 'block' ? 'border-white/40 bg-white/[0.04]' : 'border-white/10'
           }`}
         >
@@ -831,8 +854,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
               + Add
             </button>
           </div>
-          <div className="grid sm:grid-cols-2 gap-3 mb-4">
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className={`${INPUT} self-end`} />
+          <div className="space-y-3 mb-4">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className={INPUT} />
             <div>
               <span className={LABEL}>Empty time plays</span>
               <select
@@ -888,7 +911,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
         </div>
 
         {/* Inspector */}
-        <div>
+        <div className="md:min-h-0">
           {selEntry ? (
             <Inspector
               entry={selEntry}
@@ -906,11 +929,16 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
               onClose={() => setSel(null)}
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-white/12 p-5 font-sans text-[12.5px] leading-relaxed text-white/45">
-              <p className="text-white/70 mb-2">Nothing selected</p>
-              <p>Drag anything from the library onto the day, at any time. Drop a copy against the same mix to repeat it — the block grows.</p>
-              <p className="mt-2">Drag a block&rsquo;s right edge to repeat it. Drag a block back to the library to take it off the day. Anything unscheduled plays the empty-time choice in the library.</p>
-              <div className="mt-4 space-y-1 font-mono text-[10.5px] text-white/35">
+            <div className="h-full overflow-y-auto rounded-lg border border-dashed border-white/12 p-5 grid gap-6 lg:grid-cols-3 content-start font-sans text-[12.5px] leading-relaxed text-white/45">
+              <div>
+                <p className="text-white/70 mb-2">Nothing selected</p>
+                <p>Click a block on the day, or a mix in the library, to see and edit it here.</p>
+              </div>
+              <div>
+                <p>Drag anything from the library onto the day, at any time. Drop a copy against the same mix to repeat it — the block grows, as it does when you drag a block&rsquo;s right edge.</p>
+                <p className="mt-2">Drag a block back to the library to take it off the day. Anything unscheduled plays the empty-time choice in the library.</p>
+              </div>
+              <div className="space-y-1 font-mono text-[10.5px] text-white/35">
                 <p><Kbd>← →</Kbd> walk the blocks · <Kbd>Ctrl</Kbd> + wheel zoom</p>
                 <p><Kbd>Alt ←→</Kbd> nudge a minute · <Kbd>Alt ⇧ ←→</Kbd> a second</p>
                 <p><Kbd>Del</Kbd> remove block · <Kbd>Esc</Kbd> deselect</p>
@@ -1139,153 +1167,172 @@ function Inspector({
   const plays = blocks.reduce((a, b) => a + b.plays, 0);
   const next = now === null ? undefined : blocks.find((b) => b.start > now);
   const playing = now !== null && block && now >= block.start && now < blockEnd;
+  const COL = 'min-w-0 space-y-3.5';
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.025] p-4">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 w-1 h-9 shrink-0 rounded-full" style={{ background: inkOf(entry) }} />
+    <div className="h-full flex flex-col rounded-lg border border-white/10 bg-white/[0.025]">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-white/10">
+        <span className="w-1 h-8 shrink-0 rounded-full" style={{ background: inkOf(entry) }} />
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[15px] font-medium text-white truncate">{entry.title || 'untitled'}</p>
-          <p className="font-mono text-[10.5px] text-white/40">
+          <p className="font-mono text-[10.5px] text-white/40 truncate">
             {entry.kind === 'inter' ? 'interlude' : 'mix'} · {formatDuration(entry.durationSec)} ·{' '}
             {plays ? `${plays}× a day` : 'not scheduled'}
             {isFiller ? ' · empty-time filler' : ''}
           </p>
         </div>
+        <button
+          onClick={onDelete}
+          className="h-7 shrink-0 rounded-md border border-[#ff6b5b]/30 px-2.5 font-sans text-[11.5px] text-[#ff8a7d] hover:bg-[#ff6b5b]/10 active:scale-[0.97] transition-[transform,background-color] duration-150"
+          title={blocks.length ? `Also removes its ${blocks.length} block${blocks.length > 1 ? 's' : ''} from the day` : undefined}
+        >
+          Delete from library
+        </button>
         <button onClick={onClose} className="text-white/35 hover:text-white text-[18px] leading-none px-1" title="Close (Esc)">
           ×
         </button>
       </div>
 
-      {problems.length > 0 && (
-        <div className="mt-3 rounded-md border border-[#ff6b5b]/30 bg-[#ff6b5b]/[0.06] px-3 py-2 font-sans text-[11.5px] text-[#ff8a7d]">
-          {problems.map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-        </div>
-      )}
-
-      {block && (
-        <div className="mt-4 rounded-md border border-white/10 p-3">
-          <div className="flex items-center justify-between">
-            <span className={LABEL + ' mb-0'}>This block</span>
-            {playing ? (
-              <span className="flex items-center gap-1.5 font-sans text-[11.5px] text-white/70">
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: NOW_RED }} /> on air
-              </span>
-            ) : now !== null && block.start > now ? (
-              <span className="font-sans text-[11.5px] text-white/50">in {inTime(block.start - now)}</span>
-            ) : null}
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className={LABEL}>Starts</span>
-              <TimeInput value={block.start} onCommit={(t) => onBlock({ ...block, start: t })} />
-            </label>
-            <div>
-              <span className={LABEL}>Plays</span>
-              <div className="flex items-center h-8 rounded-md border border-white/10">
-                <button
-                  className="w-8 h-full text-white/60 hover:text-white disabled:opacity-25"
-                  disabled={block.plays <= 1}
-                  onClick={() => onBlock({ ...block, plays: block.plays - 1 })}
-                  title="One play fewer"
-                >
-                  −
-                </button>
-                <span className="flex-1 text-center font-mono text-[12px] text-white tabular-nums">×{block.plays}</span>
-                <button
-                  className="w-8 h-full text-white/60 hover:text-white"
-                  onClick={() => onBlock({ ...block, plays: block.plays + 1 })}
-                  title="Repeat it once more — later blocks shift down"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-          <p className="mt-2 font-mono text-[10.5px] text-white/40 tabular-nums">
-            ends {hms(blockEnd)} · {formatDuration(blockEnd - block.start)} on air
-          </p>
-          <button onClick={onRemoveBlock} className={`${BTN} mt-3 w-full`} title="Delete">
-            Take this block off the day
-          </button>
-        </div>
-      )}
-
-      {blocks.length > 0 && (
-        <div className="mt-4">
-          <span className={LABEL}>On the day · click to jump</span>
-          <div className="flex flex-wrap gap-1">
-            {blocks.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => onSelectBlock(b.id)}
-                className={`rounded px-1.5 py-0.5 font-mono text-[10.5px] tabular-nums transition-colors ${
-                  b.id === block?.id ? 'bg-white text-black' : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.12] hover:text-white'
-                }`}
-              >
-                {hms(b.start).slice(0, 5)}
-                {b.plays > 1 ? ` ×${b.plays}` : ''}
-              </button>
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4">
+        {problems.length > 0 && (
+          <div className="mb-4 rounded-md border border-[#ff6b5b]/30 bg-[#ff6b5b]/[0.06] px-3 py-2 font-sans text-[11.5px] text-[#ff8a7d]">
+            {problems.map((p, i) => (
+              <p key={i}>{p}</p>
             ))}
           </div>
-          {!block && next && now !== null && (
-            <p className="mt-2 font-sans text-[11.5px] text-white/50">Next airs at {hms(next.start).slice(0, 5)} · in {inTime(next.start - now)}</p>
-          )}
-        </div>
-      )}
-
-      <div className="mt-5 space-y-3.5">
-        <label className="block">
-          <span className={LABEL}>Title</span>
-          <input className={INPUT} value={entry.title} onChange={(e) => onPatch({ title: e.target.value }, 'title')} />
-        </label>
-        <label className="block">
-          <span className={LABEL}>Artist</span>
-          <input className={INPUT} value={entry.artist} onChange={(e) => onPatch({ artist: e.target.value }, 'artist')} />
-        </label>
-        <div>
-          <span className={LABEL}>Type</span>
-          <Segmented
-            value={entry.kind}
-            options={[
-              ['mix', 'Mix'],
-              ['inter', 'Interlude'],
-            ]}
-            onChange={(k) => onPatch({ kind: k as BroadcastKind })}
-          />
-        </div>
-        {entry.kind === 'mix' && (
-          <>
-            <div>
-              <span className={LABEL}>Series</span>
-              <SeriesPicker value={entry.series} onChange={(sr) => onPatch({ series: sr })} />
-            </div>
-            <label className="block">
-              <span className={LABEL}>Date</span>
-              <input
-                type="date"
-                className={`${INPUT} [color-scheme:dark]`}
-                value={toIso(entry.date)}
-                onChange={(e) => onPatch({ date: fromIso(e.target.value) }, 'date')}
-              />
-            </label>
-          </>
         )}
-        <label className="block">
-          <span className={LABEL}>Tags</span>
-          <TagsInput key={entry.id} value={entry.tags} onChange={(tags) => onPatch({ tags }, 'tags')} />
-        </label>
-        <Preview key={entry.id} entry={entry} onLevel={(gainDb) => onPatch({ gainDb: gainDb || undefined }, 'gain')} />
-        <p className="font-mono text-[10px] text-white/30 break-all">{entry.file}</p>
-      </div>
+        <div className="grid gap-x-6 gap-y-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)] lg:divide-x lg:divide-white/[0.07] [&>*:not(:first-child)]:lg:pl-6">
+          {/* When */}
+          <div className={COL}>
+            {block ? (
+              <div className="rounded-md border border-white/10 p-3">
+                <div className="flex items-center justify-between">
+                  <span className={LABEL + ' mb-0'}>This block</span>
+                  {playing ? (
+                    <span className="flex items-center gap-1.5 font-sans text-[11.5px] text-white/70">
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: NOW_RED }} /> on air
+                    </span>
+                  ) : now !== null && block.start > now ? (
+                    <span className="font-sans text-[11.5px] text-white/50">in {inTime(block.start - now)}</span>
+                  ) : null}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className={LABEL}>Starts</span>
+                    <TimeInput value={block.start} onCommit={(t) => onBlock({ ...block, start: t })} />
+                  </label>
+                  <div>
+                    <span className={LABEL}>Plays</span>
+                    <div className="flex items-center h-8 rounded-md border border-white/10">
+                      <button
+                        className="w-8 h-full text-white/60 hover:text-white disabled:opacity-25"
+                        disabled={block.plays <= 1}
+                        onClick={() => onBlock({ ...block, plays: block.plays - 1 })}
+                        title="One play fewer"
+                      >
+                        −
+                      </button>
+                      <span className="flex-1 text-center font-mono text-[12px] text-white tabular-nums">×{block.plays}</span>
+                      <button
+                        className="w-8 h-full text-white/60 hover:text-white"
+                        onClick={() => onBlock({ ...block, plays: block.plays + 1 })}
+                        title="Repeat it once more — later blocks shift down"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-2 font-mono text-[10.5px] text-white/40 tabular-nums">
+                  ends {hms(blockEnd)} · {formatDuration(blockEnd - block.start)} on air
+                </p>
+                <button onClick={onRemoveBlock} className={`${BTN} mt-3 w-full`} title="Delete">
+                  Take this block off the day
+                </button>
+              </div>
+            ) : (
+              !blocks.length && (
+                <p className="font-sans text-[12px] text-white/40">Not on the day yet — drag it from the library onto the timeline.</p>
+              )
+            )}
+            {blocks.length > 0 && (
+              <div>
+                <span className={LABEL}>On the day · click to jump</span>
+                <div className="flex flex-wrap gap-1">
+                  {blocks.map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => onSelectBlock(b.id)}
+                      className={`rounded px-1.5 py-0.5 font-mono text-[10.5px] tabular-nums transition-colors ${
+                        b.id === block?.id ? 'bg-white text-black' : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.12] hover:text-white'
+                      }`}
+                    >
+                      {hms(b.start).slice(0, 5)}
+                      {b.plays > 1 ? ` ×${b.plays}` : ''}
+                    </button>
+                  ))}
+                </div>
+                {!block && next && now !== null && (
+                  <p className="mt-2 font-sans text-[11.5px] text-white/50">Next airs at {hms(next.start).slice(0, 5)} · in {inTime(next.start - now)}</p>
+                )}
+              </div>
+            )}
+          </div>
 
-      <button
-        onClick={onDelete}
-        className="mt-5 w-full h-8 rounded-md border border-[#ff6b5b]/30 font-sans text-[12px] text-[#ff8a7d] hover:bg-[#ff6b5b]/10 active:scale-[0.97] transition-[transform,background-color] duration-150"
-      >
-        Delete from the library{blocks.length ? ` (and its ${blocks.length} block${blocks.length > 1 ? 's' : ''})` : ''}
-      </button>
+          {/* Details */}
+          <div className={COL}>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className={LABEL}>Title</span>
+                <input className={INPUT} value={entry.title} onChange={(e) => onPatch({ title: e.target.value }, 'title')} />
+              </label>
+              <label className="block">
+                <span className={LABEL}>Artist</span>
+                <input className={INPUT} value={entry.artist} onChange={(e) => onPatch({ artist: e.target.value }, 'artist')} />
+              </label>
+            </div>
+            <div>
+              <span className={LABEL}>Type</span>
+              <Segmented
+                value={entry.kind}
+                options={[
+                  ['mix', 'Mix'],
+                  ['inter', 'Interlude'],
+                ]}
+                onChange={(k) => onPatch({ kind: k as BroadcastKind })}
+              />
+            </div>
+            {entry.kind === 'mix' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className={LABEL}>Series</span>
+                  <div className="h-8 flex items-center">
+                    <SeriesPicker value={entry.series} onChange={(sr) => onPatch({ series: sr })} />
+                  </div>
+                </div>
+                <label className="block">
+                  <span className={LABEL}>Date</span>
+                  <input
+                    type="date"
+                    className={`${INPUT} [color-scheme:dark]`}
+                    value={toIso(entry.date)}
+                    onChange={(e) => onPatch({ date: fromIso(e.target.value) }, 'date')}
+                  />
+                </label>
+              </div>
+            )}
+            <label className="block">
+              <span className={LABEL}>Tags</span>
+              <TagsInput key={entry.id} value={entry.tags} onChange={(tags) => onPatch({ tags }, 'tags')} />
+            </label>
+          </div>
+
+          {/* Sound */}
+          <div className={COL}>
+            <Preview key={entry.id} entry={entry} onLevel={(gainDb) => onPatch({ gainDb: gainDb || undefined }, 'gain')} />
+            <p className="font-mono text-[10px] text-white/30 break-all">{entry.file}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1449,9 +1496,9 @@ function Preview({ entry, onLevel }: { entry: BroadcastEntry; onLevel: (gainDb: 
             if (ref.current) ref.current.currentTime = v;
           }}
           aria-label="Seek"
-          className="flex-1 accent-white/70"
+          className="flex-1 min-w-0 accent-white/70"
         />
-        <span className="font-mono text-[10.5px] text-white/50 tabular-nums">
+        <span className="whitespace-nowrap font-mono text-[10.5px] text-white/50 tabular-nums">
           {formatDuration(Math.floor(t))} / {formatDuration(entry.durationSec)}
         </span>
       </div>
@@ -1466,9 +1513,9 @@ function Preview({ entry, onLevel }: { entry: BroadcastEntry; onLevel: (gainDb: 
           value={gain}
           onChange={(e) => onLevel(Number(e.target.value))}
           aria-label="Broadcast level"
-          className="flex-1 accent-white/70"
+          className="flex-1 min-w-0 accent-white/70"
         />
-        <span className="font-mono text-[10.5px] text-white/60 tabular-nums w-14 text-right">{gain === 0 ? '0 dB' : `${gain.toFixed(1)} dB`}</span>
+        <span className="font-mono text-[10.5px] text-white/60 tabular-nums w-14 text-right whitespace-nowrap">{gain === 0 ? '0 dB' : `${gain.toFixed(1)} dB`}</span>
       </div>
       <p className="mt-2 font-mono text-[11px] text-white/60 tabular-nums">
         {entry.lufs === undefined
