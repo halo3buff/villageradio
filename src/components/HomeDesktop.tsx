@@ -18,33 +18,39 @@ const FLOOR_DB = -30, LIFT_MAX_DB = 40, LIFT_EASE_S = 0.5;
 // on play the test figure's dots gather to the centre while the broadcast comes up (alongside it, never
 // holding it back), each on its own: a delay, a pace and a curve of its own, all done inside GATHER_MS
 const GATHER_MS = 200;
+// on pause the reverse: the figure's last dots scatter out to the orbs, landing on them inside SCATTER_MS
+const SCATTER_MS = 450;
 const SWARM = Array.from({ length: 512 }, () => {
   const delay = Math.random() * 0.3;
   return { delay, pace: delay + 0.5 + Math.random() * (0.5 - delay), curl: (Math.random() - 0.5) * 0.6 };
 });
 
 // Off air, after the PlayStation 2's menu: four soft orbs gliding on slow, looping 3-D orbits, each
-// trailing a fading tail, nearer ones larger and brighter. Per orb: x / y / depth rates (rad/s), phases.
+// trailing a fading tail, nearer ones larger and brighter. Per orb: x / y / depth rates (rad/s), phases,
+// and its own pace — each a little different, none far off the rest.
 const ORBS = [
-  [0.31, 0.43, 0.23, 0.0, 1.3, 0.4],
-  [0.37, 0.29, 0.19, 2.1, 0.2, 2.6],
-  [0.27, 0.35, 0.29, 4.0, 3.1, 1.1],
-  [0.41, 0.25, 0.21, 5.2, 4.6, 3.9],
+  [0.31, 0.43, 0.23, 0.0, 1.3, 0.4, 1.0],
+  [0.37, 0.29, 0.19, 2.1, 0.2, 2.6, 1.07],
+  [0.27, 0.35, 0.29, 4.0, 3.1, 1.1, 0.94],
+  [0.41, 0.25, 0.21, 5.2, 4.6, 3.9, 1.12],
 ];
+const ORB_SPEED = 1.4;
 const ORB_RX = 38, ORB_RY = 22;    // reach of the orbits, px from the centre
 const TRAIL = 22, TRAIL_DT = 0.07; // tail: steps back along the path, seconds a step
-const HALO = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]];
+const HALO = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1],   // a core, and a ring round it
+  ...Array.from({ length: 8 }, (_, i) => [1.8 * Math.cos((i * Math.PI) / 4), 1.8 * Math.sin((i * Math.PI) / 4)])];
 /** Every dot of the orbs at time t: x, y (px from the centre) and brightness. */
 function orbDots(t: number): number[][] {
   const out: number[][] = [];
   const at = (o: number[], s: number) => {
+    s *= ORB_SPEED * o[6];
     const p = 1 + 0.3 * Math.sin(o[2] * s + o[5]);   // perspective: 0.7 far .. 1.3 near
     return [Math.sin(o[0] * s + o[3]) * ORB_RX * p, Math.cos(o[1] * s + o[4]) * ORB_RY * p, p];
   };
   for (const o of ORBS) {
     const [x, y, p] = at(o, t);
     const a = Math.min(1, p - 0.2);
-    for (const [hx, hy] of HALO) out.push([x + hx * 1.6 * p, y + hy * 1.6 * p, a]);
+    for (const [hx, hy] of HALO) out.push([x + hx * 1.4 * p, y + hy * 1.4 * p, a]);
     for (let k = 1; k <= TRAIL; k++) {
       const [tx, ty, tp] = at(o, t - k * TRAIL_DT);
       out.push([tx, ty, Math.min(1, tp - 0.2) * (1 - k / (TRAIL + 1)) ** 1.6]);
@@ -90,12 +96,15 @@ export function HomeDesktop() {
     ctx.scale(dpr, dpr);
 
     let l = new Float32Array(2048), r = new Float32Array(2048);
-    let nextRead = 0, raf = 0, lift = 0, last = 0, gatherAt = 0;
+    let nextRead = 0, raf = 0, lift = 0, last = 0, gatherAt = 0, scatterAt = 0, wasLive = false;
+    const held: number[] = [];   // the figure's dots as last drawn on air (x, y from the centre), for the scatter
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
       const { aL, aR } = ch.current;
       const t = now / 1000;
+      if (wasLive && !liveRef.current && held.length) scatterAt = now;
+      wasLive = liveRef.current;
 
       // the broadcast, or the test signal whenever nothing's flowing
       let energy = 0;
@@ -141,17 +150,36 @@ export function HomeDesktop() {
       lift = want < lift ? want : lift + (want - lift) * (1 - Math.exp(-Math.min(0.25, (now - last) / 1000) / LIFT_EASE_S));
       last = now;
       const gain = Math.pow(10, (VISUAL_TRIM_DB + lift) / 20);
-      if (!testing) for (let i = 0; i < l.length; i += STEP) {
-        const x = W / 2 + Math.max(-1, Math.min(1, r[i] * gain)) * REACH;
-        const y = H / 2 - Math.max(-1, Math.min(1, l[i] * gain)) * REACH;
-        ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
+      if (!testing && liveRef.current) {
+        held.length = 0;
+        for (let i = 0; i < l.length; i += STEP) {
+          const x = W / 2 + Math.max(-1, Math.min(1, r[i] * gain)) * REACH;
+          const y = H / 2 - Math.max(-1, Math.min(1, l[i] * gain)) * REACH;
+          ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
+          held.push(x - W / 2, y - H / 2);
+        }
       }
 
-      // the orbs: gliding while paused, gathering once play is pressed, held as one point until the audio arrives
+      // the orbs: gliding while paused, gathering once play is pressed, held as one point until the audio arrives,
+      // and on pause gathered back out of the figure
       if (!liveRef.current) gatherAt = 0;
       else if (!gatherAt) gatherAt = now;
       const el = gatherAt ? (now - gatherAt) / GATHER_MS : 0;
-      if (testing || el < 1) {
+      const sc = (now - scatterAt) / SCATTER_MS;
+      if (!liveRef.current && sc < 1) {
+        // just paused: each dot of the last figure flies out to a place on an orb; the spares fade on the way
+        const orbs = orbDots(t), m = held.length / 2;
+        for (let j = 0; j < Math.max(orbs.length, m); j++) {
+          const [ox, oy, a] = orbs[j % orbs.length], sx = held[2 * (j % m)], sy = held[2 * (j % m) + 1];
+          const d = SWARM[j % SWARM.length];
+          const k = Math.max(0, Math.min(1, (sc - d.delay) / (d.pace - d.delay)));
+          const e = k * k * (3 - 2 * k), bow = Math.sin(Math.PI * k) * d.curl, dx = ox - sx, dy = oy - sy;
+          const x = W / 2 + sx + dx * e - dy * bow, y = H / 2 + sy + dy * e + dx * bow;
+          ctx.globalAlpha = j < orbs.length ? 1 + (a - 1) * k : 1 - k;
+          ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
+        }
+        ctx.globalAlpha = 1;
+      } else if (testing || el < 1) {
         orbDots(t).forEach(([dx, dy, a], j) => {
           const d = SWARM[j % SWARM.length];
           const k = Math.max(0, Math.min(1, (el - d.delay) / (d.pace - d.delay)));
