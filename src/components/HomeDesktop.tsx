@@ -11,7 +11,7 @@ const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the sta
 const WHITE = '#ffffff';
 const W = 104, H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
-const STEP = 8, TEST_STEP = 20;   // samples between dots, so each stays its own light
+const STEP = 8;   // samples between dots, so each stays its own light
 // the floor: quieter than this (dBFS RMS) the figure is held at this size, its shape intact, so a
 // quiet stretch still moves; louder plays exactly as before. Never lifted more than LIFT_MAX.
 const FLOOR_DB = -30, LIFT_MAX_DB = 40, LIFT_EASE_S = 0.5;
@@ -22,6 +22,36 @@ const SWARM = Array.from({ length: 512 }, () => {
   const delay = Math.random() * 0.3;
   return { delay, pace: delay + 0.5 + Math.random() * (0.5 - delay), curl: (Math.random() - 0.5) * 0.6 };
 });
+
+// Off air, after the PlayStation 2's menu: four soft orbs gliding on slow, looping 3-D orbits, each
+// trailing a fading tail, nearer ones larger and brighter. Per orb: x / y / depth rates (rad/s), phases.
+const ORBS = [
+  [0.31, 0.43, 0.23, 0.0, 1.3, 0.4],
+  [0.37, 0.29, 0.19, 2.1, 0.2, 2.6],
+  [0.27, 0.35, 0.29, 4.0, 3.1, 1.1],
+  [0.41, 0.25, 0.21, 5.2, 4.6, 3.9],
+];
+const ORB_RX = 38, ORB_RY = 22;    // reach of the orbits, px from the centre
+const TRAIL = 22, TRAIL_DT = 0.07; // tail: steps back along the path, seconds a step
+const HALO = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]];
+/** Every dot of the orbs at time t: x, y (px from the centre) and brightness. */
+function orbDots(t: number): number[][] {
+  const out: number[][] = [];
+  const at = (o: number[], s: number) => {
+    const p = 1 + 0.3 * Math.sin(o[2] * s + o[5]);   // perspective: 0.7 far .. 1.3 near
+    return [Math.sin(o[0] * s + o[3]) * ORB_RX * p, Math.cos(o[1] * s + o[4]) * ORB_RY * p, p];
+  };
+  for (const o of ORBS) {
+    const [x, y, p] = at(o, t);
+    const a = Math.min(1, p - 0.2);
+    for (const [hx, hy] of HALO) out.push([x + hx * 1.6 * p, y + hy * 1.6 * p, a]);
+    for (let k = 1; k <= TRAIL; k++) {
+      const [tx, ty, tp] = at(o, t - k * TRAIL_DT);
+      out.push([tx, ty, Math.min(1, tp - 0.2) * (1 - k / (TRAIL + 1)) ** 1.6]);
+    }
+  }
+  return out;
+}
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
@@ -117,23 +147,20 @@ export function HomeDesktop() {
         ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
       }
 
-      // the test figure: whole while paused, gathering once play is pressed, held as one point until the audio arrives
+      // the orbs: gliding while paused, gathering once play is pressed, held as one point until the audio arrives
       if (!liveRef.current) gatherAt = 0;
       else if (!gatherAt) gatherAt = now;
       const el = gatherAt ? (now - gatherAt) / GATHER_MS : 0;
       if (testing || el < 1) {
-        const amp = 0.58 + 0.04 * Math.sin(t * 0.7), w = (Math.PI * 2) / l.length;
-        for (let i = 0, j = 0; i < l.length; i += TEST_STEP, j++) {
-          const dx = Math.max(-1, Math.min(1, amp * Math.sin(2 * w * i + t * 0.25) + (Math.random() - 0.5) * 0.006)) * REACH;
-          const dy = -Math.max(-1, Math.min(1, amp * Math.sin(3 * w * i) + (Math.random() - 0.5) * 0.006)) * REACH;
+        orbDots(t).forEach(([dx, dy, a], j) => {
           const d = SWARM[j % SWARM.length];
           const k = Math.max(0, Math.min(1, (el - d.delay) / (d.pace - d.delay)));
-          if (!testing && k >= 1) continue;
+          if (!testing && k >= 1) return;
           const keep = 1 - k * k * (3 - 2 * k), bow = Math.sin(Math.PI * k) * d.curl;   // eased in and out, and bowed off the straight line
           const x = W / 2 + (dx - dy * bow) * keep, y = H / 2 + (dy + dx * bow) * keep;
-          ctx.globalAlpha = testing ? 1 : 1 - k;
+          ctx.globalAlpha = a * (testing ? 1 : 1 - k);
           ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
-        }
+        });
         ctx.globalAlpha = 1;
       }
     };

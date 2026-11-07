@@ -211,7 +211,9 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
       if (webCtxRef.current.state === 'suspended') webCtxRef.current.resume();
       return;
     }
-    const ctx = new AudioContext();
+    // 'playback': the station isn't interactive, so take the larger output buffer. The default
+    // ('interactive') runs the smallest one, which under-runs as clicks on a busy machine.
+    const ctx = new AudioContext({ latencyHint: 'playback' });
     webCtxRef.current = ctx;
     // The audio runs through this context, so if the OS suspends it the station is silent:
     // pause the element, which the listener above turns into a proper pause.
@@ -329,6 +331,13 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
     // do NOT reset src, that would discard the primed data.
     const trackHref = new URL(track.src, window.location.href).href;
     const sameTrack = audio.src.split('#')[0] === trackHref;
+    // The schedule's length is whole seconds, so it can run a little past the file's real end.
+    // Tuned in there, seeking would replay a snatch of the tail before the boundary cuts it off —
+    // a tick. Let the track finish and stay quiet; the boundary timer takes it from there.
+    if (sameTrack && audio.readyState >= 1 && isFinite(audio.duration) && offsetSec >= audio.duration - 0.5) {
+      setIsPlaying(true);
+      return;
+    }
     if (sameTrack && audio.readyState >= 1 /* HAVE_METADATA */) {
       safeSeek(audio, offsetSec);
     } else {
