@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
+import { secondsIntoDay } from '@/lib/content/broadcast';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
@@ -18,42 +19,52 @@ const FLOOR_DB = -30, LIFT_MAX_DB = 40, LIFT_EASE_S = 0.5;
 // on play the test figure's dots gather to the centre while the broadcast comes up (alongside it, never
 // holding it back), each on its own: a delay, a pace and a curve of its own, all done inside GATHER_MS
 const GATHER_MS = 200;
-// on pause the reverse: the figure's last dots scatter out to the orbs, landing on them inside SCATTER_MS
-const SCATTER_MS = 450;
+// on pause the reverse: the figure's last dots gather to the centre the same way, then come out of it
+// into the ring of orbs inside EMERGE_MS
+const EMERGE_MS = 450;
 const SWARM = Array.from({ length: 512 }, () => {
   const delay = Math.random() * 0.3;
   return { delay, pace: delay + 0.5 + Math.random() * (0.5 - delay), curl: (Math.random() - 0.5) * 0.6 };
 });
 
-// Off air, after the PlayStation 2's menu: four soft orbs gliding on slow, looping 3-D orbits, each
-// trailing a fading tail, nearer ones larger and brighter. Per orb: x / y / depth rates (rad/s), phases,
-// and its own pace — each a little different, none far off the rest.
-const ORBS = [
-  [0.31, 0.43, 0.23, 0.0, 1.3, 0.4, 1.0],
-  [0.37, 0.29, 0.19, 2.1, 0.2, 2.6, 1.07],
-  [0.27, 0.35, 0.29, 4.0, 3.1, 1.1, 0.94],
-  [0.41, 0.25, 0.21, 5.2, 4.6, 3.9, 1.12],
-];
-const ORB_SPEED = 1.4;
-const ORB_RX = 38, ORB_RY = 22;    // reach of the orbits, px from the centre
-const TRAIL = 22, TRAIL_DT = 0.07; // tail: steps back along the path, seconds a step
+// Off air, the PlayStation 2's clock: seven orbs on a ring that tells the station's time, as its
+// System Configuration clock does. The ring turns once a minute in its own plane, so at :00 the orbs
+// start from the hour (12 o'clock on top), and the whole face swings 180° every 30 s (face-on at :00
+// and :30, edge-on at :15 and :45). On the seconds that divide the minute evenly the seven merge into
+// that many: one orb at :00, two at :30, three at :20/:40, four at :15/:45, five at :12/:24/:36/:48,
+// six at :10/:50 (fewest wins). The ring starts each hour small and grows until the next.
+const ORB_N = 7;
+const MERGE: Record<number, number> = { 0: 1, 30: 2, 20: 3, 40: 3, 15: 4, 45: 4, 12: 5, 24: 5, 36: 5, 48: 5, 10: 6, 50: 6, 60: 1 };
+const RING_MIN = 18, RING_MAX = 26;   // px radius at the top of the hour and just before the next
+const TILT = 0.3;                     // rad the face leans back, so it reads as a ring in space
+const TRAIL = 22, TRAIL_DT = 0.07;    // tail: steps back along the path, seconds a step
 const HALO = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1],   // a core, and a ring round it
   ...Array.from({ length: 8 }, (_, i) => [1.8 * Math.cos((i * Math.PI) / 4), 1.8 * Math.sin((i * Math.PI) / 4)])];
-/** Every dot of the orbs at time t: x, y (px from the centre) and brightness. */
-function orbDots(t: number): number[][] {
+const HALO_PX = 1.25;                 // every orb the same size
+/** Orb i on the clock at c (station seconds into the day): x, y (px from the centre) and brightness. */
+function orbAt(i: number, c: number) {
+  c += 86_400;   // a trail reaching back past midnight
+  const sec = c % 60, hour = (c / 3600) % 12;
+  // merging: eased in over the second before a dividing second, held a moment, eased out after
+  const q = Math.round(sec), d = Math.abs(sec - q), g = MERGE[q];
+  const w = g ? Math.min(1, Math.max(0, (1 - d) / 0.7)) : 0;
+  const ws = w * w * (3 - 2 * w);
+  const spot = (i * 2 * Math.PI) / ORB_N, merged = (Math.floor((i * (g || 1)) / ORB_N) * 2 * Math.PI) / (g || 1);
+  const th = (hour / 12) * 2 * Math.PI + (sec / 60) * 2 * Math.PI + spot + (merged - spot) * ws;
+  const rad = RING_MIN + (RING_MAX - RING_MIN) * ((c / 3600) % 1);
+  const X = Math.sin(th) * rad, Y = -Math.cos(th) * rad, yaw = (sec / 30) * Math.PI;
+  const z = X * Math.sin(yaw);
+  return [X * Math.cos(yaw), Y * Math.cos(TILT) - z * Math.sin(TILT), 0.75 + (0.25 * (Y * Math.sin(TILT) + z * Math.cos(TILT))) / rad];
+}
+/** Every dot of the orbs at clock c: x, y (px from the centre) and brightness. */
+function orbDots(c: number): number[][] {
   const out: number[][] = [];
-  const at = (o: number[], s: number) => {
-    s *= ORB_SPEED * o[6];
-    const p = 1 + 0.3 * Math.sin(o[2] * s + o[5]);   // perspective: 0.7 far .. 1.3 near
-    return [Math.sin(o[0] * s + o[3]) * ORB_RX * p, Math.cos(o[1] * s + o[4]) * ORB_RY * p, p];
-  };
-  for (const o of ORBS) {
-    const [x, y, p] = at(o, t);
-    const a = Math.min(1, p - 0.2);
-    for (const [hx, hy] of HALO) out.push([x + hx * 1.4 * p, y + hy * 1.4 * p, a]);
+  for (let i = 0; i < ORB_N; i++) {
+    const [x, y, a] = orbAt(i, c);
+    for (const [hx, hy] of HALO) out.push([x + hx * HALO_PX, y + hy * HALO_PX, a]);
     for (let k = 1; k <= TRAIL; k++) {
-      const [tx, ty, tp] = at(o, t - k * TRAIL_DT);
-      out.push([tx, ty, Math.min(1, tp - 0.2) * (1 - k / (TRAIL + 1)) ** 1.6]);
+      const [tx, ty, ta] = orbAt(i, c - k * TRAIL_DT);
+      out.push([tx, ty, ta * (1 - k / (TRAIL + 1)) ** 1.6]);
     }
   }
   return out;
@@ -96,8 +107,9 @@ export function HomeDesktop() {
     ctx.scale(dpr, dpr);
 
     let l = new Float32Array(2048), r = new Float32Array(2048);
-    let nextRead = 0, raf = 0, lift = 0, last = 0, gatherAt = 0, scatterAt = 0, wasLive = false;
+    let nextRead = 0, raf = 0, lift = 0, last = 0, gatherAt = 0, scatterAt = -1e9, wasLive = false;
     const held: number[] = [];   // the figure's dots as last drawn on air (x, y from the centre), for the scatter
+    const clock0 = secondsIntoDay(Date.now()) - performance.now() / 1000;   // the station's clock, on the frame clock
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
@@ -165,22 +177,25 @@ export function HomeDesktop() {
       if (!liveRef.current) gatherAt = 0;
       else if (!gatherAt) gatherAt = now;
       const el = gatherAt ? (now - gatherAt) / GATHER_MS : 0;
-      const sc = (now - scatterAt) / SCATTER_MS;
-      if (!liveRef.current && sc < 1) {
-        // just paused: each dot of the last figure flies out to a place on an orb; the spares fade on the way
-        const orbs = orbDots(t), m = held.length / 2;
+      const sIn = (now - scatterAt) / GATHER_MS, sOut = (now - scatterAt - GATHER_MS) / EMERGE_MS;
+      if (!liveRef.current && sOut < 1) {
+        // just paused: the last figure's dots gather to the centre as on play, then come back out of it
+        // onto the orbs; the spares fade on the way in
+        const orbs = orbDots(clock0 + t), m = held.length / 2;
         for (let j = 0; j < Math.max(orbs.length, m); j++) {
-          const [ox, oy, a] = orbs[j % orbs.length], sx = held[2 * (j % m)], sy = held[2 * (j % m) + 1];
-          const d = SWARM[j % SWARM.length];
-          const k = Math.max(0, Math.min(1, (sc - d.delay) / (d.pace - d.delay)));
-          const e = k * k * (3 - 2 * k), bow = Math.sin(Math.PI * k) * d.curl, dx = ox - sx, dy = oy - sy;
-          const x = W / 2 + sx + dx * e - dy * bow, y = H / 2 + sy + dy * e + dx * bow;
-          ctx.globalAlpha = j < orbs.length ? 1 + (a - 1) * k : 1 - k;
+          const d = SWARM[j % SWARM.length], out = sOut > 0;
+          if (out && j >= orbs.length) continue;
+          const k = Math.max(0, Math.min(1, ((out ? sOut : sIn) - d.delay) / (d.pace - d.delay)));
+          const e = k * k * (3 - 2 * k), bow = Math.sin(Math.PI * k) * d.curl;
+          const [dx, dy, a] = out ? orbs[j] : [held[2 * (j % m)], held[2 * (j % m) + 1], 1];
+          const keep = out ? e : 1 - e;
+          const x = W / 2 + (dx - dy * bow) * keep, y = H / 2 + (dy + dx * bow) * keep;
+          ctx.globalAlpha = out ? a : j < orbs.length ? 1 : 1 - k;
           ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
         }
         ctx.globalAlpha = 1;
       } else if (testing || el < 1) {
-        orbDots(t).forEach(([dx, dy, a], j) => {
+        orbDots(clock0 + t).forEach(([dx, dy, a], j) => {
           const d = SWARM[j % SWARM.length];
           const k = Math.max(0, Math.min(1, (el - d.delay) / (d.pace - d.delay)));
           if (!testing && k >= 1) return;
