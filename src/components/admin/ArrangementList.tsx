@@ -803,7 +803,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
               Drop here to take this block off the day
             </p>
           )}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-3">
             {library.filter(matches).map((e) => (
               <div
                 key={e.id}
@@ -984,7 +984,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
           </div>
 
           {/* The selected mix, in the room under the day */}
-          <div className="shrink-0">
+          <div className="shrink-0 lg:h-[306px]">
             {selEntry ? (
               <Inspector
                 entry={selEntry}
@@ -1002,7 +1002,7 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
                 onClose={() => setSel(null)}
               />
             ) : (
-              <div className={`rounded-lg border border-white/10 ${PANEL} p-5 grid gap-6 lg:grid-cols-3 content-start font-sans text-[12.5px] leading-relaxed text-white/55`}>
+              <div className={`h-full rounded-lg border border-white/10 ${PANEL} p-5 grid gap-6 lg:grid-cols-3 content-start font-sans text-[12.5px] leading-relaxed text-white/55`}>
                 <div>
                   <p className="text-white/80 mb-2">Nothing selected</p>
                   <p>Click a bar on the day, or a mix in the library, to see and edit it here.</p>
@@ -1234,7 +1234,7 @@ function Inspector({
   const playing = now !== null && block && now >= block.start && now < blockEnd;
   const COL = 'min-w-0 space-y-3.5';
   return (
-    <div className={`flex flex-col rounded-lg border border-white/10 ${PANEL}`}>
+    <div className={`h-full flex flex-col rounded-lg border border-white/10 ${PANEL}`}>
       <div className="shrink-0 flex items-center gap-3 px-4 h-12 border-b border-white/10">
         <span className="w-1 h-8 shrink-0 rounded-full" style={{ background: inkOf(entry) }} />
         <div className="min-w-0 flex-1">
@@ -1257,7 +1257,7 @@ function Inspector({
         </button>
       </div>
 
-      <div className="overflow-x-hidden px-4 py-3">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
         {problems.length > 0 && (
           <div className="mb-4 rounded-md border border-[#ff6b5b]/30 bg-[#ff6b5b]/[0.06] px-3 py-2 font-sans text-[11.5px] text-[#ff8a7d]">
             {problems.map((p, i) => (
