@@ -28,7 +28,7 @@ const SWARM = Array.from({ length: 512 }, () => {
 });
 
 // Off air, the PlayStation 2's clock: seven orbs on a ring that tells the station's time, as its
-// System Configuration clock does. The ring turns once a minute in its own plane, so at :00 the orbs
+// System Configuration clock does. The ring turns twice a minute in its own plane, so at :00 the orbs
 // start from the hour (12 o'clock on top), and the whole face swings 180° every 30 s (face-on at :00
 // and :30, edge-on at :15 and :45). On the seconds that divide the minute evenly the seven merge into
 // that many: one orb at :00, two at :30, three at :20/:40, four at :15/:45, five at :12/:24/:36/:48,
@@ -45,12 +45,14 @@ const HALO_PX = 1.25;                 // every orb the same size
 function orbAt(i: number, c: number) {
   c += 86_400;   // a trail reaching back past midnight
   const sec = c % 60, hour = (c / 3600) % 12;
-  // merging: eased in over the second before a dividing second, held a moment, eased out after
-  const q = Math.round(sec), d = Math.abs(sec - q), g = MERGE[q];
+  // merging: eased in over the second before a dividing second, held a moment, eased out over the
+  // second after (the nearer dividing second either side, so it never cuts off half way)
+  const f = Math.floor(sec), q = MERGE[f] && (sec - f < 0.5 || !MERGE[f + 1]) ? f : f + 1;
+  const d = Math.abs(sec - q), g = MERGE[q];
   const w = g ? Math.min(1, Math.max(0, (1 - d) / 0.7)) : 0;
   const ws = w * w * (3 - 2 * w);
   const spot = (i * 2 * Math.PI) / ORB_N, merged = (Math.floor((i * (g || 1)) / ORB_N) * 2 * Math.PI) / (g || 1);
-  const th = (hour / 12) * 2 * Math.PI + (sec / 60) * 2 * Math.PI + spot + (merged - spot) * ws;
+  const th = (hour / 12) * 2 * Math.PI + (sec / 30) * 2 * Math.PI + spot + (merged - spot) * ws;
   const rad = RING_MIN + (RING_MAX - RING_MIN) * ((c / 3600) % 1);
   const X = Math.sin(th) * rad, Y = -Math.cos(th) * rad, yaw = (sec / 30) * Math.PI;
   const z = X * Math.sin(yaw);
