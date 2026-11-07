@@ -27,17 +27,17 @@ const SWARM = Array.from({ length: 512 }, () => {
   return { delay, pace: delay + 0.5 + Math.random() * (0.5 - delay), curl: (Math.random() - 0.5) * 0.6 };
 });
 
-// Off air, the PlayStation 2's clock: seven orbs on a ring that tells the station's time, as its
-// System Configuration clock does. The ring turns twice a minute in its own plane, so at :00 the orbs
-// start from the hour (12 o'clock on top), and the whole face swings 180° every 30 s (face-on at :00
-// and :30, edge-on at :15 and :45). On the seconds that divide the minute evenly the seven merge into
-// that many: one orb at :00, two at :30, three at :20/:40, four at :15/:45, five at :12/:24/:36/:48,
-// six at :10/:50 (fewest wins). The ring starts each hour small and grows until the next.
+// Off air, the PlayStation 2's clock: seven orbs chasing round a ring that tells the station's time,
+// as its System Configuration clock does. Orb i runs i laps a minute ahead of the first, so the seven
+// fall into step on the seconds that divide the minute: one orb at :00, two at :30, three at :20/:40,
+// four at :15/:45, five at :12/:24/:36/:48, six at :10/:50, and spread between. All of them run
+// RING_LAPS a minute, so at :00 the one orb is on the hour (12 o'clock on top); the face swings 180°
+// every 30 s (face-on at :00 and :30, edge-on at :15 and :45), and starts each hour small, growing.
 const ORB_N = 7;
-const MERGE: Record<number, number> = { 0: 1, 30: 2, 20: 3, 40: 3, 15: 4, 45: 4, 12: 5, 24: 5, 36: 5, 48: 5, 10: 6, 50: 6, 60: 1 };
+const RING_LAPS = 20;                 // laps a minute for the slowest orb (whole, to land on the hour)
 const RING_MIN = 18, RING_MAX = 26;   // px radius at the top of the hour and just before the next
 const TILT = 0.3;                     // rad the face leans back, so it reads as a ring in space
-const TRAIL = 22, TRAIL_DT = 0.07;    // tail: steps back along the path, seconds a step
+const TRAIL = 22, TRAIL_DT = 0.05;    // tail: steps back along the path, seconds a step
 const HALO = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1],   // a core, and a ring round it
   ...Array.from({ length: 8 }, (_, i) => [1.8 * Math.cos((i * Math.PI) / 4), 1.8 * Math.sin((i * Math.PI) / 4)])];
 const HALO_PX = 1.25;                 // every orb the same size
@@ -45,14 +45,7 @@ const HALO_PX = 1.25;                 // every orb the same size
 function orbAt(i: number, c: number) {
   c += 86_400;   // a trail reaching back past midnight
   const sec = c % 60, hour = (c / 3600) % 12;
-  // merging: eased in over the second before a dividing second, held a moment, eased out over the
-  // second after (the nearer dividing second either side, so it never cuts off half way)
-  const f = Math.floor(sec), q = MERGE[f] && (sec - f < 0.5 || !MERGE[f + 1]) ? f : f + 1;
-  const d = Math.abs(sec - q), g = MERGE[q];
-  const w = g ? Math.min(1, Math.max(0, (1 - d) / 0.7)) : 0;
-  const ws = w * w * (3 - 2 * w);
-  const spot = (i * 2 * Math.PI) / ORB_N, merged = (Math.floor((i * (g || 1)) / ORB_N) * 2 * Math.PI) / (g || 1);
-  const th = (hour / 12) * 2 * Math.PI + (sec / 30) * 2 * Math.PI + spot + (merged - spot) * ws;
+  const th = (hour / 12 + ((RING_LAPS + i) * sec) / 60) * 2 * Math.PI;
   const rad = RING_MIN + (RING_MAX - RING_MIN) * ((c / 3600) % 1);
   const X = Math.sin(th) * rad, Y = -Math.cos(th) * rad, yaw = (sec / 30) * Math.PI;
   const z = X * Math.sin(yaw);
@@ -66,7 +59,7 @@ function orbDots(c: number): number[][] {
     for (const [hx, hy] of HALO) out.push([x + hx * HALO_PX, y + hy * HALO_PX, a]);
     for (let k = 1; k <= TRAIL; k++) {
       const [tx, ty, ta] = orbAt(i, c - k * TRAIL_DT);
-      out.push([tx, ty, ta * (1 - k / (TRAIL + 1)) ** 1.6]);
+      out.push([tx, ty, 0.6 * ta * (1 - k / (TRAIL + 1)) ** 1.6]);   // faint, as the PS2's are
     }
   }
   return out;
