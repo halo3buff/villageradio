@@ -69,6 +69,9 @@ function orbDots(c: number): number[][] {
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
+/** The readouts' figures in Arabic-Indic digits, with the Arabic decimal point. */
+const ar = (s: string) => s.replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[+d]).replace(/\./g, '٫');
+
 /**
  * The station as a small white outline in the top-left corner: the call sign, clock, state and
  * readouts, then at its right end a bordered Lissajous of the stereo field in glowing dots. Off
@@ -240,7 +243,7 @@ export function HomeDesktop() {
       <div className="plate">
         <div className="info">
           <span>VGF-8194</span>
-          <span className="end">{clock ?? '--:--:--'}</span>
+          <span className="end">{clock ? ar(clock) : '--:--:--'}</span>
           <button onClick={() => (live ? pause() : broadcastPlay())} aria-label={live ? 'Pause the station' : 'Play the station'}>
             <svg viewBox="0 0 8 9" fill="currentColor" aria-hidden width="7" height="8">
               {live ? <><rect x="0" y="0" width="2.5" height="9" /><rect x="5.5" y="0" width="2.5" height="9" /></>
@@ -250,10 +253,10 @@ export function HomeDesktop() {
             {live && <i className="lamp" />}
           </button>
           <span />
-          <span>LVL {rd?.lvl ?? '   --'} DB</span>
-          <span className="end">PK {rd?.pk ?? '   --'} DB</span>
-          <span>CORR {rd?.corr ?? '   --'}</span>
-          <span className="end">BAL {rd?.bal ?? '   --'}</span>
+          <span>LVL {rd ? ar(rd.lvl) : '   --'} DB</span>
+          <span className="end">PK {rd ? ar(rd.pk) : '   --'} DB</span>
+          <span>CORR {rd ? ar(rd.corr) : '   --'}</span>
+          <span className="end">BAL {rd ? ar(rd.bal) : '   --'}</span>
         </div>
         <div className="window"><canvas ref={lights} aria-hidden /></div>
       </div>
