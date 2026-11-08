@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
-const WHITE = '#ffffff';
+const WHITE = '#111111';   // the ink: near-black on the lightened photo
 const W = 104, H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
 const STEP = 8;   // samples between dots, so each stays its own light
@@ -254,12 +254,14 @@ export function HomeDesktop({ res = 1 }: { res?: number }) {
       position: 'fixed', inset: 0, paddingBottom: PROMPT_BAND,
       overflow: 'hidden', overscrollBehavior: 'contain',
       fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)',
+      background: 'rgba(255,255,255,0.78)',   // the photo, lightened almost to white
     }}>
       <style>{`
+        html:has(.plate) { --vlg-fg: ${WHITE} !important; }
         /* all white, drawn straight on the page: the type and borders barely glow, the lights do */
         .plate { position: absolute; top: 24px; left: 24px; display: flex; gap: 6px; padding: 6px; color: ${WHITE}; border: 1px solid ${WHITE};
           font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; white-space: pre;
-          text-shadow: 0 0 3px rgba(255,255,255,0.3); box-shadow: 0 0 3px rgba(255,255,255,0.3); isolation: isolate; }
+          text-shadow: 0 0 3px rgba(17,17,17,0.25); box-shadow: 0 0 3px rgba(17,17,17,0.25); isolation: isolate; }
         /* on a layer of its own: a backdrop-filter on the plate itself would cut the window's blur off from the page */
         .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         .plate .info { padding: 3px 12px 3px 6px; display: grid; grid-template-columns: auto auto; column-gap: 22px; row-gap: 3px; align-content: center; }
@@ -268,10 +270,10 @@ export function HomeDesktop({ res = 1 }: { res?: number }) {
         .plate button:active { opacity: 0.6; }
         .plate .lamp { width: 6px; height: 6px; background: currentColor; animation: lamp 1s steps(1) infinite; }
         @keyframes lamp { 50% { opacity: 0; } }
-        .plate .window { border: 1px solid ${WHITE}; display: flex; box-shadow: 0 0 3px rgba(255,255,255,0.3);
+        .plate .window { border: 1px solid ${WHITE}; display: flex; box-shadow: 0 0 3px rgba(17,17,17,0.25);
           background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
         .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
-          filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)); }
+          filter: drop-shadow(0 0 3px rgba(17,17,17,0.6)) drop-shadow(0 0 9px rgba(17,17,17,0.35)); }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
         }
