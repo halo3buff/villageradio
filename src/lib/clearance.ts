@@ -19,7 +19,7 @@ const KEY_PREFIX = 'vr-clearance:';
 
 /** Paths that sit behind a checkpoint. '/' and /information stay open — the
  *  terminal and the manual must always be reachable. */
-export const GATED_PATHS = new Set(['/listen', '/news', '/photography', '/work', '/transmit', '/station']);
+export const GATED_PATHS = new Set(['/listen', '/news', '/photography', '/work', '/transmit', '/station', '/rec']);
 
 /** The gate a path sits under: '/station/readme' → '/station'. A pass covers its whole
  *  section, so moving within one (station ⇄ its README) never burns it. */

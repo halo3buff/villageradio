@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
-import { secondsIntoDay } from '@/lib/content/broadcast';
+import { BROADCAST_TZ, secondsIntoDay } from '@/lib/content/broadcast';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
@@ -69,14 +69,27 @@ function orbDots(c: number): number[][] {
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
 
+// TX: the broadcast day's number, counted from the station's first day on air (day 1).
+const FIRST_DAY = Date.UTC(2026, 4, 17);
+const dateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: BROADCAST_TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+function txDay(nowMs: number) {
+  const [y, m, d] = dateFmt.format(nowMs).split('-').map(Number);
+  return String((Date.UTC(y, m - 1, d) - FIRST_DAY) / 86_400_000 + 1).padStart(4, '0');
+}
+
+// The top of the hour, on air: three short pips and a long one, the long one landing on :00:00 as the
+// orbs' clock does, played over the broadcast at a fraction of its volume.
+const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEVEL = 0.06;
+
 /**
  * The station as a small white outline in the top-left corner: the call sign, clock, state and
  * readouts, then at its right end a bordered Lissajous of the stereo field in glowing dots. Off
  * air it and the readouts follow a test signal, so nothing stops. README and RADAR top-right; the
  * prompt is global (see SiteFrame). The StationBar stays off here.
  */
-export function HomeDesktop() {
-  const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause } = useAudio();
+/** res: the Lissajous canvas drawn this many times sharper, for the recording frame, which zooms the plate. */
+export function HomeDesktop({ res = 1 }: { res?: number }) {
+  const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause, volume } = useAudio();
   const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
   const [rd, setRd] = useState<Readout | null>(null);
@@ -99,7 +112,7 @@ export function HomeDesktop() {
     const canvas = lights.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2) * res;
     canvas.width = W * dpr; canvas.height = H * dpr;
     ctx.scale(dpr, dpr);
 
@@ -206,7 +219,34 @@ export function HomeDesktop() {
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [res]);
+
+  // the pips, armed a few seconds before each hour while on air, so they're timed on the audio clock
+  useEffect(() => {
+    const ctx = analyserL?.context as AudioContext | undefined;
+    if (!live || !ctx) return;
+    let timer: ReturnType<typeof setTimeout>;
+    let tones: OscillatorNode[] = [];
+    const arm = () => {
+      const left = 3600 - (secondsIntoDay(Date.now()) % 3600);   // seconds to the top of the hour
+      if (left > 5) { timer = setTimeout(arm, (left - 5) * 1000); return; }
+      const at = ctx.currentTime + left;
+      tones = PIPS.filter(([t]) => left + t > 0.05).map(([t, len]) => {
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.frequency.value = PIP_HZ;
+        g.gain.setValueAtTime(0, at + t);
+        g.gain.linearRampToValueAtTime(PIP_LEVEL * volume, at + t + 0.005);   // ramped, so no click
+        g.gain.setValueAtTime(PIP_LEVEL * volume, at + t + len - 0.005);
+        g.gain.linearRampToValueAtTime(0, at + t + len);
+        osc.connect(g).connect(ctx.destination);
+        osc.start(at + t); osc.stop(at + t + len);
+        return osc;
+      });
+      timer = setTimeout(arm, (left + 2) * 1000);
+    };
+    arm();
+    return () => { clearTimeout(timer); tones.forEach((o) => { try { o.stop(); } catch { /* already done */ } }); };
+  }, [live, analyserL, volume]);
 
   return (
     <div style={{
@@ -249,7 +289,7 @@ export function HomeDesktop() {
             {live ? 'ON AIR' : 'TEST'}
             {live && <i className="lamp" />}
           </button>
-          <span />
+          <span className="end">{clock ? `TX ${txDay(Date.now())}` : ''}</span>
           <span>LVL {rd?.lvl ?? '   --'} DB</span>
           <span className="end">PK {rd?.pk ?? '   --'} DB</span>
           <span>CORR {rd?.corr ?? '   --'}</span>

@@ -21,7 +21,7 @@ const ps1 = (path: string) => `MAIN:/vlg/stn/${FILES[path] ?? path.split('/').po
  * keyboard); tap anywhere along it to focus.
  */
 // Not in the CMS command list, so they never appear on the README or in admin.
-const PASSPHRASE: Record<string, string> = { gulam: '/station', farm: '/farm' };
+const PASSPHRASE: Record<string, string> = { gulam: '/station', farm: '/farm', recky: '/rec' };
 // The admin entry for phones, which have no arrow keys: summons SootSprite's sprite, homepage only.
 const SPRITE_WORD = 'honeycomb';
 
