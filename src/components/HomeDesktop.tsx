@@ -31,12 +31,13 @@ const SWARM = Array.from({ length: 512 }, () => {
 // as its System Configuration clock does. Orb i runs i laps a minute ahead of the first, so the seven
 // fall into step on the seconds that divide the minute: one orb at :00, two at :30, three at :20/:40,
 // four at :15/:45, five at :12/:24/:36/:48, six at :10/:50, and spread between. All of them run
-// RING_LAPS a minute, so at :00 the one orb is on the hour (12 o'clock on top); the face swings 180°
-// every 30 s (face-on at :00 and :30, edge-on at :15 and :45), and starts each hour small, growing.
+// RING_LAPS a minute, so at :00 the one orb is on the hour (12 o'clock on top). The ring rocks back
+// and forth about its horizontal axis (ROCK): open at :00, :15, :30 and :45, tipped flattest between,
+// swaying a little side to side as it goes (SWAY), and it starts each hour small, growing.
 const ORB_N = 7;
 const RING_LAPS = 20;                 // laps a minute for the slowest orb (whole, to land on the hour)
 const RING_MIN = 18, RING_MAX = 26;   // px radius at the top of the hour and just before the next
-const TILT = 0.3;                     // rad the face leans back, so it reads as a ring in space
+const ROCK = 1.1, SWAY = 0.3;         // rad the ring tips back and forth (period 30 s), and sways (20 s)
 const TRAIL = 22, TRAIL_DT = 0.05;    // tail: steps back along the path, seconds a step
 const HALO = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1],   // a core, and a ring round it
   ...Array.from({ length: 8 }, (_, i) => [1.8 * Math.cos((i * Math.PI) / 4), 1.8 * Math.sin((i * Math.PI) / 4)])];
@@ -47,9 +48,10 @@ function orbAt(i: number, c: number) {
   const sec = c % 60, hour = (c / 3600) % 12;
   const th = (hour / 12 + ((RING_LAPS + i) * sec) / 60) * 2 * Math.PI;
   const rad = RING_MIN + (RING_MAX - RING_MIN) * ((c / 3600) % 1);
-  const X = Math.sin(th) * rad, Y = -Math.cos(th) * rad, yaw = (sec / 30) * Math.PI;
-  const z = X * Math.sin(yaw);
-  return [X * Math.cos(yaw), Y * Math.cos(TILT) - z * Math.sin(TILT), 0.75 + (0.25 * (Y * Math.sin(TILT) + z * Math.cos(TILT))) / rad];
+  const X = Math.sin(th) * rad, Y = -Math.cos(th) * rad;
+  const sway = SWAY * Math.sin((2 * Math.PI * sec) / 20), pitch = ROCK * Math.sin((2 * Math.PI * sec) / 30);
+  const z = X * Math.sin(sway);
+  return [X * Math.cos(sway), Y * Math.cos(pitch) - z * Math.sin(pitch), 0.75 + (0.25 * (Y * Math.sin(pitch) + z * Math.cos(pitch))) / rad];
 }
 /** Every dot of the orbs at clock c: x, y (px from the centre) and brightness. */
 function orbDots(c: number): number[][] {
