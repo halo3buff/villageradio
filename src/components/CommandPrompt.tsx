@@ -97,7 +97,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
       onClick={() => inputRef.current?.focus()}
       style={{
         // lower on phones (10px up), where the screen is short; 24px on desktop as before
-        position: 'fixed', left: 24, bottom: 'clamp(10px, 2.5vw, 24px)', width: 'min(440px, 88vw)', height: 40,
+        position: 'fixed', left: 24, bottom: 'calc(clamp(10px, 2.5vw, 24px) + env(safe-area-inset-bottom, 0px))', width: 'min(440px, 88vw)', height: 40,
         zIndex: 2100, cursor: 'text',
         transform: `translateY(${-kbShift}px)`, transition: 'transform 0.3s ease',
       }}

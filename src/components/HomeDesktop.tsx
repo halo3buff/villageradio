@@ -251,7 +251,7 @@ export function HomeDesktop({ res = 1 }: { res?: number }) {
   return (
     <div style={{
       // fixed, so on iOS it tracks the visible viewport, not the large one
-      position: 'fixed', inset: 0, paddingBottom: PROMPT_BAND,
+      position: 'fixed', inset: 'env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px)', paddingBottom: PROMPT_BAND,
       overflow: 'hidden', overscrollBehavior: 'contain',
       fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em', color: 'var(--vlg-fg, #000)',
     }}>

@@ -72,6 +72,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   interactiveWidget: 'overlays-content',
+  viewportFit: 'cover',   // draw under iOS's bars; what must stay clear of them keeps to env(safe-area-inset-*)
 };
 
 export const metadata: Metadata = {

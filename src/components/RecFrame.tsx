@@ -43,14 +43,14 @@ export function RecFrame() {
   return (
     <div
       onClick={(e) => { if (!(e.target as HTMLElement).closest('.plate')) setShown(true); }}
-      style={{ position: 'fixed', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, background: shape === 'vertical' ? 'var(--vlg-cover, #000)' : '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
     >
       <style>{`
         .rec-frame { position: relative; background: var(--vlg-cover, #a8a5a0); background-attachment: scroll; transform: translateZ(0); overflow: hidden; }
         .rec-frame.vertical { width: 100%; height: 100%; }
         .rec-frame.square { width: min(100vw, 100dvh); aspect-ratio: 1; }
         /* the station, re-laid in the frame: its plate centred and enlarged, its corner links gone */
-        .rec-frame > div { display: flex !important; padding: 0 !important; }
+        .rec-frame > div { display: flex !important; padding: 0 !important; inset: 0 !important; }
         .rec-frame .plate { position: relative; top: auto; left: auto; margin: auto; zoom: var(--rec-zoom); }
         .rec-frame a { display: none; }
       `}</style>
