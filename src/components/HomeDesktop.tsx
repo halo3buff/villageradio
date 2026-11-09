@@ -152,7 +152,7 @@ export function HomeDesktop({ res = 1 }: { res?: number }) {
           pk = Math.max(pk, Math.abs(l[i]), Math.abs(r[i]));
         }
         const sign = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(2);
-        const db = (v: number) => v.toFixed(1).padStart(5);
+        const db = (v: number) => Math.max(-99.9, v).toFixed(1).padStart(5);   // never three digits: the plate keeps its width
         const sl = Math.sqrt(ll), sr = Math.sqrt(rr);
         setClock(stationClock());
         setRd({

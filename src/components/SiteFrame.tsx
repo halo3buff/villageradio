@@ -16,7 +16,7 @@ import type { NavCommand } from '@/lib/types';
 // The station's top bar belongs to the station only (which keeps it off for now).
 const HAS_BAR = (p: string) => p === '/station';
 
-const NO_PROMPT = (p: string) => p === '/admin' || p.startsWith('/admin/');
+const NO_PROMPT = (p: string) => p === '/admin' || p.startsWith('/admin/') || p === '/rec';
 export function SiteFrame({
   commands,
   children,
