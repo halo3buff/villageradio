@@ -5,7 +5,7 @@ import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
 import { getBroadcastManifest, getCommands, getTheme } from '@/lib/content/loaders';
 import { daySegments, manifestToMixes } from '@/lib/content/broadcast';
-import { DEFAULT_THEME, isThemeName, siteCssVars } from '@/lib/theme';
+import { DEFAULT_THEME, isThemeName, siteCssVars, THEMES } from '@/lib/theme';
 import { SiteFrame } from '@/components/SiteFrame';
 import { ClearanceWarden } from '@/components/ClearanceWarden';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -113,7 +113,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${vt323.variable} ${helveticaBlack.variable} ${helveticaMedium.variable} ${dseg7.variable} ${dseg14.variable}`}
     >
       <head>
-        <meta name="theme-color" content="#080808" />
+        {/* the theme's own page colour: on default, the photo's mean (what globals.css paints the canvas) */}
+        <meta name="theme-color" content={THEMES[theme].bg} />
         <style dangerouslySetInnerHTML={{ __html: siteCssVars(theme) }} />
       </head>
       <body className="bg-[var(--vlg-bg)] text-[var(--vlg-fg)] min-h-screen font-sans">

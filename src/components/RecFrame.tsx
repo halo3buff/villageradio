@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { HomeDesktop } from '@/components/HomeDesktop';
-import { EdgeTint } from '@/components/SiteFrame';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PLATE_W = 345;   // the plate's width at zoom 1, px
@@ -65,8 +64,6 @@ export function RecFrame() {
       }}>
         {pick('square')}{pick('vertical')}
       </div>
-      {/* in VERTICAL, iOS's bars take the photo's edge colours; in SQUARE they take the black */}
-      {shape === 'vertical' && <EdgeTint />}
     </div>
   );
 }
