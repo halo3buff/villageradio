@@ -1,11 +1,17 @@
 // Temporary: which edge colours iOS Safari takes up for its bars. Delete after.
-// top: invisible but touchable; bottom: visible but untouchable
-export default function TintTest() {
+const shade = { position: 'fixed', inset: 0 } as const;
+const photo = { position: 'fixed', inset: 0, backgroundColor: '#ff0000', backgroundImage: 'url(/site_assets/site_bg_v2.webp)', backgroundSize: 'cover', backgroundPosition: 'center' } as const;
+const strip = (edge: 'top' | 'bottom', h: number) => ({ position: 'fixed', left: 0, right: 0, [edge]: 0, height: h, background: edge === 'top' ? '#ff0000' : '#0000ff' }) as const;
+
+export default async function TintTest({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
+  const v = (await searchParams).v ?? 'a';
   return (
     <>
-      <div style={{ position: 'fixed', inset: 0 }} />
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 8, background: '#ff0000', opacity: 0 }} />
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 8, background: '#0000ff', pointerEvents: 'none' }} />
+      {v === 'a' && <><div style={shade} /><div style={strip('top', 40)} /><div style={strip('bottom', 40)} /></>}
+      {v === 'b' && <><div style={strip('top', 8)} /><div style={strip('bottom', 8)} /></>}
+      {v === 'c' && <div style={photo} />}
+      {v === 'd' && <><div style={photo} /><div style={shade} /></>}
+      <div style={{ position: 'fixed', top: '40%', left: 0, right: 0, textAlign: 'center', fontSize: 64, color: '#fff' }}>{v.toUpperCase()}</div>
     </>
   );
 }
