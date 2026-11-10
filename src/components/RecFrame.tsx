@@ -64,6 +64,8 @@ export function RecFrame() {
       }}>
         {pick('square')}{pick('vertical')}
       </div>
+      {/* in VERTICAL, iOS's bars take the photo's edge colours; in SQUARE they take the black */}
+      {shape === 'vertical' && <><i className="edge-tint top" aria-hidden /><i className="edge-tint bottom" aria-hidden /></>}
     </div>
   );
 }

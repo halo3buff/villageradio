@@ -40,7 +40,7 @@ export function SiteFrame({
   return (
     <>
       {children}
-      <i className="edge-tint top" aria-hidden /><i className="edge-tint bottom" aria-hidden />
+      {pathname !== '/rec' && <><i className="edge-tint top" aria-hidden /><i className="edge-tint bottom" aria-hidden /></>}
       {HAS_BAR(pathname) && <StationBar />}
       {prompt}
     </>
