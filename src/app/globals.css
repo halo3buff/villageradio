@@ -163,22 +163,10 @@ html[data-theme="default"] body::before {
   background: var(--vlg-cover);
 }
 html:not([data-theme="default"]) body:has(.admin-shell)::before { display: none; }
-/* iOS Safari 26 paints its status bar and toolbar one solid colour: the background-color of the
-   topmost fixed element it hits at that edge (not one at opacity 0 or pointer-events none, nor a
-   child layered over it), else the page's. These strips give it the photo's own edge colours, and
-   paint the photo over that colour themselves, placed as the page's cover is, so they can't be seen.
-   The photo is 1600 x 1182: --sw / --sh are its size covering the screen. */
-.edge-tint { display: none; }
-@media (pointer: coarse) {
-  html[data-theme="default"] .edge-tint {
-    --sw: max(100vw, 100dvh * 1.3536); --sh: calc(var(--sw) / 1.3536);
-    display: block; position: fixed; left: 0; right: 0; height: 8px; z-index: 2147483000;
-  }
-  .edge-tint.top { top: 0; background: var(--vlg-grain) 0 0 / 220px 220px,
-    url(/site_assets/site_bg_v2.webp) calc((100vw - var(--sw)) / 2) calc((100dvh - var(--sh)) / 2) / var(--sw) var(--sh) no-repeat, #919595; }
-  .edge-tint.bottom { bottom: 0; background: var(--vlg-grain) 0 0 / 220px 220px,
-    url(/site_assets/site_bg_v2.webp) calc((100vw - var(--sw)) / 2) calc((100dvh - var(--sh)) / 2 - 100dvh + 8px) / var(--sw) var(--sh) no-repeat, #b6b1aa; }
-}
+/* iOS Safari 26 paints its status bar and toolbar the background-color of a solid fixed strip at
+   that edge (SiteFrame's, inline, kept to exactly what tested good on a phone); off on desktop */
+@media (hover: hover) and (pointer: fine) { .edge-tint { display: none; } }
+html:not([data-theme="default"]) .edge-tint { display: none; }
 html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
 
 /* Admin toast: rises in from below. */

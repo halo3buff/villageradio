@@ -17,6 +17,16 @@ import type { NavCommand } from '@/lib/types';
 const HAS_BAR = (p: string) => p === '/station';
 
 const NO_PROMPT = (p: string) => p === '/admin' || p.startsWith('/admin/') || p === '/rec';
+/* the photo's own top and bottom edge colours, for iOS Safari to paint its bars with (globals.css) */
+export function EdgeTint() {
+  return (
+    <>
+      <div className="edge-tint" style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 8, background: '#919595' }} />
+      <div className="edge-tint" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 8, background: '#b6b1aa' }} />
+    </>
+  );
+}
+
 export function SiteFrame({
   commands,
   children,
@@ -40,7 +50,7 @@ export function SiteFrame({
   return (
     <>
       {children}
-      {pathname !== '/rec' && <><i className="edge-tint top" aria-hidden /><i className="edge-tint bottom" aria-hidden /></>}
+      {pathname !== '/rec' && <EdgeTint />}
       {HAS_BAR(pathname) && <StationBar />}
       {prompt}
     </>
