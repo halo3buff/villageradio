@@ -7,7 +7,7 @@ type Row = { n: number; tx: string; date: string };
 type Props = { rows: Row[]; initialRemarks: Record<string, string>; generation: string };
 type Status = 'idle' | 'publishing' | 'published' | 'conflict' | 'error';
 
-const NOTE: Record<Status, string> = { idle: '', publishing: '', published: 'Live on /log', conflict: 'Changed elsewhere — reload', error: 'Failed — try again' };
+const NOTE: Record<Status, string> = { idle: '', publishing: '', published: 'Live on the station', conflict: 'Changed elsewhere — reload', error: 'Failed — try again' };
 
 /** The station log's remarks, a small panel under the broadcast library: one line per day, blank = none. */
 export function LogEditor({ rows, initialRemarks, generation: initialGen }: Props) {

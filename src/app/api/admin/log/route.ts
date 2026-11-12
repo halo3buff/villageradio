@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/guard';
 import { sameOrigin } from '@/lib/http/same-origin';
 import { readManifest, writeManifest, ConflictError } from '@/lib/content/store';
@@ -43,6 +44,7 @@ export async function PUT(req: Request): Promise<Response> {
     return NextResponse.json({ ok: false, error: 'write_failed' }, { status: 500 });
   }
   await publishManifest('log');
+  revalidatePath('/station');
 
   const after = await readManifest<LogManifest>(FILE);
   return NextResponse.json({ ok: true, generation: after?.generation ?? body.generation });

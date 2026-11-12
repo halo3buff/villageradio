@@ -22,6 +22,9 @@ export function txNumber(nowMs: number): number {
 
 export const txDay = (nowMs: number) => String(txNumber(nowMs)).padStart(4, '0');
 
+/** TX n's calendar date, 'YYYY-MM-DD'. */
+export const txDate = (n: number) => new Date(FIRST_DAY + (n - 1) * DAY_MS).toISOString().slice(0, 10);
+
 export type LogLine = { tx: string; date: string; hours: string; blocks: string; air: string; open: boolean; remark: string };
 
 /** Every broadcast day from TX 0001 to today, newest first. The hours come from the day clock as it
@@ -39,7 +42,7 @@ export function logLines(m: BroadcastManifest, log: LogManifest, nowMs: number):
   for (let n = today; n >= 1; n--) {
     out.push({
       tx: String(n).padStart(4, '0'),
-      date: new Date(FIRST_DAY + (n - 1) * DAY_MS).toISOString().slice(0, 10),
+      date: txDate(n),
       hours,
       blocks: `${String(blocks).padStart(2, '0')} BLK`,
       air: airText,

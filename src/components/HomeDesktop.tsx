@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
 import { secondsIntoDay } from '@/lib/content/broadcast';
-import { txDay } from '@/lib/content/log';
+import { txDate, txDay, txNumber } from '@/lib/content/log';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
@@ -80,8 +80,11 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
  * air it and the readouts follow a test signal, so nothing stops. README and RADAR top-right; the
  * prompt is global (see SiteFrame). The StationBar stays off here.
  */
-/** res: the Lissajous canvas drawn this many times sharper, for the recording frame, which zooms the plate. */
-export function HomeDesktop({ res = 1 }: { res?: number }) {
+const LOG_DAYS = 3;   // the log under the plate: today and the two days before
+
+/** res: the Lissajous canvas drawn this many times sharper, for the recording frame, which zooms the plate.
+ *  remarks: the log's remarks by TX number; when given, the last few days' log sits under the plate. */
+export function HomeDesktop({ res = 1, remarks }: { res?: number; remarks?: Record<string, string> }) {
   const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause, volume } = useAudio();
   const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
@@ -265,6 +268,11 @@ export function HomeDesktop({ res = 1 }: { res?: number }) {
           background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
         .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
           filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)); }
+        /* the log hangs under the plate, unboxed: the plate's type, quieter */
+        .plate .log { position: absolute; top: calc(100% + 10px); left: 7px; display: grid; grid-template-columns: repeat(3, auto) auto;
+          width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; opacity: 0.8; }
+        .plate .log .remark { white-space: normal; max-width: 40ch; }
+        .plate .log .shut { opacity: 0.6; }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
         }
@@ -289,6 +297,18 @@ export function HomeDesktop({ res = 1 }: { res?: number }) {
           <span className="end">BAL {rd?.bal ?? '   --'}</span>
         </div>
         <div className="window"><canvas ref={lights} aria-hidden /></div>
+        {remarks && clock && (
+          <div className="log">
+            {Array.from({ length: LOG_DAYS }, (_, k) => txNumber(Date.now()) - k).filter((n) => n >= 1).map((n, k) => (
+              <Fragment key={n}>
+                <span>TX {String(n).padStart(4, '0')}</span>
+                <span>{txDate(n).slice(5)}</span>
+                <span className={k ? 'shut' : ''}>{k ? 'CLOSED' : 'OPEN'}</span>
+                <span className="remark">{remarks[n] ?? ''}</span>
+              </Fragment>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* README and RADAR — top-right corner */}
