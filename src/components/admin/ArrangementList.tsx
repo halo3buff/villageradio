@@ -14,7 +14,8 @@ import {
 import { measureLoudness, fileReader, urlReader, trimDb, TARGET_LUFS } from '@/lib/audio/loudness';
 import { Banner } from './ui';
 
-type Props = { initial: BroadcastManifest; generation: string };
+/** aside: a small panel under the library (the log's remarks). */
+type Props = { initial: BroadcastManifest; generation: string; aside?: React.ReactNode };
 type Status = 'idle' | 'publishing' | 'published' | 'conflict' | 'error';
 /** Everything the editor changes — one undo step is one Doc. */
 type Doc = { entries: BroadcastEntry[]; schedule: Placement[]; filler?: string };
@@ -92,7 +93,7 @@ type Drag = {
   preview: Preview | null;
 };
 
-export function ArrangementList({ initial, generation: initialGen }: Props) {
+export function ArrangementList({ initial, generation: initialGen, aside }: Props) {
   // An old looping lineup opens converted into blocks; publishing switches the station over.
   const legacy = !initial.schedule;
   const start: Doc = useMemo(
@@ -756,10 +757,11 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:flex-1 md:min-h-0 md:grid-cols-[260px_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
+        <div className="min-w-0 md:min-h-0 flex flex-col gap-4">
         {/* Library */}
         <div
           ref={libraryRef}
-          className={`rounded-lg border p-3 transition-colors md:overflow-y-auto ${PANEL} ${
+          className={`md:flex-1 md:min-h-0 rounded-lg border p-3 transition-colors md:overflow-y-auto ${PANEL} ${
             drag?.over === 'library' && drag.from === 'block' ? 'border-white/40' : 'border-white/10'
           }`}
         >
@@ -823,6 +825,8 @@ export function ArrangementList({ initial, generation: initialGen }: Props) {
             ))}
           </div>
           {entries.length === 0 && <p className="px-1 font-sans text-[11.5px] text-white/25">Nothing yet — add audio.</p>}
+        </div>
+        {aside}
         </div>
 
         <div className="min-w-0 md:min-h-0 flex flex-col gap-4">

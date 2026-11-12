@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAudio } from '@/lib/audio-context';
 
-const SECTIONS = ['broadcast', 'photography', 'work', 'news', 'information', 'transmissions', 'log', 'settings'];
+const SECTIONS = ['broadcast', 'photography', 'work', 'news', 'information', 'transmissions', 'settings'];
 
 /** The console's one bar: the mark, the sections, the live station, logout. */
 export function AdminBar() {
