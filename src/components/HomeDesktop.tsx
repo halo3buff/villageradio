@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
-import { secondsIntoDay } from '@/lib/content/broadcast';
-import { txDate, txDay, txNumber } from '@/lib/content/log';
+import { BROADCAST_TZ, secondsIntoDay } from '@/lib/content/broadcast';
+import { feed, txDay, type LogEntry, type PlanStep } from '@/lib/content/log';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
@@ -80,11 +80,21 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
  * air it and the readouts follow a test signal, so nothing stops. README and RADAR top-right; the
  * prompt is global (see SiteFrame). The StationBar stays off here.
  */
-const LOG_DAYS = 3;   // the log under the plate: today and the two days before
+// The log under the plate: the station's last lines, newest at the bottom, each older one fainter.
+const LOG_LINES = 10, LOG_LINES_PHONE = 5, LOG_POLL_MS = 60_000;
+const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
 /** res: the Lissajous canvas drawn this many times sharper, for the recording frame, which zooms the plate.
- *  remarks: the log's remarks by TX number; when given, the last few days' log sits under the plate. */
-export function HomeDesktop({ res = 1, remarks }: { res?: number; remarks?: Record<string, string> }) {
+ *  log: hang the station log under the plate. */
+export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: boolean }) {
+  const [logData, setLogData] = useState<{ plan: PlanStep[]; entries: LogEntry[] } | null>(null);
+  useEffect(() => {
+    if (!log) return;
+    const pull = () => fetch('/api/log').then((r) => (r.ok ? r.json() : null)).then((d) => d && setLogData(d)).catch(() => {});
+    pull();
+    const id = setInterval(pull, LOG_POLL_MS);
+    return () => clearInterval(id);
+  }, [log]);
   const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause, volume } = useAudio();
   const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
@@ -269,10 +279,11 @@ export function HomeDesktop({ res = 1, remarks }: { res?: number; remarks?: Reco
         .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
           filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)); }
         /* the log hangs under the plate, unboxed: the plate's type, quieter */
-        .plate .log { position: absolute; top: calc(100% + 10px); left: 7px; display: grid; grid-template-columns: repeat(3, auto) auto;
-          width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; opacity: 0.8; }
-        .plate .log .remark { white-space: normal; max-width: 40ch; }
-        .plate .log .shut { opacity: 0.6; }
+        .plate .log { position: absolute; top: calc(100% + 10px); left: 7px; display: grid; grid-template-columns: auto auto auto;
+          width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; }
+        .plate .log .row { display: contents; }
+        .plate .log .text { white-space: normal; max-width: 40ch; }
+        @media (max-width: 715px) { .plate .log .row:nth-last-child(n+${LOG_LINES_PHONE + 1}) { display: none; } }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
         }
@@ -297,16 +308,18 @@ export function HomeDesktop({ res = 1, remarks }: { res?: number; remarks?: Reco
           <span className="end">BAL {rd?.bal ?? '   --'}</span>
         </div>
         <div className="window"><canvas ref={lights} aria-hidden /></div>
-        {remarks && clock && (
+        {logData && clock && (
           <div className="log">
-            {Array.from({ length: LOG_DAYS }, (_, k) => txNumber(Date.now()) - k).filter((n) => n >= 1).map((n, k) => (
-              <Fragment key={n}>
-                <span>TX {String(n).padStart(4, '0')}</span>
-                <span>{txDate(n).slice(5)}</span>
-                <span className={k ? 'shut' : ''}>{k ? 'CLOSED' : 'OPEN'}</span>
-                <span className="remark">{remarks[n] ?? ''}</span>
-              </Fragment>
-            ))}
+            {feed(logData.plan, logData.entries, Date.now(), LOG_LINES).map((l, i, all) => {
+              const o = { opacity: 0.85 - (all.length - 1 - i) * 0.06 };   // the newest brightest
+              return (
+                <div className="row" key={`${l.at}${l.tag}${l.text}`}>
+                  <span style={o}>{logTime.format(l.at)}</span>
+                  <span style={o}>{l.tag}</span>
+                  <span className="text" style={o}>{l.text}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

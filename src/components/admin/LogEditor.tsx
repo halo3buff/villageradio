@@ -1,73 +1,83 @@
 'use client';
 
 import { useState } from 'react';
-import { REMARK_MAX } from '@/lib/content/log';
+import { BROADCAST_TZ } from '@/lib/content/broadcast';
+import { ENTRY_MAX, type LogEntry } from '@/lib/content/log';
 
-type Row = { n: number; tx: string; date: string };
-type Props = { rows: Row[]; initialRemarks: Record<string, string>; generation: string };
-type Status = 'idle' | 'publishing' | 'published' | 'conflict' | 'error';
+type Props = { initial: LogEntry[]; generation: string };
+type Status = 'idle' | 'saving' | 'conflict' | 'error';
 
-const NOTE: Record<Status, string> = { idle: '', publishing: '', published: 'Live on the station', conflict: 'Changed elsewhere — reload', error: 'Failed — try again' };
+const SHOWN = 8;
+const when = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
-/** The station log's remarks, a small panel under the broadcast library: one line per day, blank = none. */
-export function LogEditor({ rows, initialRemarks, generation: initialGen }: Props) {
-  const [remarks, setRemarks] = useState(initialRemarks);
-  const [baseline, setBaseline] = useState(JSON.stringify(initialRemarks));
+/** The station log, from the console: post a line and it goes out on the station's feed at once. */
+export function LogEditor({ initial, generation: initialGen }: Props) {
+  const [entries, setEntries] = useState(initial);
   const [generation, setGeneration] = useState(initialGen);
+  const [draft, setDraft] = useState('');
   const [status, setStatus] = useState<Status>('idle');
-  const dirty = JSON.stringify(remarks) !== baseline;
 
-  async function publish() {
-    setStatus('publishing');
+  async function save(next: LogEntry[]) {
+    setStatus('saving');
     try {
       const res = await fetch('/api/admin/log', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ remarks, generation }),
+        body: JSON.stringify({ entries: next, generation }),
       });
       if (res.status === 409) return setStatus('conflict');
       if (!res.ok) return setStatus('error');
       setGeneration((await res.json()).generation);
-      setBaseline(JSON.stringify(remarks));
-      setStatus('published');
+      setEntries(next);
+      setStatus('idle');
+      return true;
     } catch {
       setStatus('error');
     }
   }
 
+  async function post() {
+    if (!draft.trim()) return;
+    if (await save([...entries, { at: Date.now(), text: draft.trim() }])) setDraft('');
+  }
+
   return (
     <section className="shrink-0 rounded-lg border border-white/10 p-3 bg-[rgb(30_30_30/0.2)] backdrop-blur-lg">
-      <div className="flex items-center justify-between mb-2">
-        <span className="font-sans text-[13px] font-medium text-white/90">Log</span>
-        <button
-          onClick={publish}
-          disabled={!dirty || status === 'publishing'}
-          className="h-7 rounded-md border border-white/12 px-2.5 font-sans text-[12px] text-white/80 hover:bg-white/[0.06] hover:text-white active:scale-[0.97] transition-[transform,background-color,color] duration-150 disabled:opacity-30 disabled:pointer-events-none"
-        >
-          {status === 'publishing' ? 'Publishing…' : 'Publish'}
-        </button>
+      <span className="block mb-2 font-sans text-[13px] font-medium text-white/90">Log</span>
+      <div className="space-y-1 mb-2">
+        {entries.slice(-SHOWN).map((e) => (
+          <div key={e.at} className="group flex items-baseline gap-2">
+            <span className="shrink-0 font-mono text-[9.5px] text-white/35 tabular-nums">{when.format(e.at).replace(',', '')}</span>
+            <span className="min-w-0 flex-1 font-sans text-[12px] text-white/85 break-words">{e.text}</span>
+            <button
+              onClick={() => save(entries.filter((x) => x !== e))}
+              disabled={status === 'saving'}
+              aria-label="Delete entry"
+              className="shrink-0 font-mono text-[11px] text-white/25 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        {entries.length === 0 && <p className="font-sans text-[11.5px] text-white/25">Nothing logged yet.</p>}
       </div>
-      {rows.map((r, i) => (
-        <label key={r.n} className="block py-1">
-          <span className="font-mono text-[9.5px] tracking-[0.08em] text-white/35 tabular-nums">
-            TX {r.tx} · {i === 0 ? 'today' : r.date}
-          </span>
-          <input
-            value={remarks[r.n] ?? ''}
-            maxLength={REMARK_MAX}
-            placeholder="No remarks"
-            onChange={(e) => {
-              const next = { ...remarks };
-              if (e.target.value) next[r.n] = e.target.value;
-              else delete next[r.n];
-              setRemarks(next);
-              if (status !== 'idle') setStatus('idle');
-            }}
-            className="block w-full bg-transparent border-b border-white/12 focus:border-white/50 outline-none py-1 font-sans text-[12px] text-white/90 placeholder:text-white/20"
-          />
-        </label>
-      ))}
-      {NOTE[status] && <p className="mt-2 font-sans text-[11px] text-white/45">{NOTE[status]}</p>}
+      <form onSubmit={(ev) => { ev.preventDefault(); post(); }} className="flex items-center gap-2">
+        <input
+          value={draft}
+          maxLength={ENTRY_MAX}
+          placeholder="Log a line…"
+          onChange={(e) => { setDraft(e.target.value); if (status !== 'saving') setStatus('idle'); }}
+          className="min-w-0 flex-1 bg-transparent border-b border-white/12 focus:border-white/50 outline-none py-1 font-sans text-[12px] text-white/90 placeholder:text-white/20"
+        />
+        <button
+          disabled={!draft.trim() || status === 'saving'}
+          className="h-7 shrink-0 rounded-md border border-white/12 px-2.5 font-sans text-[12px] text-white/80 hover:bg-white/[0.06] hover:text-white active:scale-[0.97] transition-[transform,background-color,color] duration-150 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          {status === 'saving' ? 'Posting…' : 'Post'}
+        </button>
+      </form>
+      {status === 'conflict' && <p className="mt-2 font-sans text-[11px] text-white/45">Changed elsewhere — reload</p>}
+      {status === 'error' && <p className="mt-2 font-sans text-[11px] text-white/45">Failed — try again</p>}
     </section>
   );
 }

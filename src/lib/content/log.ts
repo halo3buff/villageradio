@@ -1,14 +1,18 @@
 import type { BroadcastManifest } from '@/lib/types';
-import { BROADCAST_TZ, clockTime, daySegments } from './broadcast';
+import { BROADCAST_TZ, daySegments, secondsIntoDay } from './broadcast';
 
-/** The operator's remarks, one per broadcast day, keyed by TX number ('180'). */
-export interface LogManifest {
-  version: 1;
-  remarks: Record<string, string>;
-}
+// --- The station log: a live feed of what the station does, newest last ---------------------------
+// Built on the fly from the day clock (blocks on air, intermissions, silence), the broadcast day's
+// turn at midnight and the hourly pips, with the operator's own entries from the console mixed in.
+// Shape only: a block is a code, never a title.
 
-export const SEED_LOG: LogManifest = { version: 1, remarks: {} };
-export const REMARK_MAX = 120;
+/** An operator's entry, posted from the console. */
+export interface LogEntry { at: number; text: string }
+export interface LogManifest { version: 1; entries: LogEntry[] }
+
+export const SEED_LOG: LogManifest = { version: 1, entries: [] };
+export const ENTRY_MAX = 120;
+export const ENTRIES_KEPT = 200;
 
 // TX: the broadcast day's number, counted from the station's first day on air (day 1).
 const FIRST_DAY = Date.UTC(2026, 4, 17);
@@ -22,33 +26,41 @@ export function txNumber(nowMs: number): number {
 
 export const txDay = (nowMs: number) => String(txNumber(nowMs)).padStart(4, '0');
 
-/** TX n's calendar date, 'YYYY-MM-DD'. */
-export const txDate = (n: number) => new Date(FIRST_DAY + (n - 1) * DAY_MS).toISOString().slice(0, 10);
+/** A block's code: four hex digits from its id, the same every time it airs. */
+const code = (id: string) => Array.from(id).reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 7).toString(16).padStart(4, '0').toUpperCase();
 
-export type LogLine = { tx: string; date: string; hours: string; blocks: string; air: string; open: boolean; remark: string };
+/** The day's plan with nothing in it but shape: safe to hand to any visitor. */
+export type PlanStep = { start: number; end: number; loop: number; code: string; inter: boolean };
 
-/** Every broadcast day from TX 0001 to today, newest first. The hours come from the day clock as it
- *  stands, so every day reads the same shape; only the remarks are kept per day. */
-// ponytail: past days are derived from today's schedule, not recorded; snapshot per day if the schedule history should show.
-export function logLines(m: BroadcastManifest, log: LogManifest, nowMs: number): LogLine[] {
-  const segs = daySegments(m);
-  const air = segs.reduce((a, s) => a + s.end - s.start, 0);
-  const blocks = new Set(segs.filter((s) => !s.filler).map((s) => s.pid ?? s.idx)).size;   // a block played 3 times is one
-  const end = segs.length ? segs[segs.length - 1].end : 0;
-  const hours = segs.length ? `${clockTime(segs[0].start)}–${end === 86_400 ? '24:00' : clockTime(end)}` : '--:--–--:--';
-  const airText = segs.length ? `${String(Math.floor(air / 3600)).padStart(2, '0')}H ${String(Math.floor(air / 60) % 60).padStart(2, '0')}M` : 'OFF AIR';
-  const today = txNumber(nowMs);
-  const out: LogLine[] = [];
-  for (let n = today; n >= 1; n--) {
-    out.push({
-      tx: String(n).padStart(4, '0'),
-      date: txDate(n),
-      hours,
-      blocks: `${String(blocks).padStart(2, '0')} BLK`,
-      air: airText,
-      open: n === today,
-      remark: log.remarks[String(n)] ?? '',
-    });
+export function logPlan(m: BroadcastManifest): PlanStep[] {
+  return daySegments(m).map((s) => {
+    const e = m.entries[s.idx];
+    return { start: s.start, end: s.end, loop: s.loop, code: code(e.id), inter: e.kind === 'inter' };
+  });
+}
+
+export type FeedLine = { at: number; tag: string; text: string };
+
+/** The last `count` lines of the log up to `nowMs`, oldest first. */
+// ponytail: midnight is found from wall-clock seconds, so on DST-change days the times are an hour out once.
+export function feed(plan: PlanStep[], entries: LogEntry[], nowMs: number, count: number): FeedLine[] {
+  const today = nowMs - Math.floor(secondsIntoDay(nowMs)) * 1000 - (nowMs % 1000);
+  const lines: FeedLine[] = [];
+  for (const day of [today - DAY_MS, today]) {
+    const n = txNumber(day + 1000);
+    if (n > 1) lines.push({ at: day, tag: `TX ${String(n - 1).padStart(4, '0')}`, text: 'CLOSED' });
+    lines.push({ at: day, tag: `TX ${String(n).padStart(4, '0')}`, text: 'OPEN' });
+    for (let h = 0; h < 24; h++) lines.push({ at: day + h * 3_600_000, tag: 'SIG', text: '1000 HZ' });
+    let t = 0;
+    for (const s of plan) {
+      if (s.start > t) lines.push({ at: day + t * 1000, tag: '----', text: 'OFF AIR' });
+      for (let p = s.start; p < s.end; p += s.loop) {
+        lines.push({ at: day + p * 1000, tag: `BLK ${s.code}`, text: s.inter ? 'INTERMISSION' : 'ON AIR' });
+      }
+      t = s.end;
+    }
+    if (t < 86_400) lines.push({ at: day + t * 1000, tag: '----', text: 'OFF AIR' });
   }
-  return out;
+  for (const e of entries) lines.push({ at: e.at, tag: 'OPR', text: e.text });
+  return lines.filter((l) => l.at <= nowMs).sort((a, b) => a.at - b.at).slice(-count);
 }
