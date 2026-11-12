@@ -31,6 +31,8 @@ export interface BroadcastEntry {
   file: string;            // R2 filename — audio stays on Cloudflare R2 (free egress)
   kind: BroadcastKind;
   series?: BroadcastSeries; // mixes only; drives the ink swatch
+  /** Interludes only: what's on it. With `series` it sets the first digit of the station log's block code. */
+  sound?: 'static' | 'speech';
   tags: string[];
   /** Excluded from the live rotation's play order/timing; still editable and playable standalone. */
   hidden?: boolean;

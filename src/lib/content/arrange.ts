@@ -136,6 +136,10 @@ export function validateManifest(data: unknown): { ok: boolean; errors: string[]
       if (!SERIES.has(e.series)) errors.push(`${at}: series must be red|green|yellow`);
       if (e.kind === 'inter') errors.push(`${at}: interludes must not have a series`);
     }
+    if (e.sound !== undefined) {
+      if (e.sound !== 'static' && e.sound !== 'speech') errors.push(`${at}: sound must be static|speech`);
+      if (e.kind === 'mix') errors.push(`${at}: mixes must not have a sound`);
+    }
     if (!isStringArray(e.tags)) errors.push(`${at}: tags must be an array of strings`);
     if (e.hidden !== undefined && typeof e.hidden !== 'boolean') errors.push(`${at}: hidden must be a boolean`);
     if (e.lufs !== undefined && !(typeof e.lufs === 'number' && e.lufs > -100 && e.lufs < 20)) errors.push(`${at}: loudness must be a number of LUFS`);

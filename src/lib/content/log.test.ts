@@ -21,6 +21,12 @@ describe('log', () => {
     expect(JSON.stringify(plan)).not.toContain('SECRET');
   });
 
+  it('leads each code with its class', () => {
+    const p = logPlan({ version: 1, entries: [{ ...e('g', 60), series: 'green' }, { ...e('s', 60, 'inter'), sound: 'speech' }, e('u', 60, 'inter')] });
+    expect(p.slice(0, 3).map((x) => x.code[0])).toEqual(['2', 'D', 'F']);
+    expect(p[0].code).toMatch(/^[0-9A-F]{4}$/);
+  });
+
   it('feeds the day in order, newest last, operator entries mixed in', () => {
     const lines = feed(plan, [{ at: at(7, 30), text: 'Rain on the mast.' }], at(8, 20), 6).map((l) => `${l.tag} ${l.text}`);
     const blk = plan[0].code, int = plan[1].code;

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
 import { BROADCAST_TZ, secondsIntoDay } from '@/lib/content/broadcast';
-import { feed, txDay, type LogEntry, type PlanStep } from '@/lib/content/log';
+import { feed, txDay, type FeedKind, type LogEntry, type PlanStep } from '@/lib/content/log';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
@@ -80,7 +80,10 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
  * air it and the readouts follow a test signal, so nothing stops. README and RADAR top-right; the
  * prompt is global (see SiteFrame). The StationBar stays off here.
  */
-// The log under the plate: the station's last lines, newest at the bottom, each older one fainter.
+// The log under the plate: the station's last lines, newest at the bottom, each kind in its own colour.
+const LOG_INK: Record<FeedKind, string> = {
+  air: '#ff3d2e', inter: '#ff9800', off: '#e2e2e2', sig: '#00b4ff', tx: '#ffffff', opr: '#9a4dff',
+};
 const LOG_LINES = 10, LOG_LINES_PHONE = 5, LOG_POLL_MS = 60_000;
 const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
@@ -282,6 +285,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         .plate .log { position: absolute; top: calc(100% + 10px); left: 7px; display: grid; grid-template-columns: auto auto auto;
           width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; }
         .plate .log .row { display: contents; }
+        .plate .log .row span { text-shadow: 0 0 3px color-mix(in srgb, currentColor 45%, transparent); }
         .plate .log .text { white-space: normal; max-width: 40ch; }
         @media (max-width: 715px) { .plate .log .row:nth-last-child(n+${LOG_LINES_PHONE + 1}) { display: none; } }
         @media (max-width: 715px) {
@@ -310,16 +314,13 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         <div className="window"><canvas ref={lights} aria-hidden /></div>
         {logData && clock && (
           <div className="log">
-            {feed(logData.plan, logData.entries, Date.now(), LOG_LINES).map((l, i, all) => {
-              const o = { opacity: 0.85 - (all.length - 1 - i) * 0.06 };   // the newest brightest
-              return (
-                <div className="row" key={`${l.at}${l.tag}${l.text}`}>
-                  <span style={o}>{logTime.format(l.at)}</span>
-                  <span style={o}>{l.tag}</span>
-                  <span className="text" style={o}>{l.text}</span>
-                </div>
-              );
-            })}
+            {feed(logData.plan, logData.entries, Date.now(), LOG_LINES).map((l) => (
+              <div className="row" key={`${l.at}${l.tag}${l.text}`}>
+                <span>{logTime.format(l.at)}</span>
+                <span style={{ color: LOG_INK[l.kind] }}>{l.tag}</span>
+                <span className="text" style={{ color: LOG_INK[l.kind] }}>{l.text}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>

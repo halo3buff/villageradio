@@ -69,8 +69,13 @@ const parseHms = (v: string) => {
 };
 const newBlockId = () => `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
-/** Drop a series when an entry is an interlude; interludes also carry no date. */
+/** Drop a series when an entry is an interlude (interludes also carry no date), and a sound when it's a mix. */
 function normalize(e: BroadcastEntry): BroadcastEntry {
+  if (e.kind === 'mix' && e.sound) {
+    const rest = { ...e };
+    delete rest.sound;
+    return rest;
+  }
   if (e.kind === 'inter') {
     const rest = { ...e, date: '' };
     delete rest.series;
@@ -1368,6 +1373,19 @@ function Inspector({
                 onChange={(k) => onPatch({ kind: k as BroadcastKind })}
               />
             </div>
+            {entry.kind === 'inter' && (
+              <div>
+                <span className={LABEL}>Sound</span>
+                <Segmented
+                  value={entry.sound ?? ''}
+                  options={[
+                    ['static', 'Static'],
+                    ['speech', 'Speaking'],
+                  ]}
+                  onChange={(v) => onPatch({ sound: v as 'static' | 'speech' })}
+                />
+              </div>
+            )}
             {entry.kind === 'mix' && (
               <>
                 <div>
