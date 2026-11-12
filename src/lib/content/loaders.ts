@@ -16,11 +16,12 @@ import type {
 } from '@/lib/types';
 import { readManifest, readText } from './store';
 import { broadcastFilesFrom, manifestToMixes } from './broadcast';
+import { SEED_LOG, type LogManifest } from './log';
 import { SEED_BROADCAST, SEED_COMMANDS, SEED_NEWS, SEED_PHOTOS, SEED_SITE, SEED_WORK } from './seed';
 
 const REVALIDATE_S = 300;
 
-type ManifestName = 'broadcast' | 'commands' | 'photos' | 'news' | 'work' | 'information' | 'site';
+type ManifestName = 'broadcast' | 'commands' | 'photos' | 'news' | 'work' | 'information' | 'site' | 'log';
 const tag = (name: ManifestName) => `content:${name}`;
 
 function configured(): boolean {
@@ -106,6 +107,12 @@ export const getSiteManifest = unstable_cache(
   () => loadManifest<SiteManifest>('site.json', SEED_SITE),
   ['content:site'],
   { tags: [tag('site')], revalidate: REVALIDATE_S },
+);
+
+export const getLog = unstable_cache(
+  () => loadManifest<LogManifest>('log.json', SEED_LOG),
+  ['content:log'],
+  { tags: [tag('log')], revalidate: REVALIDATE_S },
 );
 
 /** Site-wide theme name, or '' if no admin override is set. */

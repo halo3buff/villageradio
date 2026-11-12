@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
-import { BROADCAST_TZ, secondsIntoDay } from '@/lib/content/broadcast';
+import { secondsIntoDay } from '@/lib/content/broadcast';
+import { txDay } from '@/lib/content/log';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
@@ -68,14 +69,6 @@ function orbDots(c: number): number[][] {
 }
 
 type Readout = { lvl: string; pk: string; corr: string; bal: string };
-
-// TX: the broadcast day's number, counted from the station's first day on air (day 1).
-const FIRST_DAY = Date.UTC(2026, 4, 17);
-const dateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: BROADCAST_TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
-function txDay(nowMs: number) {
-  const [y, m, d] = dateFmt.format(nowMs).split('-').map(Number);
-  return String((Date.UTC(y, m - 1, d) - FIRST_DAY) / 86_400_000 + 1).padStart(4, '0');
-}
 
 // The top of the hour, on air: three short pips and a long one, the long one landing on :00:00 as the
 // orbs' clock does, played over the broadcast at a fraction of its volume.
