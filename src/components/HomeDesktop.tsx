@@ -82,7 +82,7 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
  */
 // The log under the plate: the station's last lines, newest at the bottom, each kind in its own colour.
 const LOG_INK: Record<FeedKind, string> = {
-  air: '#ff3d2e', inter: '#ff9800', off: '#e2e2e2', sig: '#00b4ff', tx: '#ffffff', opr: '#9a4dff',
+  air: '#14c254', inter: '#f2c200', off: '#ff3d2e', sig: '#2fb2ff', tx: '#000000', opr: '#9a4dff',
 };
 const LOG_LINES = 10, LOG_LINES_PHONE = 5, LOG_POLL_MS = 60_000;
 const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
