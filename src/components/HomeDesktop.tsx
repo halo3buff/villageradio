@@ -318,7 +318,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
               <div className="row" key={`${l.at}${l.tag}${l.text}`}>
                 <span>{logTime.format(l.at)}</span>
                 <span style={{ color: LOG_INK[l.kind] }}>{l.tag}</span>
-                <span className="text" style={{ color: LOG_INK[l.kind] }}>{l.text}</span>
+                <span className="text">{l.text}</span>
               </div>
             ))}
           </div>
