@@ -80,7 +80,7 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
  * air it and the readouts follow a test signal, so nothing stops. README and RADAR top-right; the
  * prompt is global (see SiteFrame). The StationBar stays off here.
  */
-// The log under the plate: the station's last lines, newest at the bottom, each kind in its own colour.
+// The log above the prompt: the station's last lines, newest at the bottom, each kind in its own colour.
 const LOG_INK: Record<FeedKind, string> = {
   air: '#c9ffd8', inter: '#fff2a8', off: '#ffc4bd', sig: '#c4ecff', tx: '#ffffff', opr: '#e6d1ff',
 };
@@ -88,7 +88,7 @@ const LOG_LINES = 10, LOG_LINES_PHONE = 5, LOG_POLL_MS = 60_000;
 const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
 /** res: the Lissajous canvas drawn this many times sharper, for the recording frame, which zooms the plate.
- *  log: hang the station log under the plate. */
+ *  log: show the station log above the prompt. */
 export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: boolean }) {
   const [logData, setLogData] = useState<{ plan: PlanStep[]; entries: LogEntry[] } | null>(null);
   useEffect(() => {
@@ -281,13 +281,14 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
           background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
         .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
           filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)); }
-        /* the log hangs under the plate, unboxed: the plate's type, quieter */
-        .plate .log { position: absolute; top: calc(100% + 10px); left: 7px; display: grid; grid-template-columns: auto auto auto;
+        /* the log, unboxed, in the plate's type */
+        .log { position: absolute; bottom: 64px; left: 24px; color: ${WHITE}; font-size: 11px; letter-spacing: 0.04em;
+          font-variant-numeric: tabular-nums; white-space: pre; display: grid; grid-template-columns: auto auto auto;
           width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; }
-        .plate .log .row { display: contents; }
-        .plate .log .row span { text-shadow: 0 0 3px color-mix(in srgb, currentColor 45%, transparent); }
-        .plate .log .text { white-space: normal; max-width: 40ch; }
-        @media (max-width: 715px) { .plate .log .row:nth-last-child(n+${LOG_LINES_PHONE + 1}) { display: none; } }
+        .log .row { display: contents; }
+        .log .row span { text-shadow: 0 0 3px color-mix(in srgb, currentColor 45%, transparent); }
+        .log .text { white-space: normal; max-width: 40ch; }
+        @media (max-width: 715px) { .log .row:nth-last-child(n+${LOG_LINES_PHONE + 1}) { display: none; } }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
         }
@@ -312,18 +313,20 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
           <span className="end">BAL {rd?.bal ?? '   --'}</span>
         </div>
         <div className="window"><canvas ref={lights} aria-hidden /></div>
-        {logData && clock && (
-          <div className="log">
-            {feed(logData.plan, logData.entries, Date.now(), LOG_LINES).map((l) => (
-              <div className="row" key={`${l.at}${l.tag}${l.text}`}>
-                <span>{logTime.format(l.at)}</span>
-                <span style={{ color: LOG_INK[l.kind] }}>{l.tag}</span>
-                <span className="text">{l.text}</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* the log sits bottom-left, right above the command prompt */}
+      {logData && clock && (
+        <div className="log">
+          {feed(logData.plan, logData.entries, Date.now(), LOG_LINES).map((l) => (
+            <div className="row" key={`${l.at}${l.tag}${l.text}`}>
+              <span>{logTime.format(l.at)}</span>
+              <span style={{ color: LOG_INK[l.kind] }}>{l.tag}</span>
+              <span className="text">{l.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* README and RADAR — top-right corner */}
       <Link href="/station/readme" style={{ position: 'absolute', top: 24, right: 24, zIndex: 5, color: 'inherit', textDecoration: 'none' }}>
