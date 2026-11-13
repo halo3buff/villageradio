@@ -82,7 +82,7 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
  */
 // The log under the plate: the station's last lines, newest at the bottom, each kind in its own colour.
 const LOG_INK: Record<FeedKind, string> = {
-  air: '#14c254', inter: '#f2c200', off: '#ff3d2e', sig: '#2fb2ff', tx: '#8a8a8a', opr: '#a66bff',
+  air: '#07692a', inter: '#8a5a00', off: '#a8130b', sig: '#0a4fa3', tx: '#000000', opr: '#5b1aa8',
 };
 const LOG_LINES = 10, LOG_LINES_PHONE = 5, LOG_POLL_MS = 60_000;
 const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
@@ -281,10 +281,9 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
           background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
         .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
           filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)); }
-        /* the log hangs under the plate on smoked glass, so its colours hold up on the photo */
-        .plate .log { position: absolute; top: calc(100% + 10px); left: -1px; display: grid; grid-template-columns: auto auto auto;
-          width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; padding: 7px 8px;
-          background: rgba(12,12,12,0.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); border: 1px solid rgba(255,255,255,0.18); }
+        /* the log hangs under the plate, unboxed: the plate's type, quieter */
+        .plate .log { position: absolute; top: calc(100% + 10px); left: 7px; display: grid; grid-template-columns: auto auto auto;
+          width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; }
         .plate .log .row { display: contents; }
         .plate .log .row span { text-shadow: 0 0 3px color-mix(in srgb, currentColor 45%, transparent); }
         .plate .log .text { white-space: normal; max-width: 40ch; }
