@@ -82,7 +82,7 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
  */
 // The log above the prompt: the station's last lines, newest at the bottom, each kind in its own colour.
 const LOG_INK: Record<FeedKind, string> = {
-  air: '#c9ffd8', inter: '#fff2a8', off: '#ffc4bd', sig: '#c4ecff', tx: '#ffffff', opr: '#e6d1ff',
+  air: '#00ff00', inter: '#ffff00', off: '#ff2020', sig: '#00ffff', tx: '#ffffff', opr: '#ff00ff',
 };
 const LOG_LINES = 10, LOG_LINES_PHONE = 5, LOG_POLL_MS = 60_000;
 const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
@@ -287,6 +287,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
           width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; }
         .log .row { display: contents; }
         .log .row span { text-shadow: 0 0 3px color-mix(in srgb, currentColor 45%, transparent); }
+        .log .row .tag { text-shadow: 0 0 1px color-mix(in srgb, currentColor 25%, transparent); }   /* teletext: a whisper of glow, or it smears */
         .log .text { white-space: normal; max-width: 40ch; }
         @media (max-width: 715px) { .log .row:nth-last-child(n+${LOG_LINES_PHONE + 1}) { display: none; } }
         @media (max-width: 715px) {
@@ -321,7 +322,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
           {feed(logData.plan, logData.entries, Date.now(), LOG_LINES).map((l) => (
             <div className="row" key={`${l.at}${l.tag}${l.text}`}>
               <span>{logTime.format(l.at)}</span>
-              <span style={{ color: LOG_INK[l.kind] }}>{l.tag}</span>
+              <span className="tag" style={{ color: LOG_INK[l.kind] }}>{l.tag}</span>
               <span className="text">{l.text}</span>
             </div>
           ))}
