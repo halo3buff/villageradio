@@ -84,7 +84,7 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
 const LOG_INK: Record<FeedKind, string> = {
   air: '#00ff00', inter: '#ffff00', off: '#ff2020', sig: '#00ffff', tx: '#ffffff', opr: '#ff00ff',
 };
-const LOG_LINES = 10, LOG_LINES_PHONE = 5, LOG_POLL_MS = 60_000;
+const LOG_LINES = 10, LOG_POLL_MS = 60_000;
 const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
 /** res: the Lissajous canvas drawn this many times sharper, for the recording frame, which zooms the plate.
@@ -289,7 +289,6 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         .log .row span { text-shadow: 0 0 3px color-mix(in srgb, currentColor 45%, transparent); }
         .log .row .tag { text-shadow: 0 0 1px color-mix(in srgb, currentColor 25%, transparent); }   /* teletext: a whisper of glow, or it smears */
         .log .text { white-space: normal; max-width: 40ch; }
-        @media (max-width: 715px) { .log .row:nth-last-child(n+${LOG_LINES_PHONE + 1}) { display: none; } }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
         }
