@@ -1,8 +1,4 @@
 import type { Metadata } from 'next';
-import { IBM_Plex_Sans_Arabic } from 'next/font/google';
-
-// The Arabic sibling of the site's IBM Plex Mono, which has no Arabic letters.
-const plexArabic = IBM_Plex_Sans_Arabic({ subsets: ['arabic'], weight: '400', display: 'swap' });
 
 export const metadata: Metadata = { title: 'Information' };
 
@@ -19,12 +15,11 @@ const FLAGS: [string, (x: number, y: number) => string][] = [
   ['Lebanon', (x, y) => (y < 2 || y > 6 ? R : y === 6 ? (x === 5 || x === 6 ? G : W) : cedar(x, y) ? G : W)],
   ['Syria', (x, y) => (syriaStar(x, y) ? G : bands(y, R, W, K))],
   ['Sudan', (x, y) => (tri(x, y) ? G : bands(y, R, W, K))],
-  ['Yemen', (_, y) => bands(y, R, W, K)],
 ];
 
 function Flag({ name, px }: { name: string; px: (x: number, y: number) => string }) {
   return (
-    <svg viewBox="0 0 12 9" width={24} height={18} shapeRendering="crispEdges" role="img" aria-label={name} style={{ display: 'block' }}>
+    <svg viewBox="0 0 12 9" width={32} height={24} shapeRendering="crispEdges" role="img" aria-label={name} style={{ display: 'block' }}>
       {Array.from({ length: 108 }, (_, i) => <rect key={i} x={i % 12} y={Math.floor(i / 12)} width={1} height={1} fill={px(i % 12, Math.floor(i / 12))} />)}
     </svg>
   );
@@ -38,19 +33,18 @@ export default function InformationPage() {
       alignItems: 'center', justifyContent: 'center', gap: 12, paddingBottom: 56,
       background: 'var(--vlg-bg, #fff)',
     }}>
-      {/* Donate — top-right, where README sits on the landing page */}
+      {/* Donate — top-right, where README sits on the landing page — with the flags centred under it */}
+      <div style={{ position: 'absolute', top: 24, right: 24, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
       <a href="https://pcrf1.app.neoncrm.com/campaigns/2023-gaza-relief--recovery" target="_blank" rel="noopener noreferrer" style={{
-        position: 'absolute', top: 24, right: 24, zIndex: 2,
+        marginRight: '-0.08em',   // letter-spacing trails the last letter; drop it so the centre is the word's
         fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',
         color: 'var(--vlg-fg, #000)', textDecoration: 'none',
       }}>Donate</a>
-      <div style={{ position: 'absolute', top: 48, right: 24, zIndex: 2, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {FLAGS.map(([name, px]) => <Flag key={name} name={name} px={px} />)}
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
       <img src="/site_assets/logo_roto_v4.webp" alt="Village Radio"
         style={{ width: 230, height: 205, objectFit: 'contain', filter: 'brightness(0) invert(var(--vlg-invert, 0)) drop-shadow(0 0 3px rgba(255,255,255,0.6)) drop-shadow(0 0 8px rgba(255,255,255,0.28))' }} />
-      <p lang="ar" dir="rtl" className={plexArabic.className} style={{ margin: 0, fontSize: 13, color: 'var(--vlg-fg, #000)' }}>بدها الضيعة كلها</p>
     </main>
   );
 }
