@@ -27,6 +27,22 @@ export function touchPresence(id: string): number {
   return state.seen.size;
 }
 
+// Listeners: the station's own channel, kept apart from the scope's receivers — only someone
+// actually playing the station heartbeats here.
+const listeners: Map<string, number> = ((g as { __vrListeners?: Map<string, number> }).__vrListeners ??= new Map());
+
+/** Record a station listener's heartbeat. */
+export function touchListener(id: string): void {
+  listeners.set(id, Date.now());
+}
+
+/** Listeners heard from in the last ~50s. */
+export function listenerCount(): number {
+  const now = Date.now();
+  for (const [key, at] of listeners) if (now - at > TTL_MS) listeners.delete(key);
+  return listeners.size;
+}
+
 /** Called when a transmission is accepted — homepage scopes flicker TX RECEIVED. */
 export function markTransmission(): void {
   state.lastTx = Date.now();

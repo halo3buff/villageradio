@@ -47,13 +47,24 @@ export function logPlan(m: BroadcastManifest): PlanStep[] {
   });
 }
 
+/** Listeners, counted at every half hour (Eastern half hours fall on UTC ones). A half hour's count is
+ *  taken by the first station poll in its first five minutes; none means nobody had the station open,
+ *  so it reads 00. Counting began at RX_SINCE. */
+export interface RxCount { at: number; n: number }
+export interface RxManifest { version: 1; counts: RxCount[] }
+export const SEED_RX: RxManifest = { version: 1, counts: [] };
+export const RX_EVERY_MS = 1_800_000;
+export const RX_WINDOW_MS = 300_000;
+export const RX_SINCE = Date.UTC(2026, 10, 15, 4, 30);
+
 /** What a line is about — each kind has its own colour on the station. */
-export type FeedKind = 'air' | 'inter' | 'off' | 'sig' | 'tx' | 'opr';
+export type FeedKind = 'air' | 'inter' | 'off' | 'sig' | 'tx' | 'opr' | 'rx';
 export type FeedLine = { at: number; kind: FeedKind; tag: string; text: string };
 
-/** The last `count` lines of the log up to `nowMs`, oldest first. */
+/** The last `count` lines of the log up to `nowMs`, oldest first. A block that repeats back to back
+ *  is one line, its counter going up as each play starts. */
 // ponytail: midnight is found from wall-clock seconds, so on DST-change days the times are an hour out once.
-export function feed(plan: PlanStep[], entries: LogEntry[], nowMs: number, count: number): FeedLine[] {
+export function feed(plan: PlanStep[], entries: LogEntry[], nowMs: number, count: number, rx: RxCount[] = []): FeedLine[] {
   const today = nowMs - Math.floor(secondsIntoDay(nowMs)) * 1000 - (nowMs % 1000);
   const lines: FeedLine[] = [];
   for (const day of [today - DAY_MS, today]) {
@@ -64,13 +75,20 @@ export function feed(plan: PlanStep[], entries: LogEntry[], nowMs: number, count
     let t = 0;
     for (const s of plan) {
       if (s.start > t) lines.push({ at: day + t * 1000, kind: 'off', tag: '----', text: 'OFF AIR' });
-      for (let p = s.start; p < s.end; p += s.loop) {
-        lines.push({ at: day + p * 1000, kind: s.inter ? 'inter' : 'air', tag: `BLK ${s.code}`, text: s.inter ? 'INTERMISSION' : 'ON AIR' });
-      }
+      let plays = 0;
+      for (let p = s.start; p < s.end && day + p * 1000 <= nowMs; p += s.loop) plays++;
+      const text = (s.inter ? 'INTERMISSION' : 'ON AIR') + (plays > 1 ? ` ×${plays}` : '');
+      lines.push({ at: day + s.start * 1000, kind: s.inter ? 'inter' : 'air', tag: `BLK ${s.code}`, text });
       t = s.end;
     }
     if (t < 86_400) lines.push({ at: day + t * 1000, kind: 'off', tag: '----', text: 'OFF AIR' });
   }
   for (const e of entries) lines.push({ at: e.at, kind: 'opr', tag: 'OPR', text: e.text });
+  const heard = new Map(rx.map((c) => [c.at, c.n]));
+  const from = Math.max(RX_SINCE, today - DAY_MS);
+  for (let b = from - (from % RX_EVERY_MS) + (from % RX_EVERY_MS ? RX_EVERY_MS : 0); b <= nowMs; b += RX_EVERY_MS) {
+    const n = heard.get(b) ?? (nowMs >= b + RX_WINDOW_MS ? 0 : null);
+    if (n !== null) lines.push({ at: b, kind: 'rx', tag: 'RX', text: `${String(n).padStart(2, '0')} LISTENING` });
+  }
   return lines.filter((l) => l.at <= nowMs).sort((a, b) => a.at - b.at).slice(-count);
 }

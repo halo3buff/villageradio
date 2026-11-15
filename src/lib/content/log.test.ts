@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { feed, logPlan, txDay } from './log';
+import { feed, logPlan, txDay, RX_SINCE } from './log';
 import type { BroadcastManifest } from '@/lib/types';
 
 const e = (id: string, durationSec: number, kind: 'mix' | 'inter' = 'mix') => ({ id, title: 'SECRET', artist: '', date: '', durationSec, file: id, kind, tags: [] });
@@ -31,9 +31,19 @@ describe('log', () => {
     const lines = feed(plan, [{ at: at(7, 30), text: 'Rain on the mast.' }], at(8, 20), 6).map((l) => `${l.tag} ${l.text}`);
     const blk = plan[0].code, int = plan[1].code;
     expect(lines).toEqual([
-      'SIG 1000 HZ', `BLK ${blk} ON AIR`, 'OPR Rain on the mast.', 'SIG 1000 HZ', `BLK ${int} INTERMISSION`, '---- OFF AIR',
+      `BLK ${blk} ON AIR ×2`, 'SIG 1000 HZ', 'OPR Rain on the mast.', 'SIG 1000 HZ', `BLK ${int} INTERMISSION`, '---- OFF AIR',
     ]);
+    expect(feed(plan, [], at(6, 30), 1)[0].text).toBe('ON AIR');   // one play so far: no counter
     expect(feed(plan, [], at(8, 20), 99).some((l) => l.text === 'OPEN' && l.tag === 'TX 0003')).toBe(true);
     expect(feed(plan, [], at(9), 1)[0]).toMatchObject({ tag: 'SIG' });   // 09:00 pips land after 08:10 off-air
+  });
+
+  it('logs listeners every half hour: counted, 00 once the window passes, nothing while it is open', () => {
+    const b = RX_SINCE + 3 * 1_800_000;
+    const rx = (now: number) => feed([], [], now, 999, [{ at: b, n: 7 }]).filter((l) => l.kind === 'rx').map((l) => l.text);
+    expect(rx(b + 60_000)).toEqual(['00 LISTENING', '00 LISTENING', '00 LISTENING', '07 LISTENING']);
+    expect(rx(b + 1_800_000 + 60_000)).toHaveLength(4);              // next half hour's window still open
+    expect(rx(b + 1_800_000 + 300_000).at(-1)).toBe('00 LISTENING');
+    expect(feed([], [], RX_SINCE - 1, 999).some((l) => l.kind === 'rx')).toBe(false);
   });
 });

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
 import { BROADCAST_TZ, secondsIntoDay } from '@/lib/content/broadcast';
-import { feed, txDay, type FeedKind, type LogEntry, type PlanStep } from '@/lib/content/log';
+import { feed, txDay, type FeedKind, type LogEntry, type PlanStep, type RxCount } from '@/lib/content/log';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
@@ -82,15 +82,15 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
  */
 // The log above the prompt: the station's last lines, newest at the bottom, each kind in its own colour.
 const LOG_INK: Record<FeedKind, string> = {
-  air: '#00ff00', inter: '#ffff00', off: '#ff2020', sig: '#00ffff', tx: '#ffffff', opr: '#ff00ff',
+  air: '#00ff00', inter: '#ffff00', off: '#ff2020', sig: '#00ffff', tx: '#ffffff', opr: '#ff00ff', rx: '#6f8cff',
 };
-const LOG_LINES = 10, LOG_POLL_MS = 60_000;
+const LOG_LINES = 10, LOG_POLL_MS = 60_000, LISTEN_BEAT_MS = 20_000;
 const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
 /** res: the Lissajous canvas drawn this many times sharper, for the recording frame, which zooms the plate.
  *  log: show the station log above the prompt. */
 export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: boolean }) {
-  const [logData, setLogData] = useState<{ plan: PlanStep[]; entries: LogEntry[] } | null>(null);
+  const [logData, setLogData] = useState<{ plan: PlanStep[]; entries: LogEntry[]; rx?: RxCount[] } | null>(null);
   useEffect(() => {
     if (!log) return;
     const pull = () => fetch('/api/log').then((r) => (r.ok ? r.json() : null)).then((d) => d && setLogData(d)).catch(() => {});
@@ -105,6 +105,16 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
   const ch = useRef({ aL: analyserL, aR: analyserR });
   const liveRef = useRef(live);
   liveRef.current = live;
+
+  // While the station plays, heartbeat as a listener: the log's half-hourly RX count.
+  useEffect(() => {
+    if (!live) return;
+    const id = crypto.randomUUID();
+    const beat = () => fetch(`/api/presence?id=${id}&rx=1`).catch(() => {});
+    beat();
+    const t = setInterval(beat, LISTEN_BEAT_MS);
+    return () => clearInterval(t);
+  }, [live]);
   ch.current = { aL: analyserL, aR: analyserR };
   const lights = useRef<HTMLCanvasElement>(null);
 
@@ -318,7 +328,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
       {/* the log sits bottom-left, right above the command prompt */}
       {logData && clock && (
         <div className="log">
-          {feed(logData.plan, logData.entries, Date.now(), LOG_LINES).map((l) => (
+          {feed(logData.plan, logData.entries, Date.now(), LOG_LINES, logData.rx).map((l) => (
             <div className="row" key={`${l.at}${l.tag}${l.text}`}>
               <span>{logTime.format(l.at)}</span>
               <span className="tag" style={{ color: LOG_INK[l.kind] }}>{l.tag}</span>
