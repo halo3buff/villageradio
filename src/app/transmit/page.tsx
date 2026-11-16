@@ -1,12 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import type { Viewport } from 'next';
 import { Oscilloscope } from '@/components/Oscilloscope';
 import { Gate } from '@/components/Gate';
-
-export const viewport: Viewport = {
-  themeColor: '#ffffff',
-};
 
 export const metadata = {
   title: 'Transmit',

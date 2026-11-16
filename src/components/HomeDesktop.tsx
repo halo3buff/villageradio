@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
 import { BROADCAST_TZ, secondsIntoDay } from '@/lib/content/broadcast';
-import { feed, txDay, type FeedKind, type LogEntry, type PlanStep, type RxCount } from '@/lib/content/log';
+import { feed, txDay, type FeedKind, type FeedLine, type LogEntry, type PlanStep, type RxCount } from '@/lib/content/log';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
 import { useEffect, useRef, useState } from 'react';
@@ -97,6 +97,18 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
     pull();
     const id = setInterval(pull, LOG_POLL_MS);
     return () => clearInterval(id);
+  }, [log]);
+  // What's keyed at the prompt lands in the log as its newest lines (CommandPrompt's vlg:cmdfeed);
+  // taking the event (preventDefault) keeps the prompt's own floating response quiet.
+  const [keyed, setKeyed] = useState<FeedLine[]>([]);
+  useEffect(() => {
+    if (!log) return;
+    const take = (e: Event) => {
+      e.preventDefault();
+      setKeyed((k) => [...k, ...(e as CustomEvent<FeedLine[]>).detail].slice(-LOG_LINES));
+    };
+    window.addEventListener('vlg:cmdfeed', take);
+    return () => window.removeEventListener('vlg:cmdfeed', take);
   }, [log]);
   const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause, volume } = useAudio();
   const live = isPlaying && mode === 'broadcast';
@@ -326,9 +338,9 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
       </div>
 
       {/* the log sits bottom-left, right above the command prompt */}
-      {logData && clock && (
+      {(logData || keyed.length > 0) && clock && (
         <div className="log">
-          {feed(logData.plan, logData.entries, Date.now(), LOG_LINES, logData.rx).map((l) => (
+          {[...(logData ? feed(logData.plan, logData.entries, Date.now(), LOG_LINES, logData.rx) : []), ...keyed].slice(-LOG_LINES).map((l) => (
             <div className="row" key={`${l.at}${l.tag}${l.text}`}>
               <span>{logTime.format(l.at)}</span>
               <span className="tag" style={{ color: LOG_INK[l.kind] }}>{l.tag}</span>

@@ -3,7 +3,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { NavCommand } from '@/lib/types';
+import type { FeedLine } from '@/lib/content/log';
 import { grantClearance } from '@/lib/clearance';
+
+/** Offer the keyed line and its response to the station log (HomeDesktop listens on /station).
+ *  True when a log took them — the floating line above the prompt then stays quiet. */
+function toLog(lines: Omit<FeedLine, 'at'>[]): boolean {
+  const at = Date.now();
+  return !window.dispatchEvent(new CustomEvent<FeedLine[]>('vlg:cmdfeed', {
+    cancelable: true,
+    detail: lines.map((l, i) => ({ at: at + i, ...l })),
+  }));
+}
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 // The prompt's "file" is the page you're on; anything unlisted shows its own last segment.
@@ -73,6 +84,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     if (!target) { setCmd(raw); return; }
     setCmd(value);
     setEcho(target);
+    toLog([{ kind: 'tx', tag: 'KBD', text: value }, { kind: 'sig', tag: 'SIG', text: `->  ${target}` }]);
     grantClearance(target); // a correct command IS the checkpoint pass
     inputRef.current?.blur();
     timers.current.push(setTimeout(() => { router.push(target); }, 450));
@@ -86,8 +98,9 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     const code = Array.from(value)
       .reduce((a, c) => (a * 31 + c.charCodeAt(0)) & 0xffff, 7)
       .toString(16).padStart(4, '0').toUpperCase();
-    setErr(`SIG_UNKNOWN 0x${code}`);
     setCmd('');
+    if (toLog([{ kind: 'tx', tag: 'KBD', text: value }, { kind: 'off', tag: 'ERR', text: `SIG_UNKNOWN 0x${code}` }])) return;
+    setErr(`SIG_UNKNOWN 0x${code}`);
     timers.current.push(setTimeout(() => setErr(null), 1600));
   };
 
