@@ -10,11 +10,13 @@ const tri = (x: number, y: number) => x <= Math.min(y, 8 - y);   // hoist triang
 const bands = (y: number, top: string, mid: string, bot: string) => (y < 3 ? top : y < 6 ? mid : bot);
 const syriaStar = (x: number, y: number) => [3, 8].some((c) => (y === 4 && Math.abs(x - c) <= 1) || ((y === 3 || y === 5) && x === c));
 const cedar = (x: number, y: number) => Math.abs(x - 5.5) <= ({ 2: 1, 3: 2, 4: 3, 5: 2, 6: 1 } as Record<number, number>)[y];
-const FLAGS: [string, (x: number, y: number) => string][] = [
-  ['Palestine', (x, y) => (tri(x, y) ? R : bands(y, K, W, G))],
-  ['Lebanon', (x, y) => (y < 2 || y > 6 ? R : y === 6 ? (x === 5 || x === 6 ? G : W) : cedar(x, y) ? G : W)],
-  ['Syria', (x, y) => (syriaStar(x, y) ? G : bands(y, R, W, K))],
-  ['Sudan', (x, y) => (tri(x, y) ? G : bands(y, R, W, K))],
+const DONATE = 'https://pcrf1.app.neoncrm.com/campaigns/2023-gaza-relief--recovery';
+// name, where it donates, pixels
+const FLAGS: [string, string, (x: number, y: number) => string][] = [
+  ['Palestine', DONATE, (x, y) => (tri(x, y) ? R : bands(y, K, W, G))],
+  ['Lebanon', 'https://crisisrelief.un.org/en/donate-lebanon-crisis', (x, y) => (y < 2 || y > 6 ? R : y === 6 ? (x === 5 || x === 6 ? G : W) : cedar(x, y) ? G : W)],
+  ['Syria', 'https://give.unrefugees.org/page/1003569/donate/1?en_txn6=701Rf00000mQmlLIAS&en_txn7=701Rf00000mQrMoIAK', (x, y) => (syriaStar(x, y) ? G : bands(y, R, W, K))],
+  ['Sudan', 'https://crisisrelief.un.org/en/donate-sudan-crisis', (x, y) => (tri(x, y) ? G : bands(y, R, W, K))],
 ];
 
 function Flag({ name, px }: { name: string; px: (x: number, y: number) => string }) {
@@ -35,12 +37,14 @@ export default function InformationPage() {
     }}>
       {/* Donate — top-right, where README sits on the landing page — with the flags centred under it */}
       <div style={{ position: 'absolute', top: 24, right: 24, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <a href="https://pcrf1.app.neoncrm.com/campaigns/2023-gaza-relief--recovery" target="_blank" rel="noopener noreferrer" style={{
+      <a href={DONATE} target="_blank" rel="noopener noreferrer" style={{
         marginRight: '-0.08em',   // letter-spacing trails the last letter; drop it so the centre is the word's
         fontFamily: MONO, fontSize: 12, letterSpacing: '0.08em',
         color: 'var(--vlg-fg, #000)', textDecoration: 'none',
       }}>Donate</a>
-        {FLAGS.map(([name, px]) => <Flag key={name} name={name} px={px} />)}
+        {FLAGS.map(([name, href, px]) => (
+          <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={`Donate: ${name}`}><Flag name={name} px={px} /></a>
+        ))}
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
       <img src="/site_assets/logo_roto_v4.webp" alt="Village Radio"
