@@ -80,6 +80,12 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
       window.dispatchEvent(new Event('vlg:sprite'));
       return;
     }
+    // housekeeping: drops what was keyed into the station log, back to the latest real lines
+    if (value === '/clear') {
+      setCmd('');
+      window.dispatchEvent(new Event('vlg:cmdclear'));
+      return;
+    }
     const target = cmdMap[value];
     if (!target) { setCmd(raw); return; }
     setCmd(value);

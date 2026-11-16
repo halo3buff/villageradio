@@ -107,8 +107,10 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
       e.preventDefault();
       setKeyed((k) => [...k, ...(e as CustomEvent<FeedLine[]>).detail].slice(-LOG_LINES));
     };
+    const clear = () => setKeyed([]);
     window.addEventListener('vlg:cmdfeed', take);
-    return () => window.removeEventListener('vlg:cmdfeed', take);
+    window.addEventListener('vlg:cmdclear', clear);
+    return () => { window.removeEventListener('vlg:cmdfeed', take); window.removeEventListener('vlg:cmdclear', clear); };
   }, [log]);
   const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause, volume } = useAudio();
   const live = isPlaying && mode === 'broadcast';
