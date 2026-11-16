@@ -4,16 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRecorder } from '@/lib/use-recorder';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-const SANS = "'Helvetica Neue', Arial, sans-serif";
 const MAX_HANDLE = 64;
 const MAX_DURATION = 180;
 
-// Win3.1 / DSPower chrome palette
-const CHROME    = '#1a1a1a';
-const CHROME_HI = '#262626';
-const CHROME_LO = '#121212';
-const CHROME_BD = '#6a6a6a';
-const CHROME_TX = '#e8e8e8';
+// The station's scope, scaled up (HomeDesktop): glowing dots, STEP samples apart.
+const DOT = 2.25, STEP = 8;
+// Recording is mono, so the figure is the voice against itself a few ms back —
+// the lag opens it into a Lissajous the way L against R does on the station.
+const PHASE_LAG = 160;
+// quiet voices lifted so the figure still moves, exactly the station's numbers
+const FLOOR_DB = -30, LIFT_MAX_DB = 40, LIFT_EASE_S = 0.5;
 
 type PageState = 'transmitting' | 'sent' | null;
 
@@ -114,107 +114,83 @@ export function Oscilloscope() {
     } else { el.pause(); setPlaying(false); }
   }, []);
 
-  // Canvas
+  // Canvas — the station's window: glowing dots on the photo, no grid, no black.
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef(0);
-  const sweepXRef = useRef(0);
 
   useEffect(() => { if (rec.state === 'recording') setSendError(null); }, [rec.state]);
 
   useEffect(() => {
     const c = canvasRef.current, container = containerRef.current;
     if (!c || !container) return;
-
-    const drawGrid = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, w, h);
-      const cols = 12, rows = 4;
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= cols; i++) {
-        ctx.beginPath(); ctx.moveTo((i * w) / cols, 0); ctx.lineTo((i * w) / cols, h); ctx.stroke();
-      }
-      for (let j = 0; j <= rows; j++) {
-        ctx.beginPath(); ctx.moveTo(0, (j * h) / rows); ctx.lineTo(w, (j * h) / rows); ctx.stroke();
-      }
-      // centre axis slightly darker
-      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-      ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
-    };
-
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let w = 0, h = 0;
     const resize = () => {
-      const w = Math.floor(container.clientWidth), h = Math.floor(container.clientHeight);
+      w = Math.floor(container.clientWidth); h = Math.floor(container.clientHeight);
       if (!w || !h) return;
-      c.width = w; c.height = h;
-      const ctx = c.getContext('2d'); if (!ctx) return;
-      drawGrid(ctx, w, h); sweepXRef.current = 0;
+      c.width = w * dpr; c.height = h * dpr;
+      c.getContext('2d')?.scale(dpr, dpr);
     };
     const ro = new ResizeObserver(resize);
     ro.observe(container);
     resize();
 
-    const draw = () => {
+    const ink = getComputedStyle(c).color || '#fff';
+    let buf = new Float32Array(2048);
+    let lift = 0, last = 0;
+
+    const draw = (now: number) => {
+      rafRef.current = requestAnimationFrame(draw);
       const ctx = c.getContext('2d');
-      if (!ctx) { rafRef.current = requestAnimationFrame(draw); return; }
-      const w = c.width, h = c.height;
+      if (!ctx || !w || !h) return;
+      const t = now / 1000, cx = w / 2, cy = h / 2, reach = 0.44 * h;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = ink;
+      const dotAt = (x: number, y: number) =>
+        ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
+
       const a = rec.analyser;
-
       if (a && rec.state === 'recording') {
-        const buf = new Float32Array(a.fftSize);
+        if (buf.length !== a.fftSize) buf = new Float32Array(a.fftSize);
         a.getFloatTimeDomainData(buf);
-        let peak = 0;
-        const sampleCount = Math.min(buf.length, 512);
-        for (let i = 0; i < sampleCount; i++) {
-          const v = Math.abs(buf[i]); if (v > peak) peak = v;
+        let energy = 0;
+        for (let i = 0; i < buf.length; i++) energy += buf[i] * buf[i];
+        const level = 10 * Math.log10(energy / buf.length || 1e-12);
+        const want = Math.min(LIFT_MAX_DB, Math.max(0, FLOOR_DB - level));
+        // drops at once when the voice comes back up, so a hit never overshoots; rises gently
+        lift = want < lift ? want : lift + (want - lift) * (1 - Math.exp(-Math.min(0.25, (now - last) / 1000) / LIFT_EASE_S));
+        const gain = Math.pow(10, lift / 20);
+        const clip = (v: number) => Math.max(-1, Math.min(1, v * gain));
+        for (let i = 0; i + PHASE_LAG < buf.length; i += STEP) {
+          dotAt(cx + clip(buf[i + PHASE_LAG]) * reach, cy - clip(buf[i]) * reach);
         }
-        const amp = peak * (h / 2) * 0.92;
-        const cy = h / 2, x = sweepXRef.current;
-
-        // erase column
-        ctx.fillStyle = '#000';
-        ctx.fillRect(x, 0, 2, h);
-        // redraw grid segment
-        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
-        for (let i = 0; i <= 12; i++) {
-          const gx = (i * w) / 12;
-          if (Math.abs(gx - x) < 2) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke(); }
-        }
-        ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-        ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + 2, cy); ctx.stroke();
-
-        // trace — black line
-        ctx.strokeStyle = 'rgba(255,255,255,0.82)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(x + 0.5, cy - amp); ctx.lineTo(x + 0.5, cy + amp); ctx.stroke();
-
-        // sweep cursor
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.fillRect(x + 1, 0, 1, h);
-
-        sweepXRef.current = (x + 1) % w;
-      }
-
-      if (rec.state === 'review' && reviewPeaks) {
-        drawGrid(ctx, w, h);
-        const cy = h / 2;
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
-        for (let i = 0; i < reviewPeaks.length; i++) {
-          const x = (i / reviewPeaks.length) * w;
-          const amp = reviewPeaks[i] * (h / 2) * 0.92;
-          ctx.beginPath(); ctx.moveTo(x, cy - amp); ctx.lineTo(x, cy + amp); ctx.stroke();
+      } else if (rec.state === 'review' && !pageState && reviewPeaks) {
+        // the take, laid out as its envelope in the same dots; a dotted playhead walks it
+        const pad = 0.06 * w, span = w - 2 * pad;
+        for (let i = 0; i < reviewPeaks.length; i += 3) {
+          const x = pad + (i / reviewPeaks.length) * span;
+          const amp = reviewPeaks[i] * reach;
+          dotAt(x, cy - amp); dotAt(x, cy + amp);
         }
         if (reviewDuration > 0) {
-          const px = (playPosRef.current / reviewDuration) * w;
-          ctx.fillStyle = 'rgba(255,255,255,0.5)';
-          ctx.fillRect(Math.floor(px), 0, 1, h);
+          const px = pad + (playPosRef.current / reviewDuration) * span;
+          for (let y = cy - reach; y <= cy + reach; y += 7) dotAt(px, y);
+        }
+      } else {
+        // nothing flowing: the station's own test figure, so the window never sits dead
+        lift = 0;
+        const amp = 0.58 + 0.04 * Math.sin(t * 0.7), N = 512, wv = (Math.PI * 2) / N;
+        for (let i = 0; i < N; i += STEP) {
+          const x = amp * Math.sin(2 * wv * i + t * 0.25), y = amp * Math.sin(3 * wv * i);
+          dotAt(cx + x * reach, cy - y * reach);
         }
       }
-
-      rafRef.current = requestAnimationFrame(draw);
+      last = now;
     };
     rafRef.current = requestAnimationFrame(draw);
     return () => { ro.disconnect(); cancelAnimationFrame(rafRef.current); };
-  }, [rec.analyser, rec.state, reviewPeaks, reviewDuration]);
+  }, [rec.analyser, rec.state, pageState, reviewPeaks, reviewDuration]);
 
   // Send
   const send = useCallback(async () => {
@@ -272,44 +248,27 @@ export function Oscilloscope() {
         <div>{'// EXPLAIN YOURSELF'}</div>
       </div>
 
-      {/* ── SCOPE FRAME — Win3.1 / DSPower chrome ── */}
+      {/* ── SCOPE — the station's window: a white line round the photo, the trace in glowing dots ── */}
       <div style={{ height: 24 }} />
-      <div style={{ border: `1px solid ${CHROME_BD}`, boxSizing: 'border-box' }}>
-
-        {/* title bar */}
-        <div style={{
-          height: 28,
-          background: `linear-gradient(180deg, ${CHROME_HI}, ${CHROME_LO})`,
-          borderBottom: `1px solid ${CHROME_BD}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 10px',
-          fontFamily: SANS,
-        }}>
-          <span style={{ fontSize: 13, color: CHROME_TX, fontWeight: 400 }}>Waveform Monitor</span>
-          <span style={{ fontSize: 9, color: '#999', fontFamily: MONO, letterSpacing: '0.08em' }}>CH-A</span>
-        </div>
-
-        {/* toolbar strip */}
-        <div style={{
-          height: 22,
-          background: CHROME,
-          borderBottom: `1px solid ${CHROME_BD}`,
-          display: 'flex', alignItems: 'center',
-          padding: '0 10px', gap: 16,
-          fontFamily: MONO, fontSize: 8, letterSpacing: '0.06em', color: CHROME_TX,
-        }}>
-          <span>INPUT: MIC</span>
-          <span>RATE: 48kHz</span>
-          <span>BITS: 16</span>
-          <span style={{ marginLeft: 'auto', color: status === 'REC' ? '#ff4a4a' : CHROME_TX }}>
-            {`● ${status}`}
-          </span>
-        </div>
-
-        {/* canvas */}
-        <div ref={containerRef} style={{ width: '100%', aspectRatio: '3 / 1', position: 'relative', lineHeight: 0 }}>
-          <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
-        </div>
+      <div
+        ref={containerRef}
+        style={{
+          color: FG, border: '1px solid currentColor', boxShadow: '0 0 3px rgba(255,255,255,0.3)',
+          background: 'rgba(0,0,0,0.03)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
+          width: '100%', aspectRatio: '5 / 2', position: 'relative', lineHeight: 0, boxSizing: 'border-box',
+        }}
+      >
+        <canvas
+          ref={canvasRef}
+          style={{
+            display: 'block', width: '100%', height: '100%', color: 'inherit',
+            filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7))',
+          }}
+        />
+        <span style={{
+          position: 'absolute', top: 7, right: 9, fontSize: 9, letterSpacing: '0.1em', lineHeight: '12px',
+          color: status === 'REC' ? '#ff4a4a' : 'inherit', textShadow: '0 0 3px color-mix(in srgb, currentColor 45%, transparent)',
+        }}>{`● ${status}`}</span>
       </div>
 
       {/* ── READOUT ── */}
@@ -374,7 +333,7 @@ function ScopeButton({ onClick, children, active, disabled, red }: {
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{
         fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em',
-        color: disabled ? '#666' : red && active ? '#ff4a4a' : CHROME_TX,
+        color: disabled ? '#666' : red && active ? '#ff4a4a' : '#e8e8e8',
         background: hover && !disabled ? '#2a2a2a' : active ? '#222' : '#000',
         border: `1px solid ${disabled ? '#333' : red ? '#ff4a4a' : '#777'}`,
         padding: '4px 14px', cursor: disabled ? 'default' : 'pointer',
