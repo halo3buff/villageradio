@@ -7,8 +7,9 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const MAX_HANDLE = 64;
 const MAX_DURATION = 180;
 
-// The station's scope, scaled up (HomeDesktop): glowing dots, STEP samples apart.
-const DOT = 2.25, STEP = 8;
+// The station's scope, exactly (HomeDesktop): its window's size, its dots, STEP samples apart.
+const SW = 104, SH = 64, REACH = 28;
+const DOT = 1.75, STEP = 8;
 // Recording is mono, so the figure is the voice against itself a few ms back —
 // the lag opens it into a Lissajous the way L against R does on the station.
 const PHASE_LAG = 160;
@@ -116,25 +117,16 @@ export function Oscilloscope() {
 
   // Canvas — the station's window: glowing dots on the photo, no grid, no black.
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef(0);
 
   useEffect(() => { if (rec.state === 'recording') setSendError(null); }, [rec.state]);
 
   useEffect(() => {
-    const c = canvasRef.current, container = containerRef.current;
-    if (!c || !container) return;
+    const c = canvasRef.current;
+    if (!c) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let w = 0, h = 0;
-    const resize = () => {
-      w = Math.floor(container.clientWidth); h = Math.floor(container.clientHeight);
-      if (!w || !h) return;
-      c.width = w * dpr; c.height = h * dpr;
-      c.getContext('2d')?.scale(dpr, dpr);
-    };
-    const ro = new ResizeObserver(resize);
-    ro.observe(container);
-    resize();
+    c.width = SW * dpr; c.height = SH * dpr;
+    c.getContext('2d')?.scale(dpr, dpr);
 
     const ink = getComputedStyle(c).color || '#fff';
     let buf = new Float32Array(2048);
@@ -143,9 +135,9 @@ export function Oscilloscope() {
     const draw = (now: number) => {
       rafRef.current = requestAnimationFrame(draw);
       const ctx = c.getContext('2d');
-      if (!ctx || !w || !h) return;
-      const t = now / 1000, cx = w / 2, cy = h / 2, reach = 0.44 * h;
-      ctx.clearRect(0, 0, w, h);
+      if (!ctx) return;
+      const t = now / 1000, cx = SW / 2, cy = SH / 2, reach = REACH;
+      ctx.clearRect(0, 0, SW, SH);
       ctx.fillStyle = ink;
       const dotAt = (x: number, y: number) =>
         ctx.fillRect(Math.round(x - DOT / 2), Math.round(y - DOT / 2), DOT, DOT);
@@ -167,8 +159,8 @@ export function Oscilloscope() {
         }
       } else if (rec.state === 'review' && !pageState && reviewPeaks) {
         // the take, laid out as its envelope in the same dots; a dotted playhead walks it
-        const pad = 0.06 * w, span = w - 2 * pad;
-        for (let i = 0; i < reviewPeaks.length; i += 3) {
+        const pad = 8, span = SW - 2 * pad;
+        for (let i = 0; i < reviewPeaks.length; i += 12) {
           const x = pad + (i / reviewPeaks.length) * span;
           const amp = reviewPeaks[i] * reach;
           dotAt(x, cy - amp); dotAt(x, cy + amp);
@@ -189,7 +181,7 @@ export function Oscilloscope() {
       last = now;
     };
     rafRef.current = requestAnimationFrame(draw);
-    return () => { ro.disconnect(); cancelAnimationFrame(rafRef.current); };
+    return () => cancelAnimationFrame(rafRef.current);
   }, [rec.analyser, rec.state, pageState, reviewPeaks, reviewDuration]);
 
   // Send
@@ -241,34 +233,33 @@ export function Oscilloscope() {
   return (
     <div style={{ fontFamily: MONO, maxWidth: 720 }}>
 
-      {/* ── HEADER ── */}
-      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', color: FG }}>
-        <div>{'> RECORD TRANSMISSION'}</div>
-        <div>{'// TELL A STORY'}</div>
-        <div>{'// EXPLAIN YOURSELF'}</div>
-      </div>
-
-      {/* ── SCOPE — the station's window: a white line round the photo, the trace in glowing dots ── */}
-      <div style={{ height: 24 }} />
+      {/* ── SCOPE — the station's own window, pinned where the plate sits ── */}
+      <style>{`
+        .tx-scope { position: absolute; top: 24px; left: 24px; }
+        @media (max-width: 715px) { .tx-scope { left: 16px; } }
+      `}</style>
       <div
-        ref={containerRef}
+        className="tx-scope"
         style={{
           color: FG, border: '1px solid currentColor', boxShadow: '0 0 3px rgba(255,255,255,0.3)',
           background: 'rgba(0,0,0,0.03)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
-          width: '100%', aspectRatio: '5 / 2', position: 'relative', lineHeight: 0, boxSizing: 'border-box',
+          display: 'flex', lineHeight: 0,
         }}
       >
         <canvas
           ref={canvasRef}
           style={{
-            display: 'block', width: '100%', height: '100%', color: 'inherit',
+            display: 'block', width: SW, height: SH, margin: 'auto 6px', color: 'inherit',
             filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7))',
           }}
         />
-        <span style={{
-          position: 'absolute', top: 7, right: 9, fontSize: 9, letterSpacing: '0.1em', lineHeight: '12px',
-          color: status === 'REC' ? '#ff4a4a' : 'inherit', textShadow: '0 0 3px color-mix(in srgb, currentColor 45%, transparent)',
-        }}>{`● ${status}`}</span>
+      </div>
+
+      {/* ── HEADER ── */}
+      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', color: FG }}>
+        <div>{'> RECORD TRANSMISSION'}</div>
+        <div>{'// TRANSMIT TO RADIO'}</div>
+        <div>{'// SAY ANYTHING'}</div>
       </div>
 
       {/* ── READOUT ── */}
@@ -300,13 +291,13 @@ export function Oscilloscope() {
           placeholder={isReview ? 'optional' : ''}
           style={{
             fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: FG,
-            background: 'transparent', border: 'none', borderBottom: `1px solid ${FG}`,
+            background: 'transparent', border: 'none',
             padding: '2px 0', flex: 1, outline: 'none', opacity: isReview ? 1 : 0.4,
           }} />
       </div>
 
       {/* ── BUTTONS ── */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 12 }}>
         <Buttons
           recState={rec.state} transmitting={transmitting} sent={sent}
           playing={playing} loop={loop}
@@ -322,23 +313,24 @@ export function Oscilloscope() {
   );
 }
 
-// ── chrome-style button ──────────────────────────────────────────────────────
-function ScopeButton({ onClick, children, active, disabled, red }: {
+// ── plate-style button: the station's bare glowing type, no chrome ──────────
+function ScopeButton({ onClick, children, disabled, red }: {
   onClick: () => void; children: React.ReactNode;
   active?: boolean; disabled?: boolean; red?: boolean;
 }) {
-  const [hover, setHover] = useState(false);
   return (
     <button onClick={disabled ? undefined : onClick} disabled={disabled}
-      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.6'; }}
+      onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = ''; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = ''; }}
       style={{
-        fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em',
-        color: disabled ? '#666' : red && active ? '#ff4a4a' : '#e8e8e8',
-        background: hover && !disabled ? '#2a2a2a' : active ? '#222' : '#000',
-        border: `1px solid ${disabled ? '#333' : red ? '#ff4a4a' : '#777'}`,
-        padding: '4px 14px', cursor: disabled ? 'default' : 'pointer',
-        transition: 'background 0.1s',
-      }}>
+        all: 'unset',
+        fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em',
+        color: red ? '#ff4a4a' : 'var(--vlg-fg, #fff)',
+        textShadow: '0 0 3px color-mix(in srgb, currentColor 45%, transparent)',
+        opacity: disabled ? 0.45 : 1,
+        padding: '4px 0', cursor: disabled ? 'default' : 'pointer',
+      } as React.CSSProperties}>
       {children}
     </button>
   );
