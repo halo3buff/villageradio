@@ -23,9 +23,9 @@ function fmtDuration(s: number): string {
   return `${Math.floor(t / 60).toString().padStart(2, '0')}:${(t % 60).toString().padStart(2, '0')}`;
 }
 function levelBar(level: number): string {
-  const cells = 12;
+  const cells = 8;
   const filled = Math.min(cells, Math.round(level * cells * 1.5));
-  return '▮'.repeat(filled) + '▯'.repeat(cells - filled);
+  return '|'.repeat(filled) + '·'.repeat(cells - filled);
 }
 function levelDb(level: number): string {
   if (level <= 0.0001) return '-∞ dB';
@@ -232,15 +232,17 @@ export function Oscilloscope() {
 
   return (
     // the station's plate stood on end: window on top, readout under it, controls at the foot
-    <div className="tx-plate" style={{ fontFamily: MONO, color: FG }}>
+    <div className="tx-stack" style={{ fontFamily: MONO, color: FG }}>
       <style>{`
-        .tx-plate { position: absolute; top: 24px; left: 24px; width: min(300px, calc(100vw - 32px)); box-sizing: border-box;
+        .tx-stack { position: absolute; top: 24px; left: 24px; }
+        .tx-plate { position: relative; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box;
           display: flex; flex-direction: column; padding: 6px; border: 1px solid currentColor;
           box-shadow: 0 0 3px rgba(255,255,255,0.3); text-shadow: 0 0 3px rgba(255,255,255,0.3); isolation: isolate; }
         .tx-plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02);
           backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
-        @media (max-width: 715px) { .tx-plate { left: 16px; } }
+        @media (max-width: 715px) { .tx-stack { left: 16px; } }
       `}</style>
+      <div className="tx-plate">
       <div
         style={{
           border: '1px solid currentColor', boxShadow: '0 0 3px rgba(255,255,255,0.3)',
@@ -257,25 +259,18 @@ export function Oscilloscope() {
         />
       </div>
 
-      <div style={{ padding: '14px 8px 4px' }}>
-      {/* ── HEADER ── */}
-      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', color: FG }}>
-        <div>{'> RECORD TRANSMISSION'}</div>
-        <div>{'// TRANSMIT TO RADIO'}</div>
-        <div>{'// SAY ANYTHING'}</div>
-      </div>
-
+      <div style={{ padding: '10px 8px 4px' }}>
       {/* ── READOUT ── */}
-      <div style={{ marginTop: 10, fontSize: 9, lineHeight: '16px', letterSpacing: '0.1em' }}>
+      <div style={{ fontSize: 9, lineHeight: '16px', letterSpacing: '0.1em' }}>
         {readout.map(([label, value]) => (
           <div key={label} style={{ display: 'flex', gap: 12 }}>
-            <span style={{ color: FG, minWidth: 72 }}>{label}</span>
+            <span style={{ color: FG, minWidth: 60 }}>{label}</span>
             <span style={{ color: label === 'STATUS' ? statusColor : FG }}>{value}</span>
           </div>
         ))}
-        {rec.error && <div style={{ marginTop: 4, color: '#ff4a4a' }}>{rec.error}</div>}
+        {rec.error && <div style={{ marginTop: 4, color: '#ff4a4a', width: 0, minWidth: '100%' }}>{rec.error}</div>}
         {sendError && (
-          <div style={{ marginTop: 4, color: '#ff4a4a', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ marginTop: 4, color: '#ff4a4a', display: 'flex', alignItems: 'center', gap: 8, width: 0, minWidth: '100%' }}>
             <span>TRANSMISSION FAILED — {sendError.toUpperCase()}</span>
             <button type="button" onClick={() => setSendError(null)}
               style={{ fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: '#ff4a4a',
@@ -287,22 +282,23 @@ export function Oscilloscope() {
       </div>
 
       {/* ── HANDLE ── */}
-      <div style={{ display: 'flex', gap: 12, fontSize: 9, letterSpacing: '0.1em', alignItems: 'center', marginTop: 10 }}>
-        <span style={{ color: FG, minWidth: 72 }}>HANDLE</span>
+      <div style={{ display: 'flex', gap: 12, fontSize: 9, letterSpacing: '0.1em', alignItems: 'center', marginTop: 10, width: 0, minWidth: '100%' }}>
+        <span style={{ color: FG, minWidth: 60 }}>HANDLE</span>
         <input type="text" value={handle} maxLength={MAX_HANDLE} disabled={!isReview}
           onChange={(e) => setHandle(e.target.value)}
           placeholder={isReview ? 'optional' : ''}
           style={{
             fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: FG,
             background: 'transparent', border: 'none',
-            padding: '2px 0', flex: 1, outline: 'none', opacity: isReview ? 1 : 0.4,
+            padding: '2px 0', flex: 1, minWidth: 0, outline: 'none', opacity: isReview ? 1 : 0.4,
           }} />
       </div>
 
       </div>
 
       {/* ── BUTTONS — the plate's foot ── */}
-      <div style={{ display: 'flex', gap: '4px 22px', flexWrap: 'wrap', marginTop: 10, padding: '8px 8px 2px', borderTop: '1px solid currentColor' }}>
+      {/* zero width so the button row never widens the device; it wraps instead */}
+      <div style={{ display: 'flex', gap: '4px 22px', flexWrap: 'wrap', marginTop: 10, padding: '8px 8px 2px', borderTop: '1px solid currentColor', width: 0, minWidth: '100%' }}>
         <Buttons
           recState={rec.state} transmitting={transmitting} sent={sent}
           playing={playing} loop={loop}
@@ -313,6 +309,14 @@ export function Oscilloscope() {
           onTransmit={send} onSendAnother={sendAnother}
           onRetry={() => { rec.reset(); void rec.start(); }}
         />
+      </div>
+      </div>
+
+      {/* ── HEADER — outside the device, under it ── */}
+      <div style={{ marginTop: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px rgba(255,255,255,0.3)' }}>
+        <div>{'> RECORD TRANSMISSION'}</div>
+        <div>{'// TRANSMIT TO RADIO'}</div>
+        <div>{'// SAY ANYTHING'}</div>
       </div>
     </div>
   );
