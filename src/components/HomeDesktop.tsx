@@ -308,7 +308,8 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         /* the log, unboxed, in the plate's type */
         .log { position: absolute; bottom: 64px; left: 24px; color: ${WHITE}; font-size: 11px; letter-spacing: 0.04em;
           font-variant-numeric: tabular-nums; white-space: pre; display: grid; grid-template-columns: auto auto auto;
-          width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px; }
+          width: max-content; max-width: calc(100vw - 48px); column-gap: 14px; row-gap: 3px;
+          transform: translateY(calc(-1 * var(--kb, 0px))); transition: transform 0.3s ease; }
         .log .row { display: contents; }
         .log .row span { text-shadow: 0 0 3px color-mix(in srgb, currentColor 45%, transparent); }
         .log .row .tag { text-shadow: 0 0 1px color-mix(in srgb, currentColor 25%, transparent); }   /* teletext: a whisper of glow, or it smears */

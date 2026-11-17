@@ -66,6 +66,8 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     vv.addEventListener('resize', update);
     return () => vv.removeEventListener('resize', update);
   }, [focused]);
+  // published so the station log can ride up with the prompt
+  useEffect(() => { document.documentElement.style.setProperty('--kb', `${kbShift}px`); }, [kbShift]);
 
   // iOS Smart Punctuation curls straight quotes, which would break '.. and ^^' forever.
   const normalise = (raw: string) =>
