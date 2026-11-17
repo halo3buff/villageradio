@@ -231,19 +231,21 @@ export function Oscilloscope() {
   const statusColor = status === 'REC' ? '#ff4a4a' : FG;
 
   return (
-    <div style={{ fontFamily: MONO, maxWidth: 720 }}>
-
-      {/* ── SCOPE — the station's own window, pinned where the plate sits ── */}
+    // the station's plate stood on end: window on top, readout under it, controls at the foot
+    <div className="tx-plate" style={{ fontFamily: MONO, color: FG }}>
       <style>{`
-        .tx-scope { position: absolute; top: 24px; left: 24px; }
-        @media (max-width: 715px) { .tx-scope { left: 16px; } }
+        .tx-plate { position: absolute; top: 24px; left: 24px; width: min(300px, calc(100vw - 32px)); box-sizing: border-box;
+          display: flex; flex-direction: column; padding: 6px; border: 1px solid currentColor;
+          box-shadow: 0 0 3px rgba(255,255,255,0.3); text-shadow: 0 0 3px rgba(255,255,255,0.3); isolation: isolate; }
+        .tx-plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02);
+          backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
+        @media (max-width: 715px) { .tx-plate { left: 16px; } }
       `}</style>
       <div
-        className="tx-scope"
         style={{
-          color: FG, border: '1px solid currentColor', boxShadow: '0 0 3px rgba(255,255,255,0.3)',
+          border: '1px solid currentColor', boxShadow: '0 0 3px rgba(255,255,255,0.3)',
           background: 'rgba(0,0,0,0.03)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
-          display: 'flex', lineHeight: 0,
+          display: 'flex', justifyContent: 'center', lineHeight: 0, padding: '6px 0',
         }}
       >
         <canvas
@@ -255,6 +257,7 @@ export function Oscilloscope() {
         />
       </div>
 
+      <div style={{ padding: '14px 8px 4px' }}>
       {/* ── HEADER ── */}
       <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', color: FG }}>
         <div>{'> RECORD TRANSMISSION'}</div>
@@ -296,8 +299,10 @@ export function Oscilloscope() {
           }} />
       </div>
 
-      {/* ── BUTTONS ── */}
-      <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 12 }}>
+      </div>
+
+      {/* ── BUTTONS — the plate's foot ── */}
+      <div style={{ display: 'flex', gap: '4px 22px', flexWrap: 'wrap', marginTop: 10, padding: '8px 8px 2px', borderTop: '1px solid currentColor' }}>
         <Buttons
           recState={rec.state} transmitting={transmitting} sent={sent}
           playing={playing} loop={loop}
@@ -314,9 +319,9 @@ export function Oscilloscope() {
 }
 
 // ── plate-style button: the station's bare glowing type, no chrome ──────────
-function ScopeButton({ onClick, children, disabled, red }: {
+function ScopeButton({ onClick, children, disabled, red, ink }: {
   onClick: () => void; children: React.ReactNode;
-  active?: boolean; disabled?: boolean; red?: boolean;
+  active?: boolean; disabled?: boolean; red?: boolean; ink?: string;
 }) {
   return (
     <button onClick={disabled ? undefined : onClick} disabled={disabled}
@@ -326,7 +331,7 @@ function ScopeButton({ onClick, children, disabled, red }: {
       style={{
         all: 'unset',
         fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em',
-        color: red ? '#ff4a4a' : 'var(--vlg-fg, #fff)',
+        color: ink ?? (red ? '#ff4a4a' : 'var(--vlg-fg, #fff)'),
         textShadow: '0 0 3px color-mix(in srgb, currentColor 45%, transparent)',
         opacity: disabled ? 0.45 : 1,
         padding: '4px 0', cursor: disabled ? 'default' : 'pointer',
@@ -354,7 +359,7 @@ function Buttons(p: ButtonsProps) {
   );
   if (p.transmitting) return <ScopeButton onClick={() => {}} disabled>[ TRANSMITTING... ]</ScopeButton>;
   if (p.recState === 'error') return <ScopeButton onClick={p.onRetry}>[ RETRY ]</ScopeButton>;
-  if (p.recState === 'idle') return <ScopeButton onClick={p.onArm}>[ ARM ]</ScopeButton>;
+  if (p.recState === 'idle') return <ScopeButton onClick={p.onArm} ink="#00ffff">[ ARM ]</ScopeButton>;
   if (p.recState === 'armed') return <ScopeButton onClick={() => {}} disabled>[ ACQUIRING... ]</ScopeButton>;
   if (p.recState === 'recording') return (
     <>
