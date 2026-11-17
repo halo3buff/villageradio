@@ -242,6 +242,12 @@ export function Oscilloscope() {
           backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         @media (max-width: 715px) { .tx-stack { left: 16px; } }
       `}</style>
+      {/* ── HEADER — outside the device, above it ── */}
+      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px rgba(255,255,255,0.3)' }}>
+        <div>{'> RECORD TRANSMISSION'}</div>
+        <div>{'// TRANSMIT TO RADIO'}</div>
+        <div>{'// SAY ANYTHING'}</div>
+      </div>
       <div className="tx-plate">
       <div
         style={{
@@ -310,13 +316,6 @@ export function Oscilloscope() {
           onRetry={() => { rec.reset(); void rec.start(); }}
         />
       </div>
-      </div>
-
-      {/* ── HEADER — outside the device, under it ── */}
-      <div style={{ marginTop: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px rgba(255,255,255,0.3)' }}>
-        <div>{'> RECORD TRANSMISSION'}</div>
-        <div>{'// TRANSMIT TO RADIO'}</div>
-        <div>{'// SAY ANYTHING'}</div>
       </div>
     </div>
   );
