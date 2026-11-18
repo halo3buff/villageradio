@@ -8,7 +8,9 @@ const MAX_HANDLE = 64;
 const MAX_DURATION = 180;
 
 // The station's scope, exactly (HomeDesktop): its window's size, its dots, STEP samples apart.
-const SW = 104, SH = 64, REACH = 28;
+const SH = 64, REACH = 28;
+// the station plate's width (HomeDesktop), and how much the transmit stack is scaled up to meet it
+const PLATE_W = 340, TX_ZOOM = 1.75;
 const DOT = 1.75, STEP = 8;
 // Recording is mono, so the figure is the voice against itself a few ms back —
 // the lag opens it into a Lissajous the way L against R does on the station.
@@ -124,7 +126,9 @@ export function Oscilloscope() {
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // canvas fills its window; backing store also covers the zoom so the dots stay crisp
+    const SW = c.clientWidth || 104;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2) * TX_ZOOM;
     c.width = SW * dpr; c.height = SH * dpr;
     c.getContext('2d')?.scale(dpr, dpr);
 
@@ -136,7 +140,7 @@ export function Oscilloscope() {
       rafRef.current = requestAnimationFrame(draw);
       const ctx = c.getContext('2d');
       if (!ctx) return;
-      const t = now / 1000, cx = SW / 2, cy = SH / 2, reach = REACH;
+      const t = now / 1000, cx = SW / 2, cy = SH / 2, reach = REACH, reachX = SW / 2 - 8;
       ctx.clearRect(0, 0, SW, SH);
       ctx.fillStyle = ink;
       const dotAt = (x: number, y: number) =>
@@ -155,7 +159,7 @@ export function Oscilloscope() {
         const gain = Math.pow(10, lift / 20);
         const clip = (v: number) => Math.max(-1, Math.min(1, v * gain));
         for (let i = 0; i + PHASE_LAG < buf.length; i += STEP) {
-          dotAt(cx + clip(buf[i + PHASE_LAG]) * reach, cy - clip(buf[i]) * reach);
+          dotAt(cx + clip(buf[i + PHASE_LAG]) * reachX, cy - clip(buf[i]) * reach);
         }
       } else if (rec.state === 'review' && !pageState && reviewPeaks) {
         // the take, laid out as its envelope in the same dots; a dotted playhead walks it
@@ -175,7 +179,7 @@ export function Oscilloscope() {
         const amp = 0.58 + 0.04 * Math.sin(t * 0.7), N = 512, wv = (Math.PI * 2) / N;
         for (let i = 0; i < N; i += STEP) {
           const x = amp * Math.sin(2 * wv * i + t * 0.25), y = amp * Math.sin(3 * wv * i);
-          dotAt(cx + x * reach, cy - y * reach);
+          dotAt(cx + x * reachX, cy - y * reach);
         }
       }
       last = now;
@@ -235,13 +239,16 @@ export function Oscilloscope() {
     <div className="tx-stack" style={{ fontFamily: MONO, color: FG }}>
       <style>{`
         .tx-stack { position: absolute; top: 24px; left: 24px; }
-        .tx-plate { position: relative; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box;
+        /* the whole thing scaled up, its device pinned so it ends where the station's 340px plate does */
+        .tx-zoom { zoom: ${TX_ZOOM}; }
+        .tx-plate { position: relative; width: calc(${PLATE_W}px / ${TX_ZOOM}); box-sizing: border-box;
           display: flex; flex-direction: column; padding: 6px; border: 1px solid currentColor;
           box-shadow: 0 0 3px rgba(255,255,255,0.3); text-shadow: 0 0 3px rgba(255,255,255,0.3); isolation: isolate; }
         .tx-plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02);
           backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         @media (max-width: 715px) { .tx-stack { left: 16px; } }
       `}</style>
+      <div className="tx-zoom">
       {/* ── HEADER — outside the device, above it ── */}
       <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px rgba(255,255,255,0.3)' }}>
         <div>{'> RECORD TRANSMISSION'}</div>
@@ -259,7 +266,7 @@ export function Oscilloscope() {
         <canvas
           ref={canvasRef}
           style={{
-            display: 'block', width: SW, height: SH, margin: 'auto 6px', color: 'inherit',
+            display: 'block', width: 'calc(100% - 12px)', height: SH, margin: 'auto 6px', color: 'inherit',
             filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7))',
           }}
         />
@@ -269,9 +276,9 @@ export function Oscilloscope() {
       {/* ── READOUT ── */}
       <div style={{ fontSize: 9, lineHeight: '16px', letterSpacing: '0.1em' }}>
         {readout.map(([label, value]) => (
-          <div key={label} style={{ display: 'flex', gap: 12 }}>
+          <div key={label} style={{ display: 'flex', gap: 8 }}>
             <span style={{ color: FG, minWidth: 60 }}>{label}</span>
-            <span style={{ color: label === 'STATUS' ? statusColor : FG }}>{value}</span>
+            <span style={{ color: label === 'STATUS' ? statusColor : FG, whiteSpace: 'nowrap' }}>{value}</span>
           </div>
         ))}
         {rec.error && <div style={{ marginTop: 4, color: '#ff4a4a', width: 0, minWidth: '100%' }}>{rec.error}</div>}
@@ -288,7 +295,7 @@ export function Oscilloscope() {
       </div>
 
       {/* ── HANDLE ── */}
-      <div style={{ display: 'flex', gap: 12, fontSize: 9, letterSpacing: '0.1em', alignItems: 'center', marginTop: 10, width: 0, minWidth: '100%' }}>
+      <div style={{ display: 'flex', gap: 8, fontSize: 9, letterSpacing: '0.1em', alignItems: 'center', marginTop: 10, width: 0, minWidth: '100%' }}>
         <span style={{ color: FG, minWidth: 60 }}>HANDLE</span>
         <input type="text" value={handle} maxLength={MAX_HANDLE} disabled={!isReview}
           onChange={(e) => setHandle(e.target.value)}
@@ -315,6 +322,7 @@ export function Oscilloscope() {
           onTransmit={send} onSendAnother={sendAnother}
           onRetry={() => { rec.reset(); void rec.start(); }}
         />
+      </div>
       </div>
       </div>
     </div>
