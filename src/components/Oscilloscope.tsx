@@ -7,11 +7,11 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 const MAX_HANDLE = 64;
 const MAX_DURATION = 180;
 
-// The station's scope, exactly (HomeDesktop): its window's size, its dots, STEP samples apart.
-const SH = 64, REACH = 28;
-// the station plate's width (HomeDesktop), and how much the transmit stack is scaled up to meet it
-const PLATE_W = 340, TX_ZOOM = 1.75;
-const DOT = 1.75, STEP = 8;
+// The station's scope drawing (HomeDesktop), in a taller window that spans the device.
+const SH = 112, REACH = 50;
+// the station plate's width (HomeDesktop): the device ends where it does
+const PLATE_W = 340;
+const DOT = 3, STEP = 8;
 // Recording is mono, so the figure is the voice against itself a few ms back —
 // the lag opens it into a Lissajous the way L against R does on the station.
 const PHASE_LAG = 160;
@@ -126,9 +126,9 @@ export function Oscilloscope() {
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    // canvas fills its window; backing store also covers the zoom so the dots stay crisp
+    // canvas fills its window
     const SW = c.clientWidth || 104;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2) * TX_ZOOM;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     c.width = SW * dpr; c.height = SH * dpr;
     c.getContext('2d')?.scale(dpr, dpr);
 
@@ -140,7 +140,7 @@ export function Oscilloscope() {
       rafRef.current = requestAnimationFrame(draw);
       const ctx = c.getContext('2d');
       if (!ctx) return;
-      const t = now / 1000, cx = SW / 2, cy = SH / 2, reach = REACH, reachX = SW / 2 - 8;
+      const t = now / 1000, cx = SW / 2, cy = SH / 2, reach = REACH, reachX = SW / 2 - 14;
       ctx.clearRect(0, 0, SW, SH);
       ctx.fillStyle = ink;
       const dotAt = (x: number, y: number) =>
@@ -163,7 +163,7 @@ export function Oscilloscope() {
         }
       } else if (rec.state === 'review' && !pageState && reviewPeaks) {
         // the take, laid out as its envelope in the same dots; a dotted playhead walks it
-        const pad = 8, span = SW - 2 * pad;
+        const pad = 14, span = SW - 2 * pad;
         for (let i = 0; i < reviewPeaks.length; i += 12) {
           const x = pad + (i / reviewPeaks.length) * span;
           const amp = reviewPeaks[i] * reach;
@@ -171,7 +171,7 @@ export function Oscilloscope() {
         }
         if (reviewDuration > 0) {
           const px = pad + (playPosRef.current / reviewDuration) * span;
-          for (let y = cy - reach; y <= cy + reach; y += 7) dotAt(px, y);
+          for (let y = cy - reach; y <= cy + reach; y += 12) dotAt(px, y);
         }
       } else {
         // nothing flowing: the station's own test figure, so the window never sits dead
@@ -239,16 +239,14 @@ export function Oscilloscope() {
     <div className="tx-stack" style={{ fontFamily: MONO, color: FG }}>
       <style>{`
         .tx-stack { position: absolute; top: 24px; left: 24px; }
-        /* the whole thing scaled up, its device pinned so it ends where the station's 340px plate does */
-        .tx-zoom { zoom: ${TX_ZOOM}; }
-        .tx-plate { position: relative; width: calc(${PLATE_W}px / ${TX_ZOOM}); box-sizing: border-box;
+        .tx-plate { position: relative; width: min(${PLATE_W}px, calc(100vw - 32px)); box-sizing: border-box;
           display: flex; flex-direction: column; padding: 6px; border: 1px solid currentColor;
+          font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
           box-shadow: 0 0 3px rgba(255,255,255,0.3); text-shadow: 0 0 3px rgba(255,255,255,0.3); isolation: isolate; }
         .tx-plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02);
           backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         @media (max-width: 715px) { .tx-stack { left: 16px; } }
       `}</style>
-      <div className="tx-zoom">
       {/* ── HEADER — outside the device, above it ── */}
       <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px rgba(255,255,255,0.3)' }}>
         <div>{'> RECORD TRANSMISSION'}</div>
@@ -272,12 +270,12 @@ export function Oscilloscope() {
         />
       </div>
 
-      <div style={{ padding: '10px 8px 4px' }}>
-      {/* ── READOUT ── */}
-      <div style={{ fontSize: 9, lineHeight: '16px', letterSpacing: '0.1em' }}>
+      <div style={{ padding: '10px 6px 4px' }}>
+      {/* ── READOUT — the station plate's own type ── */}
+      <div style={{ display: 'grid', rowGap: 3 }}>
         {readout.map(([label, value]) => (
-          <div key={label} style={{ display: 'flex', gap: 8 }}>
-            <span style={{ color: FG, minWidth: 60 }}>{label}</span>
+          <div key={label} style={{ display: 'flex', gap: 22 }}>
+            <span style={{ color: FG, minWidth: 70 }}>{label}</span>
             <span style={{ color: label === 'STATUS' ? statusColor : FG, whiteSpace: 'nowrap' }}>{value}</span>
           </div>
         ))}
@@ -286,7 +284,7 @@ export function Oscilloscope() {
           <div style={{ marginTop: 4, color: '#ff4a4a', display: 'flex', alignItems: 'center', gap: 8, width: 0, minWidth: '100%' }}>
             <span>TRANSMISSION FAILED — {sendError.toUpperCase()}</span>
             <button type="button" onClick={() => setSendError(null)}
-              style={{ fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: '#ff4a4a',
+              style={{ fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit', color: '#ff4a4a',
                 background: 'none', border: '1px solid rgba(200,0,0,0.3)', padding: '1px 5px', cursor: 'pointer' }}>
               ×
             </button>
@@ -295,13 +293,13 @@ export function Oscilloscope() {
       </div>
 
       {/* ── HANDLE ── */}
-      <div style={{ display: 'flex', gap: 8, fontSize: 9, letterSpacing: '0.1em', alignItems: 'center', marginTop: 10, width: 0, minWidth: '100%' }}>
-        <span style={{ color: FG, minWidth: 60 }}>HANDLE</span>
+      <div style={{ display: 'flex', gap: 22, alignItems: 'center', marginTop: 10, width: 0, minWidth: '100%' }}>
+        <span style={{ color: FG, minWidth: 70 }}>HANDLE</span>
         <input type="text" value={handle} maxLength={MAX_HANDLE} disabled={!isReview}
           onChange={(e) => setHandle(e.target.value)}
           placeholder={isReview ? 'optional' : ''}
           style={{
-            fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.1em', color: FG,
+            fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit', color: FG,
             background: 'transparent', border: 'none',
             padding: '2px 0', flex: 1, minWidth: 0, outline: 'none', opacity: isReview ? 1 : 0.4,
           }} />
@@ -310,8 +308,7 @@ export function Oscilloscope() {
       </div>
 
       {/* ── BUTTONS — the plate's foot ── */}
-      {/* zero width so the button row never widens the device; it wraps instead */}
-      <div style={{ display: 'flex', gap: '4px 22px', flexWrap: 'wrap', marginTop: 10, padding: '8px 8px 2px', borderTop: '1px solid currentColor', width: 0, minWidth: '100%' }}>
+      <div style={{ display: 'flex', gap: '2px 22px', flexWrap: 'wrap', marginTop: 10, padding: '6px 6px 0', borderTop: '1px solid currentColor' }}>
         <Buttons
           recState={rec.state} transmitting={transmitting} sent={sent}
           playing={playing} loop={loop}
@@ -322,7 +319,6 @@ export function Oscilloscope() {
           onTransmit={send} onSendAnother={sendAnother}
           onRetry={() => { rec.reset(); void rec.start(); }}
         />
-      </div>
       </div>
       </div>
     </div>
@@ -341,7 +337,7 @@ function ScopeButton({ onClick, children, disabled, red, ink }: {
       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = ''; }}
       style={{
         all: 'unset',
-        fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em',
+        fontFamily: MONO, fontSize: 11, letterSpacing: '0.04em',
         color: ink ?? (red ? '#ff4a4a' : 'var(--vlg-fg, #fff)'),
         textShadow: '0 0 3px color-mix(in srgb, currentColor 45%, transparent)',
         opacity: disabled ? 0.45 : 1,
