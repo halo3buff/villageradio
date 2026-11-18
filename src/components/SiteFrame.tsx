@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAudio } from '@/lib/audio-context';
-import { PS2Bar } from '@/components/ps2/PS2Bar';
+import { CommandPrompt } from '@/components/CommandPrompt';
 import { StationBar } from '@/components/StationBar';
 import { useTrail } from '@/components/BackLink';
 import type { NavCommand } from '@/lib/types';
@@ -34,8 +34,7 @@ export function SiteFrame({
   useEffect(() => { if (pathname === '/') pause(); }, [pathname]);
   useTrail(pathname);
 
-  // the PS2 look: the button legend stands in for the prompt (△ Options still opens it)
-  const prompt = NO_PROMPT(pathname) ? null : <PS2Bar commands={commands} />;
+  const prompt = NO_PROMPT(pathname) ? null : <CommandPrompt commands={commands} />;
 
   if (pathname === '/admin' || pathname.startsWith('/admin/')) return <>{children}</>;
 
