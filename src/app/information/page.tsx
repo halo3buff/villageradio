@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { getCommands } from '@/lib/content/loaders';
 
 export const metadata: Metadata = { title: 'Information' };
 
@@ -28,8 +27,7 @@ function Flag({ name, px }: { name: string; px: (x: number, y: number) => string
 }
 /** README_0 — the landing page's README: just the landing photo.
  *  The full manual (README_1) lives behind the station at /station/readme. */
-export default async function InformationPage() {
-  const commands = (await getCommands()).filter((c) => !c.hidden);
+export default function InformationPage() {
   return (
     <main className="page-enter" style={{
       position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', flexDirection: 'column',
@@ -52,12 +50,11 @@ export default async function InformationPage() {
         {/* eslint-disable-next-line @next/next/no-img-element -- a single static image, served as is */}
         <img src="/site_assets/landing_solo.webp" alt="" aria-hidden className="positive landing-photo"
           style={{ display: 'block', width: 'auto', height: 'auto', pointerEvents: 'none' }} />
-        {/* command reference, set like README_1's block (uncensored here): right of the photo, under it on phones */}
+        {/* command reference, set like README_1's block: right of the photo, under it on phones */}
         <div className="readme-cmds" style={{
           fontFamily: MONO, fontSize: 11, lineHeight: '14px', whiteSpace: 'pre', color: 'var(--vlg-fg, #000)',
         }}>
-          {'commands:'}
-          {commands.map((c) => <div key={c.cmd}>{`  ${c.cmd.padEnd(8)} ${c.label}`}</div>)}
+          {'Radio - gulam\nTransmission - /transmit'}
         </div>
       </div>
     </main>
