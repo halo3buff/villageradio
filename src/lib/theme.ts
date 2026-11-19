@@ -33,8 +33,8 @@ export type Theme = {
 
 export const THEMES: Record<string, Theme> = {
   default: {
-    // the blurred photo (globals.css): the page shows through and every word on it is white
-    bg:'#a8a5a0', ts:'#ffffff', uid_palette:['#ffffff'], uid_real:'#ffffff', col_host:'#ffffff', col_data:'#ffffff',
+    // the blurred photo in negative (globals.css): the page shows through and every word on it is white
+    bg:'#575a5f', ts:'#ffffff', uid_palette:['#ffffff'], uid_real:'#ffffff', col_host:'#ffffff', col_data:'#ffffff',
     bar_bg:'transparent', bar_border:'rgba(255,255,255,0.6)', bar_dim:'#ffffff', bar_bright:'#ffffff',
     filter_col:'#ffffff',
     tab_bg:'transparent', tab_fg:'#ffffff', tab_active_bg:'rgba(255,255,255,0.22)', tab_active_fg:'#ffffff',
