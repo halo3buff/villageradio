@@ -149,6 +149,10 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
     const dpr = Math.min(window.devicePixelRatio || 1, 2) * res;
     canvas.width = W * dpr; canvas.height = H * dpr;
     ctx.scale(dpr, dpr);
+    // the dots take their shade from where they fall: the hat's teals, light at the top-left to dark at the
+    // bottom-right (drawn as negatives: #407e79 → #26564d → #1a2f30 on screen)
+    const ink = ctx.createLinearGradient(W / 2 - REACH, H / 2 - REACH, W / 2 + REACH, H / 2 + REACH);
+    ink.addColorStop(0, '#bf8186'); ink.addColorStop(0.5, '#d9a9b2'); ink.addColorStop(1, '#e5d0cf');
 
     let l = new Float32Array(2048), r = new Float32Array(2048);
     let nextRead = 0, raf = 0, lift = 0, last = 0, gatherAt = 0, scatterAt = -1e9, wasLive = false;
@@ -199,7 +203,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
 
       // R against L in a square, so mono runs up the diagonal; full scale stops short of the edges
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = MID;
+      ctx.fillStyle = ink;
       const level = 10 * Math.log10(energy / (2 * l.length) || 1e-12);
       const want = testing ? 0 : Math.min(LIFT_MAX_DB, Math.max(0, FLOOR_DB - level));
       // drops at once when the audio comes back up, so a hit never overshoots; rises gently
@@ -293,7 +297,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         /* all white, drawn straight on the page: the type and borders barely glow, the lights do */
         .plate { position: absolute; top: 24px; left: 24px; display: flex; gap: 6px; padding: 6px; color: ${MID}; border: 1px solid ${MID};
           font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; white-space: pre;
-          text-shadow: 0 0 3px rgba(191,129,134,0.3); box-shadow: 0 0 3px rgba(191,129,134,0.3); isolation: isolate; }
+          text-shadow: 0 0 3px transparent; box-shadow: 0 0 3px transparent; isolation: isolate; }
         /* on a layer of its own: a backdrop-filter on the plate itself would cut the window's blur off from the page */
         .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         .plate .info { padding: 3px 12px 3px 6px; display: grid; grid-template-columns: auto auto; column-gap: 22px; row-gap: 3px; align-content: center; }
@@ -302,10 +306,10 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         .plate button:active { opacity: 0.6; }
         .plate .lamp { width: 6px; height: 6px; background: currentColor; animation: lamp 1s steps(1) infinite; }
         @keyframes lamp { 50% { opacity: 0; } }
-        .plate .window { border: 1px solid ${MID}; display: flex; box-shadow: 0 0 3px rgba(191,129,134,0.3);
+        .plate .window { border: 1px solid ${MID}; display: flex; box-shadow: 0 0 3px transparent;
           background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
         .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
-          filter: drop-shadow(0 0 3px rgba(191,129,134,0.95)) drop-shadow(0 0 9px rgba(191,129,134,0.7)); }
+          filter: drop-shadow(0 0 3px transparent) drop-shadow(0 0 9px transparent); }
         /* the log, unboxed, in the plate's type */
         .log { position: absolute; bottom: 64px; left: 24px; color: ${WHITE}; font-size: 11px; letter-spacing: 0.04em;
           font-variant-numeric: tabular-nums; white-space: pre; display: grid; grid-template-columns: auto auto auto;

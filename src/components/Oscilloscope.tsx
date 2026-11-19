@@ -131,9 +131,14 @@ export function Oscilloscope() {
     const SW = c.clientWidth || 104;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     c.width = SW * dpr; c.height = SH * dpr;
-    c.getContext('2d')?.scale(dpr, dpr);
+    const ctx0 = c.getContext('2d');
+    if (!ctx0) return;
+    ctx0.scale(dpr, dpr);
 
-    const ink = getComputedStyle(c).color || '#fff';
+    // the dots take their shade from where they fall: the hat's teals, light at the top-left to dark at the
+    // bottom-right (drawn as negatives: #407e79 → #26564d → #1a2f30 on screen)
+    const ink = ctx0.createLinearGradient(14, SH / 2 - REACH, SW - 14, SH / 2 + REACH);
+    ink.addColorStop(0, '#bf8186'); ink.addColorStop(0.5, '#d9a9b2'); ink.addColorStop(1, '#e5d0cf');
     let buf = new Float32Array(2048);
     let lift = 0, last = 0;
 
@@ -243,13 +248,13 @@ export function Oscilloscope() {
         .tx-plate { position: relative; width: min(${PLATE_W}px, calc(100vw - 32px)); box-sizing: border-box;
           display: flex; flex-direction: column; padding: 6px; border: 1px solid currentColor;
           font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
-          box-shadow: 0 0 3px rgba(191,129,134,0.3); text-shadow: 0 0 3px rgba(191,129,134,0.3); isolation: isolate; }
+          box-shadow: 0 0 3px transparent; text-shadow: 0 0 3px transparent; isolation: isolate; }
         .tx-plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02);
           backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         @media (max-width: 715px) { .tx-stack { left: 16px; } }
       `}</style>
       {/* ── HEADER — outside the device, above it ── */}
-      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px rgba(191,129,134,0.3)' }}>
+      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px transparent' }}>
         <div>{'> RECORD TRANSMISSION'}</div>
         <div>{'// TRANSMIT TO RADIO'}</div>
         <div>{'// SAY ANYTHING'}</div>
@@ -257,7 +262,7 @@ export function Oscilloscope() {
       <div className="tx-plate">
       <div
         style={{
-          border: '1px solid currentColor', boxShadow: '0 0 3px rgba(191,129,134,0.3)',
+          border: '1px solid currentColor', boxShadow: '0 0 3px transparent',
           background: 'rgba(0,0,0,0.03)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
           display: 'flex', justifyContent: 'center', lineHeight: 0, padding: '6px 0',
         }}
@@ -266,7 +271,7 @@ export function Oscilloscope() {
           ref={canvasRef}
           style={{
             display: 'block', width: 'calc(100% - 12px)', height: SH, margin: 'auto 6px', color: 'inherit',
-            filter: 'drop-shadow(0 0 3px rgba(191,129,134,0.95)) drop-shadow(0 0 9px rgba(191,129,134,0.7))',
+            filter: 'drop-shadow(0 0 3px transparent) drop-shadow(0 0 9px transparent)',
           }}
         />
       </div>

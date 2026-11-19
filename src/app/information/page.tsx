@@ -47,7 +47,7 @@ export default function InformationPage() {
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
       <img src="/site_assets/logo_roto_v4.webp" alt="Village Radio"
-        style={{ width: 230, height: 205, objectFit: 'contain', filter: 'brightness(0) invert(0.46) sepia(1) saturate(1.5) hue-rotate(306deg) drop-shadow(0 0 3px rgba(191,129,134,0.6)) drop-shadow(0 0 8px rgba(191,129,134,0.28))' }} /> {/* ≈ #bf8186: teal in the negative (globals.css) */}
+        style={{ width: 230, height: 205, objectFit: 'contain', filter: 'brightness(0) invert(0.46) sepia(1) saturate(1.5) hue-rotate(306deg) drop-shadow(0 0 3px transparent) drop-shadow(0 0 8px transparent)' }} /> {/* ≈ #bf8186: teal in the negative (globals.css) */}
     </main>
   );
 }
