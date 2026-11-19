@@ -45,7 +45,7 @@ export function HomeTemp() {
         alt="" aria-hidden className="positive landing-photo"
         style={{
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-          width: 'auto', height: 'auto', maxHeight: '70dvh', maxWidth: '76vw',
+          width: 'auto', height: 'auto',   // its size caps live in globals.css (.landing-photo): smaller on desktop
           pointerEvents: 'none',
         }}
       />
