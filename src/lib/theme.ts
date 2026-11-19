@@ -42,6 +42,17 @@ export const THEMES: Record<string, Theme> = {
     hover_bg:'rgba(255,255,255,0.1)', sel_bg:'rgba(255,255,255,0.18)',
     exp_comment:'#ffffff', exp_num:'#ffffff', exp_text:'#ffffff', exp_border:'rgba(255,255,255,0.6)',
   },
+  // the default's page shot on negative film (globals.css, html[data-look="film"]): lavender sky,
+  // teal plates, black type. Rides on the default's photo-layer CSS — see baseTheme.
+  film: {
+    bg:'#e7e5f1', ts:'#ffffff', uid_palette:['#ffffff'], uid_real:'#ffffff', col_host:'#ffffff', col_data:'#ffffff',
+    bar_bg:'transparent', bar_border:'rgba(255,255,255,0.6)', bar_dim:'#ffffff', bar_bright:'#ffffff',
+    filter_col:'#ffffff',
+    tab_bg:'transparent', tab_fg:'#ffffff', tab_active_bg:'rgba(255,255,255,0.22)', tab_active_fg:'#ffffff',
+    cmd_bg:'transparent', cmd_fg:'#ffffff', cmd_cursor:'#ffffff',
+    hover_bg:'rgba(255,255,255,0.1)', sel_bg:'rgba(255,255,255,0.18)',
+    exp_comment:'#ffffff', exp_num:'#ffffff', exp_text:'#ffffff', exp_border:'rgba(255,255,255,0.6)',
+  },
   black: {
     // white on black — the previous paper-white values, inverted
     bg:'#000000', ts:'#888888', uid_palette:['#3cc8c0','#58c858','#c070e0','#5a9cf0','#e08040','#40a8d8','#c868c8','#40c090','#d87848','#7088e8'], uid_real:'#ffffff', col_host:'#e08aa0', col_data:'#aaaaaa',
@@ -123,13 +134,27 @@ export const THEMES: Record<string, Theme> = {
 
 // Full palette set (used internally, e.g. by the news log). Admin only exposes a subset — see
 // THEME_NAMES below — the rest stay defined so re-enabling one later is a one-line change.
-export const ALL_THEME_NAMES = ['default', 'black', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light', 'ega', 'chart'];
+export const ALL_THEME_NAMES = ['default', 'film', 'black', 'eldar', 'monocai', 'night-owl', 'solarized-dark', 'solarized-light', 'ega', 'chart'];
 
 // Admin-selectable site-wide themes. Trimmed to 2 for now at the user's request.
 // 'default' is the mint stock; 'black' keeps the old white-on-black one a click away.
-export const THEME_NAMES = ['default', 'black', 'solarized-dark', 'ega', 'chart'];
+export const THEME_NAMES = ['default', 'film', 'black', 'solarized-dark', 'ega', 'chart'];
 
 export const DEFAULT_THEME = 'default';
+
+/** The theme whose page and chrome CSS a theme rides on (html[data-theme]); film is the default's
+ *  page with the negative laid over it (html[data-look="film"]). */
+export const baseTheme = (name: string) => (name === 'film' ? 'default' : name);
+
+/** Under film, a canvas's dots take their shade from where they fall: the reference hat's teals,
+ *  light at (x0, y0) to dark at (x1, y1) — drawn as negatives, #407e79 → #26564d → #1a2f30 on
+ *  screen. Null on any other theme, so the caller keeps its own ink. */
+export function filmDots(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): CanvasGradient | null {
+  if (document.documentElement.dataset.look !== 'film') return null;
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, '#bf8186'); g.addColorStop(0.5, '#d9a9b2'); g.addColorStop(1, '#e5d0cf');
+  return g;
+}
 
 export const LIGHT_THEMES = new Set(['default', 'eldar', 'monocai', 'solarized-light', 'chart']);
 
@@ -140,8 +165,8 @@ export function isThemeName(name: string): boolean {
 /** Site-chrome CSS custom properties (name → value), a subset of Theme's tokens. Shared by the
  *  server-rendered <style> block (layout.tsx) and the client self-correction pass (ThemeProvider). */
 export function siteVarMap(name: string): Record<string, string> {
-  const t = THEMES[name] ?? THEMES[DEFAULT_THEME];
-  const light = LIGHT_THEMES.has(name);
+  const t = THEMES[baseTheme(name)] ?? THEMES[DEFAULT_THEME];
+  const light = LIGHT_THEMES.has(baseTheme(name));
   return {
     '--vlg-bg': t === THEMES.default ? 'transparent' : t.bg,   // the default's page is the photo layer (globals.css)
     '--vlg-fg': t.exp_text,

@@ -177,26 +177,43 @@ html:not([data-theme="default"]) body:has(.admin-shell)::before { display: none;
 }
 html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
 
-/* Negative-film look: a white layer in difference mode turns every pixel beneath into 1 − x
-   (black↔white). Admin stays positive. Anything marked .positive is inverted twice, so it shows
-   as is: the landing photo, README's flags. Colours are taken from the user's negative-film
-   reference: the page is its sky, lavender #e7e5f1, under the film grain (painted in
-   its negative; the canvas Safari paints its bars with is the sky itself, outside the overlay,
-   so no edge feather is needed). The plates and logo are drawn in #bf8186, whose negative is
-   the hat's teal, #407e79; type is black like the reference's dots. */
-.positive { filter: invert(1); }
-html[data-theme="default"]:not(:has(.admin-shell)) {
+/* The station plate, the transmit device and README's logo: white and glowing on the photo. */
+:root {
+  --plate-ink: #ffffff;
+  --tx-ink: var(--vlg-fg, #000);
+  --plate-glow: rgba(255, 255, 255, 0.3);
+  --dot-glow: drop-shadow(0 0 3px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 9px rgba(255, 255, 255, 0.7));
+  --logo-filter: brightness(0) invert(var(--vlg-invert, 0)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.28));
+}
+
+/* Film theme (Admin → Settings): the default's page shot on negative film. A white layer in
+   difference mode turns every pixel beneath into 1 − x (black↔white). Admin stays positive.
+   Anything marked .positive is inverted twice, so it shows as is: the landing photo, README's
+   flags. Colours are taken from the user's negative-film reference: the page is its sky, lavender
+   #e7e5f1, under the film grain (painted in its negative; the canvas Safari paints its bars with
+   is the sky itself, outside the overlay, so no edge feather is needed). The plates and logo are
+   drawn in #bf8186, whose negative is the hat's teal, #407e79, with no glow (a dark glow on a light
+   page reads as a smudge); the dots shade across the hat's teals (HomeDesktop, Oscilloscope);
+   type is black like the reference's dots. */
+html[data-look="film"] {
+  --plate-ink: #bf8186;
+  --tx-ink: #bf8186;
+  --plate-glow: transparent;
+  --dot-glow: none;
+  --logo-filter: brightness(0) invert(0.46) sepia(1) saturate(1.5) hue-rotate(306deg);
+}
+html[data-look="film"] .positive { filter: invert(1); }
+html[data-look="film"]:not(:has(.admin-shell)) {
   background-color: #e7e5f1;
   /* the grain lightens what it lies on, so it is thinned under a 60% veil and the base set darker
      (#0a0c00) to land on the sky after both */
   --vlg-cover: linear-gradient(rgba(10, 12, 0, 0.6), rgba(10, 12, 0, 0.6)) fixed, var(--vlg-grain) 0 0 / 220px 220px fixed, #0a0c00;
 }
-html[data-theme="default"]:not(:has(.admin-shell)) body::after { display: none; }
-html::after {
+html[data-look="film"]:not(:has(.admin-shell)) body::after { display: none; }
+html[data-look="film"]:not(:has(.admin-shell))::after {
   content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none;
   background: #fff; mix-blend-mode: difference;
 }
-html:has(.admin-shell)::after { display: none; }
 
 /* Admin toast: rises in from below. */
 .toast-in {

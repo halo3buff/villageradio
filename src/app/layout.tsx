@@ -5,7 +5,7 @@ import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
 import { getBroadcastManifest, getCommands, getTheme } from '@/lib/content/loaders';
 import { daySegments, manifestToMixes } from '@/lib/content/broadcast';
-import { DEFAULT_THEME, isThemeName, siteCssVars, THEMES } from '@/lib/theme';
+import { baseTheme, DEFAULT_THEME, isThemeName, siteCssVars, THEMES } from '@/lib/theme';
 import { SiteFrame } from '@/components/SiteFrame';
 import { ClearanceWarden } from '@/components/ClearanceWarden';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -109,7 +109,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html
       lang="en"
-      data-theme={theme}
+      data-theme={baseTheme(theme)}
+      data-look={theme === 'film' ? 'film' : undefined}
       className={`${spaceMono.variable} ${dmSans.variable} ${ibmPlexMono.variable} ${vt323.variable} ${helveticaBlack.variable} ${helveticaMedium.variable} ${dseg7.variable} ${dseg14.variable}`}
     >
       <head>

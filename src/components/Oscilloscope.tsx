@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRecorder } from '@/lib/use-recorder';
+import { filmDots } from '@/lib/theme';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-const MID = '#bf8186';   // the device's ink: its negative is teal, #407e79 (globals.css)
 const MAX_HANDLE = 64;
 const MAX_DURATION = 180;
 
@@ -135,10 +135,7 @@ export function Oscilloscope() {
     if (!ctx0) return;
     ctx0.scale(dpr, dpr);
 
-    // the dots take their shade from where they fall: the hat's teals, light at the top-left to dark at the
-    // bottom-right (drawn as negatives: #407e79 → #26564d → #1a2f30 on screen)
-    const ink = ctx0.createLinearGradient(14, SH / 2 - REACH, SW - 14, SH / 2 + REACH);
-    ink.addColorStop(0, '#bf8186'); ink.addColorStop(0.5, '#d9a9b2'); ink.addColorStop(1, '#e5d0cf');
+    const ink = filmDots(ctx0, 14, SH / 2 - REACH, SW - 14, SH / 2 + REACH) ?? (getComputedStyle(c).color || '#fff');
     let buf = new Float32Array(2048);
     let lift = 0, last = 0;
 
@@ -237,7 +234,7 @@ export function Oscilloscope() {
     ['STATUS',   status],
   ];
 
-  const FG = MID;
+  const FG = 'var(--tx-ink)';
   const statusColor = status === 'REC' ? '#ff4a4a' : FG;
 
   return (
@@ -248,13 +245,13 @@ export function Oscilloscope() {
         .tx-plate { position: relative; width: min(${PLATE_W}px, calc(100vw - 32px)); box-sizing: border-box;
           display: flex; flex-direction: column; padding: 6px; border: 1px solid currentColor;
           font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
-          box-shadow: 0 0 3px transparent; text-shadow: 0 0 3px transparent; isolation: isolate; }
+          box-shadow: 0 0 3px var(--plate-glow); text-shadow: 0 0 3px var(--plate-glow); isolation: isolate; }
         .tx-plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02);
           backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         @media (max-width: 715px) { .tx-stack { left: 16px; } }
       `}</style>
       {/* ── HEADER — outside the device, above it ── */}
-      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px transparent' }}>
+      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px var(--plate-glow)' }}>
         <div>{'> RECORD TRANSMISSION'}</div>
         <div>{'// TRANSMIT TO RADIO'}</div>
         <div>{'// SAY ANYTHING'}</div>
@@ -262,7 +259,7 @@ export function Oscilloscope() {
       <div className="tx-plate">
       <div
         style={{
-          border: '1px solid currentColor', boxShadow: '0 0 3px transparent',
+          border: '1px solid currentColor', boxShadow: '0 0 3px var(--plate-glow)',
           background: 'rgba(0,0,0,0.03)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
           display: 'flex', justifyContent: 'center', lineHeight: 0, padding: '6px 0',
         }}
@@ -271,7 +268,7 @@ export function Oscilloscope() {
           ref={canvasRef}
           style={{
             display: 'block', width: 'calc(100% - 12px)', height: SH, margin: 'auto 6px', color: 'inherit',
-            filter: 'drop-shadow(0 0 3px transparent) drop-shadow(0 0 9px transparent)',
+            filter: 'var(--dot-glow)',
           }}
         />
       </div>
@@ -344,7 +341,7 @@ function ScopeButton({ onClick, children, disabled, red, ink }: {
       style={{
         all: 'unset',
         fontFamily: MONO, fontSize: 11, letterSpacing: '0.04em',
-        color: ink ?? (red ? '#ff4a4a' : MID),
+        color: ink ?? (red ? '#ff4a4a' : 'var(--tx-ink)'),
         textShadow: '0 0 3px color-mix(in srgb, currentColor 45%, transparent)',
         opacity: disabled ? 0.45 : 1,
         padding: '4px 0', cursor: disabled ? 'default' : 'pointer',

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { THEMES, isThemeName, siteVarMap, type Theme } from '@/lib/theme';
+import { THEMES, baseTheme, isThemeName, siteVarMap, type Theme } from '@/lib/theme';
 
 const ThemeContext = createContext<{ name: string; T: Theme }>({
   name: 'default',
@@ -12,7 +12,8 @@ function applyThemeVars(name: string) {
   const root = document.documentElement;
   const vars = siteVarMap(name);
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
-  root.dataset.theme = name;
+  root.dataset.theme = baseTheme(name);
+  if (name === 'film') root.dataset.look = 'film'; else delete root.dataset.look;
 }
 
 /**
