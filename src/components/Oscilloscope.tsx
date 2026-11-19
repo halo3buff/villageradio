@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRecorder } from '@/lib/use-recorder';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
+const MID = '#b0a393';   // the device's ink: its negative is the blue midtone (globals.css)
 const MAX_HANDLE = 64;
 const MAX_DURATION = 180;
 
@@ -231,7 +232,7 @@ export function Oscilloscope() {
     ['STATUS',   status],
   ];
 
-  const FG = 'var(--vlg-fg, #000)';
+  const FG = MID;
   const statusColor = status === 'REC' ? '#ff4a4a' : FG;
 
   return (
@@ -242,13 +243,13 @@ export function Oscilloscope() {
         .tx-plate { position: relative; width: min(${PLATE_W}px, calc(100vw - 32px)); box-sizing: border-box;
           display: flex; flex-direction: column; padding: 6px; border: 1px solid currentColor;
           font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
-          box-shadow: 0 0 3px rgba(255,255,255,0.3); text-shadow: 0 0 3px rgba(255,255,255,0.3); isolation: isolate; }
+          box-shadow: 0 0 3px rgba(176,163,147,0.3); text-shadow: 0 0 3px rgba(176,163,147,0.3); isolation: isolate; }
         .tx-plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02);
           backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         @media (max-width: 715px) { .tx-stack { left: 16px; } }
       `}</style>
       {/* ── HEADER — outside the device, above it ── */}
-      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px rgba(255,255,255,0.3)' }}>
+      <div style={{ marginBottom: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px rgba(176,163,147,0.3)' }}>
         <div>{'> RECORD TRANSMISSION'}</div>
         <div>{'// TRANSMIT TO RADIO'}</div>
         <div>{'// SAY ANYTHING'}</div>
@@ -256,7 +257,7 @@ export function Oscilloscope() {
       <div className="tx-plate">
       <div
         style={{
-          border: '1px solid currentColor', boxShadow: '0 0 3px rgba(255,255,255,0.3)',
+          border: '1px solid currentColor', boxShadow: '0 0 3px rgba(176,163,147,0.3)',
           background: 'rgba(0,0,0,0.03)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
           display: 'flex', justifyContent: 'center', lineHeight: 0, padding: '6px 0',
         }}
@@ -265,7 +266,7 @@ export function Oscilloscope() {
           ref={canvasRef}
           style={{
             display: 'block', width: 'calc(100% - 12px)', height: SH, margin: 'auto 6px', color: 'inherit',
-            filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)) invert(1)',   // invert: stays positive under the site's negative
+            filter: 'drop-shadow(0 0 3px rgba(176,163,147,0.95)) drop-shadow(0 0 9px rgba(176,163,147,0.7))',
           }}
         />
       </div>
@@ -338,7 +339,7 @@ function ScopeButton({ onClick, children, disabled, red, ink }: {
       style={{
         all: 'unset',
         fontFamily: MONO, fontSize: 11, letterSpacing: '0.04em',
-        color: ink ?? (red ? '#ff4a4a' : 'var(--vlg-fg, #fff)'),
+        color: ink ?? (red ? '#ff4a4a' : MID),
         textShadow: '0 0 3px color-mix(in srgb, currentColor 45%, transparent)',
         opacity: disabled ? 0.45 : 1,
         padding: '4px 0', cursor: disabled ? 'default' : 'pointer',

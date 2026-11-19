@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const WHITE = '#ffffff';
+const MID = '#b0a393';   // the plate's ink: its negative is the blue midtone (globals.css)
 const W = 104, H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
 const STEP = 8;   // samples between dots, so each stays its own light
@@ -198,7 +199,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
 
       // R against L in a square, so mono runs up the diagonal; full scale stops short of the edges
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = WHITE;
+      ctx.fillStyle = MID;
       const level = 10 * Math.log10(energy / (2 * l.length) || 1e-12);
       const want = testing ? 0 : Math.min(LIFT_MAX_DB, Math.max(0, FLOOR_DB - level));
       // drops at once when the audio comes back up, so a hit never overshoots; rises gently
@@ -290,9 +291,9 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
     }}>
       <style>{`
         /* all white, drawn straight on the page: the type and borders barely glow, the lights do */
-        .plate { position: absolute; top: 24px; left: 24px; display: flex; gap: 6px; padding: 6px; color: ${WHITE}; border: 1px solid ${WHITE};
+        .plate { position: absolute; top: 24px; left: 24px; display: flex; gap: 6px; padding: 6px; color: ${MID}; border: 1px solid ${MID};
           font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; white-space: pre;
-          text-shadow: 0 0 3px rgba(255,255,255,0.3); box-shadow: 0 0 3px rgba(255,255,255,0.3); isolation: isolate; }
+          text-shadow: 0 0 3px rgba(176,163,147,0.3); box-shadow: 0 0 3px rgba(176,163,147,0.3); isolation: isolate; }
         /* on a layer of its own: a backdrop-filter on the plate itself would cut the window's blur off from the page */
         .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         .plate .info { padding: 3px 12px 3px 6px; display: grid; grid-template-columns: auto auto; column-gap: 22px; row-gap: 3px; align-content: center; }
@@ -301,10 +302,10 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         .plate button:active { opacity: 0.6; }
         .plate .lamp { width: 6px; height: 6px; background: currentColor; animation: lamp 1s steps(1) infinite; }
         @keyframes lamp { 50% { opacity: 0; } }
-        .plate .window { border: 1px solid ${WHITE}; display: flex; box-shadow: 0 0 3px rgba(255,255,255,0.3);
+        .plate .window { border: 1px solid ${MID}; display: flex; box-shadow: 0 0 3px rgba(176,163,147,0.3);
           background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
         .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
-          filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)) invert(1); }   /* invert: stays positive under the site's negative */
+          filter: drop-shadow(0 0 3px rgba(176,163,147,0.95)) drop-shadow(0 0 9px rgba(176,163,147,0.7)); }
         /* the log, unboxed, in the plate's type */
         .log { position: absolute; bottom: 64px; left: 24px; color: ${WHITE}; font-size: 11px; letter-spacing: 0.04em;
           font-variant-numeric: tabular-nums; white-space: pre; display: grid; grid-template-columns: auto auto auto;
