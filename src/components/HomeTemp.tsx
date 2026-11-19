@@ -35,18 +35,13 @@ export function HomeTemp() {
         color: 'var(--vlg-fg, #000)', textDecoration: 'none',
       }}>README</Link>
 
-      {/* Two photos — dead centre, offset as on their page (the walk above, the water
-          below), the page cut away so they sit straight on the site's paper. As tall
-          as the screen allows, narrower than it on phones. (Previous: landing_pair.webp, landing_triptych.webp.)
-          The rotating mark (/site_assets/logo_roto_v4.webp) or <ShannonDiagram /> can go back here. */}
-      {/* eslint-disable-next-line @next/next/no-img-element -- a single static image, served as is */}
+      {/* The rotating mark, dead centre (swapped with README's landing photo; <ShannonDiagram /> can go here too) */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
       <img
-        src="/site_assets/landing_solo.webp"
-        alt="" aria-hidden className="positive landing-photo"
+        src="/site_assets/logo_roto_v4.webp" alt="Village Radio"
         style={{
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
-          width: 'auto', height: 'auto',   // its size caps live in globals.css (.landing-photo): smaller on desktop
-          pointerEvents: 'none',
+          width: 230, height: 205, objectFit: 'contain', filter: 'var(--logo-filter)', pointerEvents: 'none',
         }}
       />
     </main>

@@ -25,7 +25,7 @@ function Flag({ name, px }: { name: string; px: (x: number, y: number) => string
     </svg>
   );
 }
-/** README_0 — the landing page's README: just the rotating mark.
+/** README_0 — the landing page's README: just the landing photo.
  *  The full manual (README_1) lives behind the station at /station/readme. */
 export default function InformationPage() {
   return (
@@ -45,9 +45,10 @@ export default function InformationPage() {
           <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={`Donate: ${name}`}><Flag name={name} px={px} /></a>
         ))}
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
-      <img src="/site_assets/logo_roto_v4.webp" alt="Village Radio"
-        style={{ width: 230, height: 205, objectFit: 'contain', filter: 'var(--logo-filter)' }} />
+      {/* the landing photo (swapped with the home page's rotating mark): sized by .landing-photo in globals.css */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- a single static image, served as is */}
+      <img src="/site_assets/landing_solo.webp" alt="" aria-hidden className="positive landing-photo"
+        style={{ width: 'auto', height: 'auto', pointerEvents: 'none' }} />
     </main>
   );
 }
