@@ -182,7 +182,7 @@ html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
    is inverted twice, so it shows as is: the landing photo, README's flags. The background photo
    (and its phone-edge feather) too, then lifted 15% toward white; the canvas Safari paints its
    bars with is the photo mean lifted the same (#a8a5a0 → #b5b3ae). The plates and logo are drawn
-   in #b0a393, whose negative is the blue midtone of the negative photo, #4f5c6c. */
+   in #897a5f, whose negative is a light blue, #7685a0. */
 .positive { filter: invert(1); }
 html[data-theme="default"] { background-color: #b5b3ae; }
 html[data-theme="default"] body::before,
