@@ -304,7 +304,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         .plate .window { border: 1px solid ${WHITE}; display: flex; box-shadow: 0 0 3px rgba(255,255,255,0.3);
           background: rgba(0,0,0,0.03); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
         .plate canvas { display: block; width: ${W}px; height: ${H}px; margin: auto 6px;
-          filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)); }
+          filter: drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)) invert(1); }   /* invert: stays positive under the site's negative */
         /* the log, unboxed, in the plate's type */
         .log { position: absolute; bottom: 64px; left: 24px; color: ${WHITE}; font-size: 11px; letter-spacing: 0.04em;
           font-variant-numeric: tabular-nums; white-space: pre; display: grid; grid-template-columns: auto auto auto;

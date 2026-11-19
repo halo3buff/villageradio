@@ -265,7 +265,7 @@ export function Oscilloscope() {
           ref={canvasRef}
           style={{
             display: 'block', width: 'calc(100% - 12px)', height: SH, margin: 'auto 6px', color: 'inherit',
-            filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7))',
+            filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,255,255,0.7)) invert(1)',   // invert: stays positive under the site's negative
           }}
         />
       </div>
