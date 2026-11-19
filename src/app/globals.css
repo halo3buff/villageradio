@@ -179,14 +179,17 @@ html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
 
 /* Negative-film look: a white layer in difference mode turns every pixel beneath into 1 − x
    (black↔white, the warm photo goes cold blue). The canvas Safari paints its bars with is set to
-   the photo mean's negative (255 − #a8a5a0) so the bars match. Admin stays positive. */
-html[data-theme="default"] { background-color: #575a5f; }
+   Admin stays positive. Anything marked .positive is inverted twice, so it shows as is:
+   the background photo (and its phone-edge feather), the landing photo, README's flags. */
+.positive,
+html[data-theme="default"] body::before,
+html[data-theme="default"] body::after { filter: invert(1); }
 html::after {
   content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none;
   background: #fff; mix-blend-mode: difference;
 }
 html:has(.admin-shell)::after { display: none; }
-html[data-theme="default"]:has(.admin-shell) { background-color: #a8a5a0; }
+html:has(.admin-shell) body::before, html:has(.admin-shell) body::after { filter: none; }
 
 /* Admin toast: rises in from below. */
 .toast-in {

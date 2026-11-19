@@ -20,7 +20,7 @@ const FLAGS: [string, string, (x: number, y: number) => string][] = [
 
 function Flag({ name, px }: { name: string; px: (x: number, y: number) => string }) {
   return (
-    <svg viewBox="0 0 12 9" width={32} height={24} shapeRendering="crispEdges" role="img" aria-label={name} style={{ display: 'block' }}>
+    <svg viewBox="0 0 12 9" width={32} height={24} shapeRendering="crispEdges" role="img" aria-label={name} className="positive" style={{ display: 'block' }}>
       {Array.from({ length: 108 }, (_, i) => <rect key={i} x={i % 12} y={Math.floor(i / 12)} width={1} height={1} fill={px(i % 12, Math.floor(i / 12))} />)}
     </svg>
   );

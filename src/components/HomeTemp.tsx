@@ -42,7 +42,7 @@ export function HomeTemp() {
       {/* eslint-disable-next-line @next/next/no-img-element -- a single static image, served as is */}
       <img
         src="/site_assets/landing_solo.webp"
-        alt="" aria-hidden
+        alt="" aria-hidden className="positive"
         style={{
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
           width: 'auto', height: 'auto', maxHeight: '70dvh', maxWidth: '76vw',
