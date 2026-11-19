@@ -9,9 +9,9 @@ const MAX_HANDLE = 64;
 const MAX_DURATION = 180;
 
 // The station's scope drawing (HomeDesktop), in a taller window that spans the device.
-const SH = 112, REACH = 50;
-// the station plate's width (HomeDesktop): the device ends where it does
-const PLATE_W = 340;
+const SH = 80, REACH = 34;
+// narrower than the station plate (340): stood on end, a full-width device read far bigger than the radio
+const PLATE_W = 236;
 const DOT = 3, STEP = 8;
 // Recording is mono, so the figure is the voice against itself a few ms back —
 // the lag opens it into a Lissajous the way L against R does on the station.
@@ -311,7 +311,7 @@ export function Oscilloscope() {
       </div>
 
       {/* ── BUTTONS — the plate's foot ── */}
-      <div style={{ display: 'flex', gap: '2px 22px', flexWrap: 'wrap', marginTop: 10, padding: '6px 6px 0', borderTop: '1px solid currentColor' }}>
+      <div style={{ display: 'flex', gap: '2px 10px', flexWrap: 'wrap', marginTop: 10, padding: '6px 6px 0', borderTop: '1px solid currentColor' }}>
         <Buttons
           recState={rec.state} transmitting={transmitting} sent={sent}
           playing={playing} loop={loop}
