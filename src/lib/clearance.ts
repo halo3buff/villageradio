@@ -29,9 +29,10 @@ export function gateOf(path: string): string | null {
 }
 
 export function grantClearance(path: string): void {
-  if (!GATED_PATHS.has(path)) return;
+  const gate = gateOf(path);   // a sub-page ('/station/radar') opens its section's gate
+  if (!gate) return;
   try {
-    sessionStorage.setItem(KEY_PREFIX + path, String(Date.now()));
+    sessionStorage.setItem(KEY_PREFIX + gate, String(Date.now()));
   } catch { /* storage unavailable → hasClearance fails open */ }
 }
 

@@ -41,9 +41,9 @@ describe('log', () => {
   it('logs listeners every half hour: counted, 00 once the window passes, nothing while it is open', () => {
     const b = RX_SINCE + 3 * 1_800_000;
     const rx = (now: number) => feed([], [], now, 999, [{ at: b, n: 7 }]).filter((l) => l.kind === 'rx').map((l) => l.text);
-    expect(rx(b + 60_000)).toEqual(['00 LISTENING', '00 LISTENING', '00 LISTENING', '07 LISTENING']);
+    expect(rx(b + 60_000)).toEqual(['00 OR', '00 OR', '00 OR', '07 OR']);
     expect(rx(b + 1_800_000 + 60_000)).toHaveLength(4);              // next half hour's window still open
-    expect(rx(b + 1_800_000 + 300_000).at(-1)).toBe('00 LISTENING');
+    expect(rx(b + 1_800_000 + 300_000).at(-1)).toBe('00 OR');
     expect(feed([], [], RX_SINCE - 1, 999).some((l) => l.kind === 'rx')).toBe(false);
   });
 });

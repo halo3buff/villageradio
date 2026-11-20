@@ -78,7 +78,7 @@ const PIPS = [[-3, 0.1], [-2, 0.1], [-1, 0.1], [0, 0.5]], PIP_HZ = 1000, PIP_LEV
 /**
  * The station as a small white outline in the top-left corner: the call sign, clock, state and
  * readouts, then at its right end a bordered Lissajous of the stereo field in glowing dots. Off
- * air it and the readouts follow a test signal, so nothing stops. README and RADAR top-right; the
+ * air it and the readouts follow a test signal, so nothing stops. README top-right; the
  * prompt is global (see SiteFrame). The StationBar stays off here.
  */
 // The log above the prompt: the station's last lines, newest at the bottom, each kind in its own colour.
@@ -355,12 +355,9 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         </div>
       )}
 
-      {/* README and RADAR — top-right corner */}
+      {/* README — top-right corner (the radar is reached by typing Sunbird) */}
       <Link href="/station/readme" style={{ position: 'absolute', top: 24, right: 24, zIndex: 5, color: 'inherit', textDecoration: 'none' }}>
         README
-      </Link>
-      <Link href="/station/radar" style={{ position: 'absolute', top: 44, right: 24, zIndex: 5, color: 'inherit', textDecoration: 'none' }}>
-        RADAR
       </Link>
     </div>
   );

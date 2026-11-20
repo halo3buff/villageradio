@@ -88,7 +88,7 @@ export function feed(plan: PlanStep[], entries: LogEntry[], nowMs: number, count
   const from = Math.max(RX_SINCE, today - DAY_MS);
   for (let b = from - (from % RX_EVERY_MS) + (from % RX_EVERY_MS ? RX_EVERY_MS : 0); b <= nowMs; b += RX_EVERY_MS) {
     const n = heard.get(b) ?? (nowMs >= b + RX_WINDOW_MS ? 0 : null);
-    if (n !== null) lines.push({ at: b, kind: 'rx', tag: 'RX', text: `${String(n).padStart(2, '0')} LISTENING` });
+    if (n !== null) lines.push({ at: b, kind: 'rx', tag: 'RX', text: `${String(n).padStart(2, '0')} OR` });
   }
   return lines.filter((l) => l.at <= nowMs).sort((a, b) => a.at - b.at).slice(-count);
 }
