@@ -67,6 +67,24 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     tvRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: sound ? 'mute' : 'unMute', args: [] }), '*');
     setSound(!sound);
   };
+  // Boot screen: the station's spinning mark covers the TV until the clip has been playing ~2.5s,
+  // long enough for YouTube's title, spinner and logo to fade. The player reports 'playing' (state 1)
+  // over postMessage once told we're listening; 9s is the fallback if it never says.
+  const [boot, setBoot] = useState(false);
+  useEffect(() => {
+    if (!clip) return;
+    setBoot(true);
+    let lift: ReturnType<typeof setTimeout> | undefined;
+    const fallback = setTimeout(() => setBoot(false), 9000);
+    const onMsg = (e: MessageEvent) => {
+      if (!e.origin.includes('youtube') || lift) return;
+      try {
+        if (JSON.parse(e.data)?.info?.playerState === 1) lift = setTimeout(() => setBoot(false), 2500);
+      } catch {}
+    };
+    window.addEventListener('message', onMsg);
+    return () => { window.removeEventListener('message', onMsg); clearTimeout(fallback); clearTimeout(lift); };
+  }, [clip]);
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
   // Mobile keyboard covers a bottom-left prompt — lift it by the occluded
@@ -151,7 +169,14 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
             takes every tap, so YouTube's pause, timeline and hover overlays never show. Tap = sound. */}
         <div style={{ position: 'relative', aspectRatio: '4 / 3', overflow: 'hidden', background: '#000' }}>
           <iframe ref={tvRef} src={ssbroSrc(clip)} title="Super Smash Bros. Melee gameplay" allow="autoplay; encrypted-media"
+            onLoad={() => tvRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*')}
             style={{ position: 'absolute', top: '50%', left: '50%', width: '145%', height: '109%', transform: 'translate(-50%, -50%)', border: 'none', pointerEvents: 'none' }} />
+          {boot && (
+            <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
+              <img src="/site_assets/logo_roto_v4.webp" alt="" style={{ width: '45%', filter: 'brightness(0) invert(1)' }} />
+            </div>
+          )}
           <div onClick={toggleSound} aria-label={sound ? 'mute' : 'unmute'} role="button" style={{
             position: 'absolute', inset: 0, cursor: 'pointer',
             background: 'repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.28) 2px 3px), radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%)',
