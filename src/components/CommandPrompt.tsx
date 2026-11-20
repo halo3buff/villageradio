@@ -40,10 +40,23 @@ const PASSPHRASE: Record<string, string> = {
 const SPRITE_WORD = 'honeycomb';
 // Easter egg: opens a small TV of Melee gameplay — YouTube's own embed player, nothing hosted here.
 const SSBRO_WORD = 'ssbro';
-const SSBRO_CLIPS = ['Z1ggc2qxCDg', 'ORKHzxWI6dk', 'fRONbmCVvl0', 'Oxaq-AkpOPU', '9Sdu2yjZ2xM', 'gJ3CFbwYJq8'];
+// Tournament sets (Big House, EVO, Genesis). `at`: seconds checked by eye to be mid-match, not crowd,
+// commentary desk or results. `c`: the game's horizontal centre in the stream layout (0.5 = centred;
+// ~0.66 when a webcam/sponsor column sits left), so the TV can frame just the game.
+const SSBRO_CLIPS: { id: string; c: number; at: number[] }[] = [
+  { id: 'cqM92Lf0IJc', c: 0.5, at: [639, 958, 1277, 1597, 1916] },
+  { id: 'VVreFdWcze4', c: 0.66, at: [994, 2981, 4969, 6956, 7950] },
+  { id: 'Oime4m6suCo', c: 0.5, at: [238, 356, 475, 713, 832, 950] },
+  { id: 'U2cd_pFdQUk', c: 0.67, at: [238, 356, 475, 594, 713] },
+  { id: '_OVP0Z9xF7M', c: 0.5, at: [273, 546, 819, 1092, 1364] },
+  { id: 'T6aixSUxpVA', c: 0.66, at: [135, 270, 405, 674, 809, 944] },
+  { id: '6dd4-gj4_HQ', c: 0.66, at: [640, 960, 1600, 1920, 2240, 2560] },
+];
+const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+const CHANNEL_MS = 90_000;   // a match point stays good for about this long; then the TV changes channel
 // no controls, no keyboard, loops; the JS API lets a tap on the screen toggle sound
-const ssbroSrc = (id: string) =>
-  `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&loop=1&playlist=${id}&enablejsapi=1`;
+const ssbroSrc = (id: string, start: number) =>
+  `https://www.youtube-nocookie.com/embed/${id}?start=${start}&autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&enablejsapi=1`;
 
 export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const cmdMap = {
@@ -60,30 +73,46 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const [err, setErr] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [kbShift, setKbShift] = useState(0);
-  const [clip, setClip] = useState<string | null>(null);
+  const [clip, setClip] = useState<{ clip: (typeof SSBRO_CLIPS)[number]; at: number } | null>(null);
   const [sound, setSound] = useState(false);
   const tvRef = useRef<HTMLIFrameElement>(null);
   const toggleSound = () => {
     tvRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: sound ? 'mute' : 'unMute', args: [] }), '*');
     setSound(!sound);
   };
-  // Boot screen: the station's spinning mark covers the TV until the clip has been playing ~2.5s,
-  // long enough for YouTube's title, spinner and logo to fade. The player reports 'playing' (state 1)
-  // over postMessage once told we're listening; 9s is the fallback if it never says.
+  // Boot screen: the station's spinning mark covers the TV while the player starts and while it jumps
+  // to a match point, and stays up until playback is 4s past that point. That hides YouTube's title,
+  // spinner and the pause/play flash a seek triggers. Every CHANNEL_MS it jumps to another match point,
+  // behind the boot screen again. The player reports currentTime over postMessage once told we're
+  // listening; 12s is the fallback if it never does.
   const [boot, setBoot] = useState(false);
   useEffect(() => {
     if (!clip) return;
-    setBoot(true);
-    let lift: ReturnType<typeof setTimeout> | undefined;
-    const fallback = setTimeout(() => setBoot(false), 9000);
+    const send = (func: string, args: unknown[]) =>
+      tvRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+    let target = clip.at;
+    let covered = false;
+    let fallback: ReturnType<typeof setTimeout>;
+    const uncover = () => { covered = false; setBoot(false); clearTimeout(fallback); };
+    const cover = () => { covered = true; setBoot(true); clearTimeout(fallback); fallback = setTimeout(uncover, 12000); };
+    const hideCaptions = () => { send('unloadModule', ['captions']); send('setOption', ['captions', 'track', {}]); };
+    cover();
+    const channel = setInterval(() => {
+      target = pick(clip.clip.at);
+      cover();
+      send('seekTo', [target, true]);
+    }, CHANNEL_MS);
     const onMsg = (e: MessageEvent) => {
-      if (!e.origin.includes('youtube') || lift) return;
+      if (!e.origin.includes('youtube')) return;
       try {
-        if (JSON.parse(e.data)?.info?.playerState === 1) lift = setTimeout(() => setBoot(false), 2500);
+        const info = JSON.parse(e.data)?.info;
+        if (info?.currentTime == null || !covered) return;
+        hideCaptions();   // some uploads force captions on; the module can load late, so keep dropping it while covered
+        if (info.currentTime > target + 4) uncover();
       } catch {}
     };
     window.addEventListener('message', onMsg);
-    return () => { window.removeEventListener('message', onMsg); clearTimeout(fallback); clearTimeout(lift); };
+    return () => { window.removeEventListener('message', onMsg); clearTimeout(fallback); clearInterval(channel); };
   }, [clip]);
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
@@ -119,7 +148,8 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     if (value.toLowerCase() === SSBRO_WORD) {
       setCmd('');
       inputRef.current?.blur();
-      setClip(SSBRO_CLIPS[Math.floor(Math.random() * SSBRO_CLIPS.length)]);
+      const c = pick(SSBRO_CLIPS);
+      setClip({ clip: c, at: pick(c.at) });
       setSound(false);
       return;
     }
@@ -168,9 +198,10 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
         {/* a vintage TV: the player is zoomed past its title bar and logo, and a glass layer on top
             takes every tap, so YouTube's pause, timeline and hover overlays never show. Tap = sound. */}
         <div style={{ position: 'relative', aspectRatio: '4 / 3', overflow: 'hidden', background: '#000' }}>
-          <iframe ref={tvRef} src={ssbroSrc(clip)} title="Super Smash Bros. Melee gameplay" allow="autoplay; encrypted-media"
+          <iframe ref={tvRef} src={ssbroSrc(clip.clip.id, clip.at)} title="Super Smash Bros. Melee gameplay" allow="autoplay; encrypted-media"
             onLoad={() => tvRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*')}
-            style={{ position: 'absolute', top: '50%', left: '50%', width: '145%', height: '109%', transform: 'translate(-50%, -50%)', border: 'none', pointerEvents: 'none' }} />
+            // zoomed so the 4:3 game fills the screen, panned to the game's centre in this set's stream layout
+            style={{ position: 'absolute', top: '50%', left: `${50 - clip.clip.c * 150}%`, width: '150%', height: '112.5%', transform: 'translateY(-50%)', border: 'none', pointerEvents: 'none' }} />
           {boot && (
             <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
