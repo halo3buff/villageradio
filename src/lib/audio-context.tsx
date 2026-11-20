@@ -69,6 +69,7 @@ function getBroadcastPosition(segments: Segment[], offsetMs: number, news: NewsW
 /** The news hour as a track the transport can show. */
 const liveMix = (news: NewsWindow): Mix => ({
   id: 'news-hour', title: news.name, artist: 'LIVE', date: '', duration: 'LIVE', src: LIVE_SRC, tags: [],
+  gainDb: -2.5,   // the relay comes in a touch hotter than the station's own mixes
 });
 
 export function AudioProvider({ children, playlist: shippedPlaylist, segments: shippedSegments, news: shippedNews = null }: { children: React.ReactNode; playlist: Mix[]; segments: Segment[]; news?: NewsWindow | null }) {
