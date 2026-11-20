@@ -320,7 +320,6 @@ export function Oscilloscope() {
       </div>
       {/* ── HEADER — outside the device, under it ── */}
       <div style={{ marginTop: 14, fontSize: 10, lineHeight: '17px', textShadow: '0 0 3px var(--plate-glow)' }}>
-        <div>{'> RECORD TRANSMISSION'}</div>
         <div>{'// TRANSMIT TO RADIO'}</div>
         <div>{'// SAY ANYTHING'}</div>
       </div>

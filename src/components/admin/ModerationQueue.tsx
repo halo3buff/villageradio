@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import type { TransmissionItem } from '@/lib/types';
+import { keptDest } from '@/lib/transmissions/names';
 import { Banner, RowBtn } from './ui';
 
-type Props = { initialItems: TransmissionItem[]; loadError?: string };
+type Props = { initialItems: TransmissionItem[]; initialArchive: TransmissionItem[]; loadError?: string };
 type Notice = { tone: 'ok' | 'warn'; text: string } | null;
 
 function formatSize(bytes: number): string {
@@ -18,8 +19,10 @@ function formatWhen(iso: string): string {
   return iso.replace('T', ' ').slice(0, 16);
 }
 
-export function ModerationQueue({ initialItems, loadError }: Props) {
+export function ModerationQueue({ initialItems, initialArchive, loadError }: Props) {
   const [items, setItems] = useState<TransmissionItem[]>(initialItems);
+  const [archive, setArchive] = useState<TransmissionItem[]>(initialArchive);
+  const [view, setView] = useState<'queue' | 'archive'>('queue');
   const [playing, setPlaying] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [busy, setBusy] = useState<{ name: string; action: 'keep' | 'delete' } | null>(null);
@@ -39,7 +42,15 @@ export function ModerationQueue({ initialItems, loadError }: Props) {
         setNotice({ tone: 'warn', text: `${action} failed — ${b.error ?? res.status}` });
         return;
       }
+      const kept = items.find((t) => t.name === name);
       setItems((prev) => prev.filter((t) => t.name !== name));
+      setArchive((prev) => {
+        const rest = prev.filter((t) => t.name !== name);
+        // newest first, like the server lists it
+        return action === 'keep' && kept
+          ? [...rest, { ...kept, name: keptDest(name), state: 'kept' as const }].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
+          : rest;
+      });
       if (playing === name) setPlaying(null);
       setNotice({ tone: 'ok', text: action === 'keep' ? 'kept — moved to the archive.' : 'deleted — moved to trash (recoverable).' });
     } catch {
@@ -61,27 +72,30 @@ export function ModerationQueue({ initialItems, loadError }: Props) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-baseline gap-4 mb-1">
-        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80">
-          transmissions — moderation queue
-        </h1>
-        <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/25">
-          {items.length} in queue
-        </span>
+      <div className="flex items-baseline gap-5 mb-1">
+        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80">transmissions —</h1>
+        {(['queue', 'archive'] as const).map((v) => (
+          <button key={v} onClick={() => { setView(v); setPlaying(null); setPendingDelete(null); }}
+            className={`font-mono text-[11px] tracking-[0.2em] uppercase transition-colors ${view === v ? 'text-white' : 'text-white/35 hover:text-white/70'}`}>
+            {v} <span className="text-[9px] tracking-[0.16em]">{v === 'queue' ? items.length : archive.length}</span>
+          </button>
+        ))}
       </div>
       <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-6">
-        play to review · keep approves (→ kept) · delete moves to trash (recoverable) · actions apply immediately
+        {view === 'queue'
+          ? 'play to review · keep approves (→ archive) · delete moves to trash (recoverable) · actions apply immediately'
+          : 'everything kept · play or download to use in house · delete moves to trash (recoverable)'}
       </p>
 
       {notice && <Banner tone={notice.tone}>{notice.text}</Banner>}
 
-      {items.length === 0 ? (
+      {(view === 'queue' ? items : archive).length === 0 ? (
         <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/20 py-8">
-          no transmissions in the queue
+          {view === 'queue' ? 'no transmissions in the queue' : 'nothing kept yet'}
         </p>
       ) : (
         <ul>
-          {items.map((t) => {
+          {(view === 'queue' ? items : archive).map((t) => {
             const isBusy = busy?.name === t.name;
             const confirming = pendingDelete === t.name;
             return (
@@ -107,7 +121,15 @@ export function ModerationQueue({ initialItems, loadError }: Props) {
                           onClick={() => setPlaying(playing === t.name ? null : t.name)}
                           label={playing === t.name ? 'stop' : 'play'}
                         />
-                        <RowBtn onClick={() => moderate(t.name, 'keep')} label="keep" />
+                        {view === 'queue' ? (
+                          <RowBtn onClick={() => moderate(t.name, 'keep')} label="keep" />
+                        ) : (
+                          <a href={`/api/admin/transmissions/audio?name=${encodeURIComponent(t.name)}`}
+                            download={t.name.slice(t.name.lastIndexOf('/') + 1)}
+                            className="font-mono text-[9px] tracking-[0.12em] uppercase text-white/50 hover:text-white transition-colors">
+                            download
+                          </a>
+                        )}
                         {confirming ? (
                           <>
                             <RowBtn onClick={() => onDeleteClick(t.name)} label="confirm?" />

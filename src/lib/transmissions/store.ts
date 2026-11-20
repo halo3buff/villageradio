@@ -45,14 +45,17 @@ function toItem(f: GcsFileLike): TransmissionItem {
 
 /** Lists the incoming moderation queue (new/ + legacy bare-root), newest first. */
 export async function listQueue(): Promise<TransmissionItem[]> {
+  return (await listAll()).filter((t) => t.state === 'new');
+}
+
+/** Lists the archive — everything kept — newest first. */
+export async function listArchive(): Promise<TransmissionItem[]> {
+  return (await listAll()).filter((t) => t.state === 'kept');
+}
+
+async function listAll(): Promise<TransmissionItem[]> {
   const [files] = await client().bucket(transmissionsBucketName()).getFiles({ prefix: PREFIX });
-  return (files as GcsFileLike[])
-    .filter((f) => {
-      const cls = classifyState(f.name);
-      return cls === 'new' || cls === 'incoming-bare';
-    })
-    .map(toItem)
-    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  return (files as GcsFileLike[]).map(toItem).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
 }
 
 /** Approves a transmission: moves it into the kept/ folder. */
