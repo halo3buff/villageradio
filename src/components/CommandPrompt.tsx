@@ -53,6 +53,11 @@ const SSBRO_CLIPS: { id: string; c: number; at: number[] }[] = [
   { id: '6dd4-gj4_HQ', c: 0.66, at: [640, 960, 1600, 1920] },
 ];
 const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+// Easter egg: playable Melee. The author's own hosted page (nikhilunni/melee, a Rust/WebGPU port with
+// no game data) in a window; each player drops in their own disc image, read in their browser only.
+// Nothing is copied here: the repo has no licence, so it is framed, not rebuilt.
+const MELEE_WORD = 'melee';
+const MELEE_URL = 'https://nikhilunni.github.io/melee/';
 const CHANNEL_MS = 45_000;   // every point is checked to stay in-match for 50s; the TV changes channel before that runs out
 // no controls, no keyboard, loops; the JS API lets a tap on the screen toggle sound
 const ssbroSrc = (id: string, start: number) =>
@@ -75,6 +80,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const [kbShift, setKbShift] = useState(0);
   const [clip, setClip] = useState<{ clip: (typeof SSBRO_CLIPS)[number]; at: number } | null>(null);
   const [sound, setSound] = useState(false);
+  const [melee, setMelee] = useState(false);
   const tvRef = useRef<HTMLIFrameElement>(null);
   const toggleSound = () => {
     tvRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: sound ? 'mute' : 'unMute', args: [] }), '*');
@@ -150,6 +156,13 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
       inputRef.current?.blur();
       const c = pick(SSBRO_CLIPS);
       setClip({ clip: c, at: pick(c.at) });
+      return;
+    }
+    if (value.toLowerCase() === MELEE_WORD) {
+      setCmd('');
+      inputRef.current?.blur();
+      setClip(null);   // one Melee at a time
+      setMelee(true);
       setSound(false);
       return;
     }
@@ -184,6 +197,20 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   };
 
   return (<>
+    {melee && (
+      <div style={{
+        position: 'fixed', inset: 'min(5vh, 40px) min(5vw, 40px)', zIndex: 2200, display: 'flex', flexDirection: 'column',
+        fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: 'var(--vlg-fg, #000)', background: '#000', border: '1px solid currentColor',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', borderBottom: '1px solid currentColor', background: 'var(--vlg-bg, #fff)' }}>
+          <span>MELEE.EXE  NEEDS YOUR OWN NTSC 1.02 DISC IMAGE · CHROME / EDGE / SAFARI</span>
+          <button onClick={() => setMelee(false)} aria-label="close"
+            style={{ font: 'inherit', color: 'inherit', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>[x]</button>
+        </div>
+        <iframe src={MELEE_URL} title="Melee" allow="gamepad; fullscreen; autoplay"
+          allowFullScreen style={{ flex: 1, width: '100%', border: 'none' }} />
+      </div>
+    )}
     {clip && (
       <div className="ssbro-tv" style={{
         position: 'fixed', left: 24, bottom: 'calc(clamp(10px, 2.5vw, 24px) + 56px + env(safe-area-inset-bottom, 0px))',
