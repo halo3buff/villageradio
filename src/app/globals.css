@@ -187,11 +187,21 @@ html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
 @media (min-width: 716px) { .ssbro-tv { left: auto !important; right: 24px; bottom: 24px !important; } }
 /* The Melee screens (/melee, /melee/online, /melee/join): faint scanlines over the game, like a CRT.
    Over the picture only, so clicks and keys still reach it. */
-.crt { position: relative; }
+.crt { position: relative; overflow: hidden; border-radius: 10px / 14px; background: #000; }
+/* scanlines, a faint RGB phosphor grille, and corners falling off into the dark, with an inner
+   glass shadow, all over the picture and never in the way of clicks or a dropped disc */
 .crt::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.16) 2px 3px);
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background:
+    radial-gradient(ellipse at center, rgba(0,0,0,0) 58%, rgba(0,0,0,0.5) 100%),
+    repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px),
+    repeating-linear-gradient(to right, rgba(255,0,0,0.035) 0 1px, rgba(0,255,0,0.025) 1px 2px, rgba(0,0,255,0.035) 2px 3px);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.65), inset 0 0 3px rgba(255,255,255,0.08);
+  animation: crt-flicker 0.12s steps(2) infinite;
 }
+/* the tube's faint, constant shimmer */
+@keyframes crt-flicker { 0% { opacity: 1; } 100% { opacity: 0.94; } }
+@media (prefers-reduced-motion: reduce) { .crt::after { animation: none; } }
 /* README_0's command reference: under the photo, as wide as it */
 .readme-cmds { margin-top: 14px; }
 
