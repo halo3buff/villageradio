@@ -204,6 +204,8 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', borderBottom: '1px solid currentColor', background: 'var(--vlg-bg, #fff)' }}>
           <span>MELEE.EXE  NEEDS YOUR OWN NTSC 1.02 DISC IMAGE · CHROME / EDGE / SAFARI</span>
+          {/* a full page load, not router.push: the online page's isolation headers apply only to a fresh document */}
+          <a href="/melee/online" style={{ color: 'inherit', textDecoration: 'none', marginLeft: 'auto', marginRight: 12 }}>[ONLINE]</a>
           <button onClick={() => setMelee(false)} aria-label="close"
             style={{ font: 'inherit', color: 'inherit', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>[x]</button>
         </div>

@@ -4,6 +4,18 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   // Hide the Next.js dev-tools indicator (the floating "N" badge shown in development).
   devIndicators: false,
+  // /melee/online frames each player's own local melee-web build, whose engine threads need a
+  // cross-origin isolated page all the way up. Only this page is isolated: site-wide it would
+  // block the YouTube embeds.
+  async headers() {
+    return [{
+      source: '/melee/online',
+      headers: [
+        { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+        { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+      ],
+    }];
+  },
   images: {
     formats: ['image/webp', 'image/avif'],
     // Admin-uploaded photos/work images are served from the public R2 bucket via next/image.
