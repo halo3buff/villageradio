@@ -1,4 +1,4 @@
-import type { BroadcastEntry, BroadcastManifest, Mix, Placement } from '@/lib/types';
+import type { BroadcastEntry, BroadcastManifest, Mix, NewsHour, Placement, SiteManifest } from '@/lib/types';
 
 export const PROXY = '/api/audio/stream?file=';
 
@@ -146,4 +146,24 @@ export function toPlacements(m: BroadcastManifest): Placement[] {
     else out.push({ id: `p${out.length + 1}`, entry: id, start: s.start, plays: 1 });
   }
   return out;
+}
+
+// --- News hour ------------------------------------------------------------------------
+// Monte Carlo Doualiya (France Médias Monde's Arabic service), live, once a day, in place of the
+// schedule. Editable in Admin → SETTINGS; this is what airs until it's been saved there.
+export const DEFAULT_NEWS: NewsHour = {
+  on: true,
+  url: 'https://montecarlodoualiya128k.ice.infomaniak.ch/mc-doualiya.mp3',
+  start: 18 * 3600,
+  minutes: 60,
+  name: 'MONTE CARLO DOUALIYA',
+};
+export const LIVE_SRC = '/api/audio/live';
+
+/** The public face of the news hour (no stream URL): its window in seconds of the day, or null. */
+export type NewsWindow = { start: number; end: number; name: string };
+export function newsWindow(site: SiteManifest): NewsWindow | null {
+  const n = site.news ?? DEFAULT_NEWS;
+  if (!n.on || !n.url || n.minutes <= 0) return null;
+  return { start: n.start, end: Math.min(n.start + n.minutes * 60, DAY_SEC), name: n.name };
 }

@@ -5,7 +5,8 @@ import { sameOrigin } from '@/lib/http/same-origin';
 import { readManifest, writeManifest, ConflictError } from '@/lib/content/store';
 import { publishManifest } from '@/lib/content/loaders';
 import { isThemeName } from '@/lib/theme';
-import type { SiteManifest } from '@/lib/types';
+import type { NewsHour, SiteManifest } from '@/lib/types';
+import { DEFAULT_NEWS } from '@/lib/content/broadcast';
 
 export const runtime = 'nodejs';
 // Admin must read the LIVE config (its real generation), never the 300s-cached loader.
@@ -17,8 +18,20 @@ const FILE = 'site.json';
 export async function GET(): Promise<Response> {
   await requireAdmin();
   const res = await readManifest<SiteManifest>(FILE);
-  if (res) return NextResponse.json({ theme: res.data.theme, generation: res.generation });
-  return NextResponse.json({ theme: 'default', generation: '0' });
+  if (res) return NextResponse.json({ theme: res.data.theme, news: res.data.news ?? DEFAULT_NEWS, generation: res.generation });
+  return NextResponse.json({ theme: 'default', news: DEFAULT_NEWS, generation: '0' });
+}
+
+/** A news hour from the editor, checked field by field; null if anything is off. */
+function parseNews(v: unknown): NewsHour | null {
+  if (!v || typeof v !== 'object') return null;
+  const n = v as Record<string, unknown>;
+  const int = (x: unknown, lo: number, hi: number) => typeof x === 'number' && Number.isInteger(x) && x >= lo && x <= hi;
+  if (typeof n.on !== 'boolean') return null;
+  if (typeof n.url !== 'string' || !/^https:\/\/\S+$/.test(n.url) || n.url.length > 500) return null;
+  if (!int(n.start, 0, 86_399) || !int(n.minutes, 1, 240)) return null;
+  if (typeof n.name !== 'string' || n.name.length > 60) return null;
+  return { on: n.on, url: n.url, start: n.start as number, minutes: n.minutes as number, name: n.name.trim() };
 }
 
 /** Staged publish: optimistic write, then bust the public cache tag. */
@@ -29,7 +42,7 @@ export async function PUT(req: Request): Promise<Response> {
     return NextResponse.json({ ok: false, error: 'bad_origin' }, { status: 403 });
   }
 
-  let body: { theme?: unknown; generation?: unknown };
+  let body: { theme?: unknown; news?: unknown; generation?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -43,8 +56,15 @@ export async function PUT(req: Request): Promise<Response> {
     return NextResponse.json({ ok: false, error: 'invalid_theme' }, { status: 400 });
   }
 
+  const news = body.news === undefined ? undefined : parseNews(body.news);
+  if (news === null) {
+    return NextResponse.json({ ok: false, error: 'invalid_news' }, { status: 400 });
+  }
+
   try {
-    await writeManifest<SiteManifest>(FILE, { theme: body.theme }, { ifGenerationMatch: body.generation });
+    // a body without news keeps what's saved (the generation check makes that read safe)
+    const keep = news ?? (await readManifest<SiteManifest>(FILE))?.data.news;
+    await writeManifest<SiteManifest>(FILE, { theme: body.theme, ...(keep && { news: keep }) }, { ifGenerationMatch: body.generation });
   } catch (err) {
     if (err instanceof ConflictError) {
       return NextResponse.json(

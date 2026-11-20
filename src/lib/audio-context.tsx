@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useRef, useState, useEffect } from 'react';
 import type { Mix } from '@/lib/types';
-import { positionAt, secondsIntoDay, type Segment } from '@/lib/content/broadcast';
+import { LIVE_SRC, positionAt, secondsIntoDay, type NewsWindow, type Segment } from '@/lib/content/broadcast';
 import { trimDb } from '@/lib/audio/loudness';
 
 type AudioMode = 'idle' | 'broadcast' | 'individual';
@@ -19,6 +19,8 @@ interface AudioCtx {
   pause: () => void;
   toggle: () => void;
   progress: number;
+  /** The daily news hour's window (seconds of the broadcast day), or null when it's off. */
+  news: NewsWindow | null;
   analyserL: AnalyserNode | null;
   analyserR: AnalyserNode | null;
   analyserFreq: AnalyserNode | null;
@@ -50,25 +52,42 @@ async function fetchServerOffsetMs(): Promise<number> {
   return serverTime + (t1 - t0) / 2 - t1;
 }
 
-// What's on air now (idx -1 = scheduled silence), how far in, and when this play ends —
-// all in seconds of the broadcast day. offsetMs corrects for a skewed local clock.
-function getBroadcastPosition(segments: Segment[], offsetMs: number) {
+// The news hour's slot in place of an entry index.
+const LIVE = -2;
+
+// What's on air now (idx -1 = scheduled silence, LIVE = the news hour), how far in, and when this
+// play ends — all in seconds of the broadcast day. offsetMs corrects for a skewed local clock.
+// The news hour sits over the schedule; with its stream down (liveDown) the schedule shows through.
+function getBroadcastPosition(segments: Segment[], offsetMs: number, news: NewsWindow | null = null, liveDown = false) {
   const sec = secondsIntoDay(Date.now() + offsetMs);
-  return { ...positionAt(segments, sec), sec };
+  if (news && !liveDown && sec >= news.start && sec < news.end) return { idx: LIVE, offset: 0, until: news.end, sec };
+  const p = positionAt(segments, sec);
+  // whatever plays before the news hour is cut off by it
+  return { ...p, until: news && !liveDown && sec < news.start ? Math.min(p.until, news.start) : p.until, sec };
 }
 
-export function AudioProvider({ children, playlist: shippedPlaylist, segments: shippedSegments }: { children: React.ReactNode; playlist: Mix[]; segments: Segment[] }) {
+/** The news hour as a track the transport can show. */
+const liveMix = (news: NewsWindow): Mix => ({
+  id: 'news-hour', title: news.name, artist: 'LIVE', date: '', duration: 'LIVE', src: LIVE_SRC, tags: [],
+});
+
+export function AudioProvider({ children, playlist: shippedPlaylist, segments: shippedSegments, news: shippedNews = null }: { children: React.ReactNode; playlist: Mix[]; segments: Segment[]; news?: NewsWindow | null }) {
   // The lineup as the page shipped it, then as re-fetched while tuned in. Fetched rather than
   // router.refresh(): a refresh that lands on a newer deploy reloads the page and kills the audio.
-  const [lineup, setLineup] = useState({ playlist: shippedPlaylist, segments: shippedSegments });
-  useEffect(() => { setLineup({ playlist: shippedPlaylist, segments: shippedSegments }); }, [shippedPlaylist, shippedSegments]);
-  const { playlist, segments } = lineup;
+  const [lineup, setLineup] = useState({ playlist: shippedPlaylist, segments: shippedSegments, news: shippedNews });
+  useEffect(() => { setLineup({ playlist: shippedPlaylist, segments: shippedSegments, news: shippedNews }); }, [shippedPlaylist, shippedSegments, shippedNews]);
+  const { playlist, segments, news } = lineup;
   // The day's segments index into `playlist`. Timers and callbacks outlive renders, so they read
   // both through refs — a refreshed lineup (see below) reaches a broadcast that's already playing.
   const broadcastRef = useRef(playlist);
   broadcastRef.current = playlist;
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
+  const newsRef = useRef(news);
+  newsRef.current = news;
+  const liveDownRef = useRef(false); // the news stream failed this hour — the schedule plays instead
+  // where the clock says we are, news hour included
+  const position = () => getBroadcastPosition(segmentsRef.current, serverOffsetRef.current ?? 0, newsRef.current, liveDownRef.current);
   const audioRef        = useRef<HTMLAudioElement | null>(null);
   const webCtxRef       = useRef<AudioContext | null>(null);
   const gainNodeRef     = useRef<GainNode | null>(null);
@@ -97,7 +116,7 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
 
   // A new lineup (published from the admin, pulled in by refreshLineup): adopt its timings
   // and, if the broadcast is on, re-tune to wherever the new day says we should be.
-  const lineupKey = JSON.stringify(segments.map(g => [g.start, g.end, g.loop, playlist[g.idx]?.src]));
+  const lineupKey = JSON.stringify([news, segments.map(g => [g.start, g.end, g.loop, playlist[g.idx]?.src])]);
   const lineupRef = useRef(lineupKey);
   useEffect(() => {
     if (lineupRef.current === lineupKey) return;
@@ -134,7 +153,7 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
         }
         if (cancelled || modeRef.current !== 'idle') return;
 
-        const { idx, offset: offsetSec } = getBroadcastPosition(segmentsRef.current, serverOffsetRef.current ?? 0);
+        const { idx, offset: offsetSec } = position();
         const track = broadcastRef.current[idx];
         if (!track?.durationSec) return; // silence now — nothing to warm
 
@@ -262,10 +281,8 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
     setVolumeState(clamped);
   }
 
-  function wireBroadcastTrack(idx: number) {
+  function wireBroadcastTrack(idx: number, track: Mix) {
     const audio = audioRef.current!;
-    const track = broadcastRef.current[idx];
-    if (!track) return;
 
     broadcastIdxRef.current = idx;
     setBroadcastIndex(idx);
@@ -276,9 +293,13 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
       const a = audioRef.current!;
       setProgress(a.currentTime / a.duration || 0);
     };
-    audio.onerror = () => setIsPlaying(false);
+    // the news stream failing hands the hour back to the schedule; anything else stops the transport
+    audio.onerror = idx === LIVE
+      ? () => { if (modeRef.current === 'broadcast') { liveDownRef.current = true; tuneIntoBroadcast(); } }
+      : () => setIsPlaying(false);
 
-    // the clock decides what follows: a repeat, the next block, filler or silence
+    // the clock decides what follows: a repeat, the next block, filler or silence (or, if the news
+    // relay's connection closed mid-hour, the stream again)
     audio.onended = () => { if (modeRef.current === 'broadcast') tuneIntoBroadcast(); };
   }
 
@@ -296,7 +317,9 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
       serverOffsetRef.current = await fetchServerOffsetMs();
     }
 
-    const { idx: trackIdx, offset: offsetSec, until, sec } = getBroadcastPosition(segmentsRef.current, serverOffsetRef.current);
+    const n = newsRef.current;
+    if (!n || secondsIntoDay(Date.now() + serverOffsetRef.current) >= n.end) liveDownRef.current = false; // a fresh hour, a fresh try
+    const { idx: trackIdx, offset: offsetSec, until, sec } = position();
     // Re-tune the moment this play (or silence) ends: filler cut off by the next block,
     // a repeat starting over, the midnight turnover.
     if (boundaryRef.current) clearTimeout(boundaryRef.current);
@@ -305,7 +328,7 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
       fadeOutThen(() => { tuneIntoBroadcast(); fadeIn(); });
     }, Math.max(0, (until - sec) * 1000) + 30);
 
-    const track = broadcastRef.current[trackIdx];
+    const track = trackIdx === LIVE && n ? liveMix(n) : broadcastRef.current[trackIdx];
     if (!track) {
       // Scheduled silence: stay tuned in (the transport still reads ON AIR) with the element idle.
       silentRef.current = true;
@@ -323,7 +346,18 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
       serverOffsetMs: Math.round(serverOffsetRef.current),
     });
 
-    wireBroadcastTrack(trackIdx);
+    wireBroadcastTrack(trackIdx, track);
+
+    if (trackIdx === LIVE) {
+      // a live stream: no offset to seek to, and one already flowing is left alone
+      if (audio.src.split('#')[0] === new URL(LIVE_SRC, window.location.href).href && !audio.paused) { setIsPlaying(true); return; }
+      audio.oncanplay = null;
+      audio.src = LIVE_SRC;
+      audio.load();
+      audio.play().catch((e) => { if (e.name !== 'AbortError') setIsPlaying(false); });
+      setIsPlaying(true);
+      return;
+    }
 
     // Fast path: the mount-time warmup already pointed the element at this
     // track and (on preload-friendly browsers) buffered around the broadcast
@@ -358,8 +392,8 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
     audio.oncanplay = () => {
       audio.oncanplay = null;
       if (serverOffsetRef.current === null) return;
-      const now = getBroadcastPosition(segmentsRef.current, serverOffsetRef.current);
-      if (now.idx === broadcastIdxRef.current && Math.abs(audio.currentTime - now.offset) > HARD_SEEK_SEC) {
+      const now = position();
+      if (now.idx >= 0 && now.idx === broadcastIdxRef.current && Math.abs(audio.currentTime - now.offset) > HARD_SEEK_SEC) {
         safeSeek(audio, now.offset);
       }
     };
@@ -395,7 +429,7 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
     if (modeRef.current !== 'broadcast') return;
     const audio = audioRef.current;
     if (!audio || serverOffsetRef.current === null) return;
-    const expected = getBroadcastPosition(segmentsRef.current, serverOffsetRef.current);
+    const expected = position();
     // silent but something should be playing (the boundary timer is the primary path)
     if (silentRef.current) { if (expected.idx !== -1) tuneIntoBroadcast(); return; }
     if (audio.paused) return;
@@ -406,6 +440,8 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
       console.log('[VR broadcast] resync: wrong track → re-tune');
       return;
     }
+
+    if (expected.idx === LIVE) return; // live: there's no position to drift from
 
     const drift = expected.offset - audio.currentTime; // +behind / -ahead
     const absDrift = Math.abs(drift);
@@ -448,6 +484,7 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
     // the play() rejection handler roll this back if tuning fails.
     setIsPlaying(true);
     setCarrierLost(false); // fresh tune-in — give the carrier a clean slate
+    liveDownRef.current = false;
     initWebAudio(audio);
     startBroadcastTimers(); // first: it clears the boundary timer that tuning sets
     tuneIntoBroadcast();
@@ -498,7 +535,7 @@ export function AudioProvider({ children, playlist: shippedPlaylist, segments: s
     <PlayerContext.Provider value={{
       playlist,
       currentTrack, isPlaying, carrierLost, mode, broadcastIndex,
-      play, broadcastPlay, pause, toggle, progress,
+      play, broadcastPlay, pause, toggle, progress, news,
       analyserL, analyserR, analyserFreq,
       volume, setVolume,
     }}>

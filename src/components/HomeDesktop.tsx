@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { stationClock } from '@/components/StationBar';
-import { BROADCAST_TZ, secondsIntoDay } from '@/lib/content/broadcast';
+import { BROADCAST_TZ, clockTime, secondsIntoDay } from '@/lib/content/broadcast';
 import { feed, txDay, type FeedKind, type FeedLine, type LogEntry, type PlanStep, type RxCount } from '@/lib/content/log';
 import { useAudio } from '@/lib/audio-context';
 import { VISUAL_TRIM_DB } from '@/lib/audio/loudness';
@@ -113,7 +113,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
     window.addEventListener('vlg:cmdclear', clear);
     return () => { window.removeEventListener('vlg:cmdfeed', take); window.removeEventListener('vlg:cmdclear', clear); };
   }, [log]);
-  const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause, volume } = useAudio();
+  const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause, volume, news } = useAudio();
   const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
   const [rd, setRd] = useState<Readout | null>(null);
@@ -316,6 +316,8 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
         .log .row span { text-shadow: 0 0 3px color-mix(in srgb, currentColor 45%, transparent); }
         .log .row .tag { text-shadow: 0 0 1px color-mix(in srgb, currentColor 25%, transparent); }   /* teletext: a whisper of glow, or it smears */
         .log .text { white-space: normal; max-width: 40ch; }
+        /* the news hour's time, a line under the plate */
+        .plate .note { position: absolute; top: calc(100% + 10px); left: 0; font-size: 10px; text-shadow: 0 0 3px var(--plate-glow); }
         @media (max-width: 715px) {
           .plate { top: 72px; left: 16px; }
         }
@@ -340,6 +342,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
           <span className="end">BAL {rd?.bal ?? '   --'}</span>
         </div>
         <div className="window"><canvas ref={lights} aria-hidden /></div>
+        {news && <div className="note">{`NEWS HOUR  ${clockTime(news.start)}–${clockTime(news.end)} ET  ${news.name}`}</div>}
       </div>
 
       {/* the log sits bottom-left, right above the command prompt */}

@@ -2,18 +2,24 @@
 
 import { useState } from 'react';
 import { THEMES, THEME_NAMES } from '@/lib/theme';
+import { clockTime } from '@/lib/content/broadcast';
+import type { NewsHour } from '@/lib/types';
 import { Banner } from './ui';
 
-type Props = { initialTheme: string; generation: string };
+type Props = { initialTheme: string; initialNews: NewsHour; generation: string };
+const FIELD = 'font-mono text-[10px] tracking-[0.1em] bg-transparent border border-white/20 px-2 py-1.5 text-white outline-none focus:border-white/60';
+const LABEL = 'font-mono text-[9px] tracking-[0.16em] uppercase text-white/40';
 type Status = 'idle' | 'publishing' | 'published' | 'conflict' | 'error';
 
-export function SiteSettingsEditor({ initialTheme, generation: initialGen }: Props) {
+export function SiteSettingsEditor({ initialTheme, initialNews, generation: initialGen }: Props) {
   const [theme, setTheme] = useState(initialTheme);
-  const [baseline, setBaseline] = useState(initialTheme);
+  const [news, setNews] = useState(initialNews);
+  const [baseline, setBaseline] = useState({ theme: initialTheme, news: initialNews });
   const [generation, setGeneration] = useState(initialGen);
   const [status, setStatus] = useState<Status>('idle');
 
-  const dirty = theme !== baseline;
+  const dirty = theme !== baseline.theme || JSON.stringify(news) !== JSON.stringify(baseline.news);
+  const edit = (patch: Partial<NewsHour>) => { setNews((n) => ({ ...n, ...patch })); if (status !== 'idle') setStatus('idle'); };
 
   async function publish() {
     setStatus('publishing');
@@ -21,7 +27,7 @@ export function SiteSettingsEditor({ initialTheme, generation: initialGen }: Pro
       const res = await fetch('/api/admin/site', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ theme, generation }),
+        body: JSON.stringify({ theme, news, generation }),
       });
       if (res.status === 409) {
         setStatus('conflict');
@@ -33,7 +39,7 @@ export function SiteSettingsEditor({ initialTheme, generation: initialGen }: Pro
       }
       const b = await res.json();
       setGeneration(b.generation);
-      setBaseline(theme);
+      setBaseline({ theme, news });
       setStatus('published');
     } catch {
       setStatus('error');
@@ -76,6 +82,35 @@ export function SiteSettingsEditor({ initialTheme, generation: initialGen }: Pro
             </button>
           );
         })}
+      </div>
+
+      <h2 className="font-mono text-[11px] tracking-[0.2em] uppercase text-white/80 mt-10 mb-1">news hour</h2>
+      <p className="font-mono text-[9px] tracking-[0.14em] uppercase text-white/25 mb-4">
+        a live stream airs in place of the schedule, daily · times are eastern · the station shows the note
+      </p>
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={news.on} onChange={(e) => edit({ on: e.target.checked })} />
+          <span className={LABEL}>on air daily</span>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={LABEL}>starts</span>
+          <input type="time" className={FIELD} value={clockTime(news.start)}
+            onChange={(e) => { const [h, m] = e.target.value.split(':').map(Number); if (!isNaN(h) && !isNaN(m)) edit({ start: h * 3600 + m * 60 }); }} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={LABEL}>minutes</span>
+          <input type="number" min={1} max={240} className={`${FIELD} w-20`} value={news.minutes}
+            onChange={(e) => edit({ minutes: Math.max(1, Math.min(240, Math.round(Number(e.target.value) || 1))) })} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={LABEL}>name on the station</span>
+          <input type="text" maxLength={60} className={`${FIELD} w-64`} value={news.name} onChange={(e) => edit({ name: e.target.value.toUpperCase() })} />
+        </label>
+        <label className="flex flex-col gap-1 w-full max-w-xl">
+          <span className={LABEL}>stream url (https, mp3/aac)</span>
+          <input type="url" className={FIELD} value={news.url} onChange={(e) => edit({ url: e.target.value.trim() })} />
+        </label>
       </div>
 
       <div className="mt-8 flex items-center gap-4 border-t border-white/10 pt-5">

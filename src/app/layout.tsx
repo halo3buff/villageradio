@@ -3,8 +3,8 @@ import { Space_Mono, DM_Sans, IBM_Plex_Mono, VT323 } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
 import { AudioProvider } from '@/lib/audio-context';
-import { getBroadcastManifest, getCommands, getTheme } from '@/lib/content/loaders';
-import { daySegments, manifestToMixes } from '@/lib/content/broadcast';
+import { getBroadcastManifest, getCommands, getSiteManifest } from '@/lib/content/loaders';
+import { daySegments, manifestToMixes, newsWindow } from '@/lib/content/broadcast';
 import { baseTheme, DEFAULT_THEME, isThemeName, siteCssVars, THEMES } from '@/lib/theme';
 import { SiteFrame } from '@/components/SiteFrame';
 import { ClearanceWarden } from '@/components/ClearanceWarden';
@@ -103,7 +103,8 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [manifest, rawTheme, commands] = await Promise.all([getBroadcastManifest(), getTheme(), getCommands()]);
+  const [manifest, site, commands] = await Promise.all([getBroadcastManifest(), getSiteManifest(), getCommands()]);
+  const rawTheme = site.theme;
   const playlist = manifestToMixes(manifest);
   const theme = isThemeName(rawTheme) ? rawTheme : DEFAULT_THEME;
   return (
@@ -120,7 +121,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="bg-[var(--vlg-bg)] text-[var(--vlg-fg)] min-h-screen font-sans">
         <ThemeProvider name={theme}>
-          <AudioProvider playlist={playlist} segments={daySegments(manifest)}>
+          <AudioProvider playlist={playlist} segments={daySegments(manifest)} news={newsWindow(site)}>
             {/* Burns a gated page's clearance the moment the visitor leaves it */}
             <ClearanceWarden />
             <SiteFrame commands={commands}>

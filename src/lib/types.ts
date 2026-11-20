@@ -126,6 +126,16 @@ export interface CommandsManifest {
 // Empty theme = no override; the site keeps its built-in look until an admin picks one.
 export interface SiteManifest {
   theme: string;
+  /** The daily news hour: a live stream relayed in place of the schedule. Absent = DEFAULT_NEWS. */
+  news?: NewsHour;
+}
+
+export interface NewsHour {
+  on: boolean;
+  url: string;      // the outlet's live MP3/AAC stream — fetched server-side only (/api/audio/live)
+  start: number;    // seconds from midnight, BROADCAST_TZ
+  minutes: number;
+  name: string;     // shown on the station, e.g. MONTE CARLO DOUALIYA
 }
 
 // --- Transmissions moderation (private GCS; state encoded by object prefix, no manifest) ----
