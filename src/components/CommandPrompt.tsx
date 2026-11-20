@@ -40,20 +40,20 @@ const PASSPHRASE: Record<string, string> = {
 const SPRITE_WORD = 'honeycomb';
 // Easter egg: opens a small TV of Melee gameplay — YouTube's own embed player, nothing hosted here.
 const SSBRO_WORD = 'ssbro';
-// Tournament sets (Big House, EVO, Genesis). `at`: seconds checked by eye to be mid-match, not crowd,
-// commentary desk or results. `c`: the game's horizontal centre in the stream layout (0.5 = centred;
+// Tournament sets (Big House, EVO, Genesis). `at`: seconds checked frame by frame (every 10s from
+// the point to 50s after it) to stay in-match, never crowd, players, commentary desk or results. `c`: the game's horizontal centre in the stream layout (0.5 = centred;
 // ~0.66 when a webcam/sponsor column sits left), so the TV can frame just the game.
 const SSBRO_CLIPS: { id: string; c: number; at: number[] }[] = [
-  { id: 'cqM92Lf0IJc', c: 0.5, at: [639, 958, 1277, 1597, 1916] },
+  { id: 'cqM92Lf0IJc', c: 0.5, at: [958, 1277, 1597] },
   { id: 'VVreFdWcze4', c: 0.66, at: [994, 2981, 4969, 6956, 7950] },
-  { id: 'Oime4m6suCo', c: 0.5, at: [238, 356, 475, 713, 832, 950] },
-  { id: 'U2cd_pFdQUk', c: 0.67, at: [238, 356, 475, 594, 713] },
-  { id: '_OVP0Z9xF7M', c: 0.5, at: [273, 546, 819, 1092, 1364] },
-  { id: 'T6aixSUxpVA', c: 0.66, at: [135, 270, 405, 674, 809, 944] },
-  { id: '6dd4-gj4_HQ', c: 0.66, at: [640, 960, 1600, 1920, 2240, 2560] },
+  { id: 'Oime4m6suCo', c: 0.5, at: [356, 475, 713, 950] },
+  { id: 'U2cd_pFdQUk', c: 0.67, at: [238, 594] },
+  { id: '_OVP0Z9xF7M', c: 0.5, at: [273, 546, 819] },
+  { id: 'T6aixSUxpVA', c: 0.66, at: [135, 405, 674, 809] },
+  { id: '6dd4-gj4_HQ', c: 0.66, at: [640, 960, 1600, 1920] },
 ];
 const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
-const CHANNEL_MS = 90_000;   // a match point stays good for about this long; then the TV changes channel
+const CHANNEL_MS = 45_000;   // every point is checked to stay in-match for 50s; the TV changes channel before that runs out
 // no controls, no keyboard, loops; the JS API lets a tap on the screen toggle sound
 const ssbroSrc = (id: string, start: number) =>
   `https://www.youtube-nocookie.com/embed/${id}?start=${start}&autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&enablejsapi=1`;
@@ -185,7 +185,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
 
   return (<>
     {clip && (
-      <div style={{
+      <div className="ssbro-tv" style={{
         position: 'fixed', left: 24, bottom: 'calc(clamp(10px, 2.5vw, 24px) + 56px + env(safe-area-inset-bottom, 0px))',
         width: 'min(320px, 80vw)', zIndex: 2100, fontFamily: MONO, fontSize: 10, lineHeight: '14px',
         color: 'var(--vlg-fg, #000)', background: 'var(--vlg-bg, #fff)', border: '1px solid currentColor',

@@ -183,6 +183,8 @@ html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
 /* README_0: the photo and commands sit above centre — more so on phones, which have the height */
 .readme-page { padding-bottom: 30dvh; }
 @media (min-width: 716px) { .readme-page { padding-bottom: 14dvh; } }
+/* ssbro's TV: above the prompt on phones (inline), the bottom-right corner on desktop */
+@media (min-width: 716px) { .ssbro-tv { left: auto !important; right: 24px; bottom: 24px !important; } }
 /* README_0's command reference: under the photo, as wide as it */
 .readme-cmds { margin-top: 14px; }
 
