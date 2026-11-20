@@ -38,9 +38,12 @@ const PASSPHRASE: Record<string, string> = {
 };
 // The admin entry for phones, which have no arrow keys: summons SootSprite's sprite, homepage only.
 const SPRITE_WORD = 'honeycomb';
-// Easter egg: opens a small window of Brawl gameplay — YouTube's own embed player, nothing hosted here.
+// Easter egg: opens a small TV of Melee gameplay — YouTube's own embed player, nothing hosted here.
 const SSBRO_WORD = 'ssbro';
-const SSBRO_CLIPS = ['lluwqYj4V70', 'f7C83j8EQcw', '9DoGVa8_q5c', 's-l6UkYX_Ns'];
+const SSBRO_CLIPS = ['Z1ggc2qxCDg', 'ORKHzxWI6dk', 'fRONbmCVvl0', 'Oxaq-AkpOPU', '9Sdu2yjZ2xM', 'gJ3CFbwYJq8'];
+// no controls, no keyboard, loops; the JS API lets a tap on the screen toggle sound
+const ssbroSrc = (id: string) =>
+  `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&loop=1&playlist=${id}&enablejsapi=1`;
 
 export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const cmdMap = {
@@ -58,6 +61,12 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const [focused, setFocused] = useState(false);
   const [kbShift, setKbShift] = useState(0);
   const [clip, setClip] = useState<string | null>(null);
+  const [sound, setSound] = useState(false);
+  const tvRef = useRef<HTMLIFrameElement>(null);
+  const toggleSound = () => {
+    tvRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: sound ? 'mute' : 'unMute', args: [] }), '*');
+    setSound(!sound);
+  };
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
   // Mobile keyboard covers a bottom-left prompt — lift it by the occluded
@@ -93,6 +102,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
       setCmd('');
       inputRef.current?.blur();
       setClip(SSBRO_CLIPS[Math.floor(Math.random() * SSBRO_CLIPS.length)]);
+      setSound(false);
       return;
     }
     // housekeeping: drops what was keyed into the station log, back to the latest real lines
@@ -133,14 +143,20 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
         color: 'var(--vlg-fg, #000)', background: 'var(--vlg-bg, #fff)', border: '1px solid currentColor',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', borderBottom: '1px solid currentColor' }}>
-          <span>SSBRO.EXE</span>
+          <span>SSBRO.EXE  {sound ? 'SND ON' : 'SND OFF'}</span>
           <button onClick={() => setClip(null)} aria-label="close"
             style={{ font: 'inherit', color: 'inherit', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>[x]</button>
         </div>
-        {/* muted so it autoplays and doesn't talk over the radio; the player's own button unmutes */}
-        <iframe src={`https://www.youtube-nocookie.com/embed/${clip}?autoplay=1&mute=1&playsinline=1&rel=0`}
-          title="Super Smash Bros. Brawl gameplay" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
-          style={{ display: 'block', width: '100%', aspectRatio: '16 / 9', border: 'none' }} />
+        {/* a vintage TV: the player is zoomed past its title bar and logo, and a glass layer on top
+            takes every tap, so YouTube's pause, timeline and hover overlays never show. Tap = sound. */}
+        <div style={{ position: 'relative', aspectRatio: '4 / 3', overflow: 'hidden', background: '#000' }}>
+          <iframe ref={tvRef} src={ssbroSrc(clip)} title="Super Smash Bros. Melee gameplay" allow="autoplay; encrypted-media"
+            style={{ position: 'absolute', top: '50%', left: '50%', width: '145%', height: '109%', transform: 'translate(-50%, -50%)', border: 'none', pointerEvents: 'none' }} />
+          <div onClick={toggleSound} aria-label={sound ? 'mute' : 'unmute'} role="button" style={{
+            position: 'absolute', inset: 0, cursor: 'pointer',
+            background: 'repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.28) 2px 3px), radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%)',
+          }} />
+        </div>
       </div>
     )}
     <div
