@@ -38,6 +38,9 @@ const PASSPHRASE: Record<string, string> = {
 };
 // The admin entry for phones, which have no arrow keys: summons SootSprite's sprite, homepage only.
 const SPRITE_WORD = 'honeycomb';
+// Easter egg: opens a small window of Brawl gameplay — YouTube's own embed player, nothing hosted here.
+const SSBRO_WORD = 'ssbro';
+const SSBRO_CLIPS = ['lluwqYj4V70', 'f7C83j8EQcw', '9DoGVa8_q5c', 's-l6UkYX_Ns'];
 
 export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const cmdMap = {
@@ -54,6 +57,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const [err, setErr] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [kbShift, setKbShift] = useState(0);
+  const [clip, setClip] = useState<string | null>(null);
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
   // Mobile keyboard covers a bottom-left prompt — lift it by the occluded
@@ -83,6 +87,12 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
       setCmd('');
       inputRef.current?.blur();
       window.dispatchEvent(new Event('vlg:sprite'));
+      return;
+    }
+    if (value.toLowerCase() === SSBRO_WORD) {
+      setCmd('');
+      inputRef.current?.blur();
+      setClip(SSBRO_CLIPS[Math.floor(Math.random() * SSBRO_CLIPS.length)]);
       return;
     }
     // housekeeping: drops what was keyed into the station log, back to the latest real lines
@@ -115,7 +125,24 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     timers.current.push(setTimeout(() => setErr(null), 1600));
   };
 
-  return (
+  return (<>
+    {clip && (
+      <div style={{
+        position: 'fixed', left: 24, bottom: 'calc(clamp(10px, 2.5vw, 24px) + 56px + env(safe-area-inset-bottom, 0px))',
+        width: 'min(320px, 80vw)', zIndex: 2100, fontFamily: MONO, fontSize: 10, lineHeight: '14px',
+        color: 'var(--vlg-fg, #000)', background: 'var(--vlg-bg, #fff)', border: '1px solid currentColor',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', borderBottom: '1px solid currentColor' }}>
+          <span>SSBRO.EXE</span>
+          <button onClick={() => setClip(null)} aria-label="close"
+            style={{ font: 'inherit', color: 'inherit', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>[x]</button>
+        </div>
+        {/* muted so it autoplays and doesn't talk over the radio; the player's own button unmutes */}
+        <iframe src={`https://www.youtube-nocookie.com/embed/${clip}?autoplay=1&mute=1&playsinline=1&rel=0`}
+          title="Super Smash Bros. Brawl gameplay" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
+          style={{ display: 'block', width: '100%', aspectRatio: '16 / 9', border: 'none' }} />
+      </div>
+    )}
     <div
       className="cmd-prompt"
       onClick={() => inputRef.current?.focus()}
@@ -169,5 +196,5 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
         }}
       />
     </div>
-  );
+  </>);
 }
