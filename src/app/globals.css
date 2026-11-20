@@ -180,6 +180,9 @@ html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
 /* The landing photo (HomeTemp): as tall as the screen allows on phones, a little smaller on desktop. */
 .landing-photo { max-height: 70dvh; max-width: 76vw; }
 @media (min-width: 716px) { .landing-photo { max-height: 60dvh; max-width: 66vw; } }
+/* README_0: the photo and commands sit above centre — more so on phones, which have the height */
+.readme-page { padding-bottom: 30dvh; }
+@media (min-width: 716px) { .readme-page { padding-bottom: 14dvh; } }
 /* README_0's command reference: under the photo, as wide as it */
 .readme-cmds { margin-top: 14px; }
 

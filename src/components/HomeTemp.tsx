@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { Donate } from '@/components/Donate';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 
@@ -28,6 +29,9 @@ export function HomeTemp() {
       position: 'fixed', inset: 0, overflow: 'hidden',
       background: 'var(--vlg-bg, #fff)', color: 'var(--vlg-fg, #000)',
     }}>
+      {/* Donate and the flags — top-left */}
+      <Donate />
+
       {/* README — top-right */}
       <Link href="/information" style={{
         position: 'absolute', top: 24, right: 24, zIndex: 2,
