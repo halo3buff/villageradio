@@ -54,7 +54,7 @@ export default function InformationPage() {
         <div className="readme-cmds" style={{
           fontFamily: MONO, fontSize: 11, lineHeight: '14px', whiteSpace: 'pre', color: 'var(--vlg-fg, #000)',
         }}>
-          {'commands:\n  gulam        radio\n  /transmit    transmission'}
+          {'commands:\n  radio           gulam\n  transmission    /transmit'}
         </div>
       </div>
     </main>
