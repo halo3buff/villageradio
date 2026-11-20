@@ -180,9 +180,8 @@ html:not([data-theme="default"]):has(.admin-shell) { --vlg-bg: #000; }
 /* The landing photo (HomeTemp): as tall as the screen allows on phones, a little smaller on desktop. */
 .landing-photo { max-height: 70dvh; max-width: 76vw; }
 @media (min-width: 716px) { .landing-photo { max-height: 60dvh; max-width: 66vw; } }
-/* README_0's command reference: beside the photo on desktop, below it on phones */
+/* README_0's command reference: under the photo, as wide as it */
 .readme-cmds { margin-top: 14px; }
-@media (min-width: 716px) { .readme-cmds { position: absolute; top: 0; left: calc(100% + 28px); margin-top: 0; } }
 
 /* The station plate, the transmit device and README's logo: white and glowing on the photo. */
 :root {

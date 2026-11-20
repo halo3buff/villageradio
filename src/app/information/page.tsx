@@ -50,11 +50,16 @@ export default function InformationPage() {
         {/* eslint-disable-next-line @next/next/no-img-element -- a single static image, served as is */}
         <img src="/site_assets/landing_solo.webp" alt="" aria-hidden className="positive landing-photo"
           style={{ display: 'block', width: 'auto', height: 'auto', pointerEvents: 'none' }} />
-        {/* command reference, set like README_1's block: right of the photo, under it on phones */}
-        <div className="readme-cmds" style={{
-          fontFamily: MONO, fontSize: 11, lineHeight: '14px', whiteSpace: 'pre', color: 'var(--vlg-fg, #000)',
-        }}>
-          {'commands:\n  radio .................... gulam\n  transmission ......... /transmit'}
+        {/* command reference, set like README_1's block: under the photo, spanning its width, dot leaders between */}
+        <div className="readme-cmds" style={{ width: 0, minWidth: '100%', fontFamily: MONO, fontSize: 11, lineHeight: '14px', color: 'var(--vlg-fg, #000)' }}>
+          commands:
+          {[['radio', 'gulam'], ['transmission', '/transmit']].map(([page, cmd]) => (
+            <div key={cmd} style={{ display: 'flex', whiteSpace: 'nowrap' }}>
+              <span>{page}</span>
+              <span style={{ flex: 1, overflow: 'hidden', margin: '0 1ch' }}>{'.'.repeat(300)}</span>
+              <span>{cmd}</span>
+            </div>
+          ))}
         </div>
       </div>
     </main>
