@@ -175,7 +175,7 @@ export function MeleeJoin() {
         {delay != null && <span>DELAY ~{delay}MS</span>}
         <span style={{ marginLeft: 'auto', opacity: 0.7 }}>STICK WASD/ARROWS · A X · B Z · X C · Y V · L Q · R E · Z TAB · START ENTER · C IJKL · OR A CONTROLLER</span>
       </div>
-      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+      <div className="crt" style={{ flex: 1, minHeight: 0 }}>
         <video ref={video} autoPlay playsInline muted
           style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', display: 'block' }} />
         {!started && (

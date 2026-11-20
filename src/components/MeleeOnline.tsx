@@ -51,10 +51,12 @@ export function MeleeOnline() {
         <button onClick={toggleFair} style={btn}>[FAIR: {fair ? 'ON' : 'OFF'}]</button>
         <a href="/" style={{ color: 'inherit', textDecoration: 'none', marginLeft: 'auto' }}>[x]</a>
       </div>
-      <iframe ref={frame} src={LOCAL} title="Melee online"
-        onLoad={() => send({ t: 'hello' })}
-        allow="cross-origin-isolated; gamepad; hid; fullscreen; autoplay; local-network-access; local-network; loopback-network"
-        style={{ flex: 1, width: '100%', border: 'none' }} />
+      <div className="crt" style={{ flex: 1, minHeight: 0 }}>
+        <iframe ref={frame} src={LOCAL} title="Melee online"
+          onLoad={() => send({ t: 'hello' })}
+          allow="cross-origin-isolated; gamepad; hid; fullscreen; autoplay; local-network-access; local-network; loopback-network"
+          style={{ display: 'block', width: '100%', height: '100%', border: 'none' }} />
+      </div>
     </main>
   );
 }
