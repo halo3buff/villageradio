@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { NavCommand } from '@/lib/types';
 import type { FeedLine } from '@/lib/content/log';
 import { grantClearance } from '@/lib/clearance';
+import { PASSPHRASE, SPRITE_WORD, SSBRO_WORD } from '@/lib/passphrases';
 
 /** Offer the keyed line and its response to the station log (HomeDesktop listens on /station).
  *  True when a log took them — the floating line above the prompt then stays quiet. */
@@ -31,16 +32,6 @@ const ps1 = (path: string) => `MAIN:/vlg/stn/${FILES[path] ?? path.split('/').po
  * Visible row mirrors a transparent <input> (needed to summon the mobile
  * keyboard); tap anywhere along it to focus.
  */
-// Not in the CMS command list, so they never appear on the README or in admin.
-const PASSPHRASE: Record<string, string> = {
-  gulam: '/station', farm: '/farm', recky: '/rec',
-  Sunbird: '/station/radar', sunbird: '/station/radar',   // phones capitalise the first letter
-  melee: '/melee', Melee: '/melee',
-};
-// The admin entry for phones, which have no arrow keys: summons SootSprite's sprite, homepage only.
-const SPRITE_WORD = 'honeycomb';
-// Easter egg: opens a small TV of Melee gameplay — YouTube's own embed player, nothing hosted here.
-const SSBRO_WORD = 'ssbro';
 // Tournament sets (Big House, EVO, Genesis). `at`: seconds checked frame by frame (every 10s from
 // the point to 50s after it) to stay in-match, never crowd, players, commentary desk or results. `c`: the game's horizontal centre in the stream layout (0.5 = centred;
 // ~0.66 when a webcam/sponsor column sits left), so the TV can frame just the game.

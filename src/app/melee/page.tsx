@@ -13,7 +13,7 @@ export default function MeleePage() {
   return (
     <main style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
       <div style={{
-        position: 'absolute', inset: 'min(8vh, 64px) min(8vw, 64px)', display: 'flex', flexDirection: 'column',
+        position: 'absolute', inset: 'min(11vh, 96px) min(16vw, 220px)', display: 'flex', flexDirection: 'column',
         fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: 'var(--vlg-fg, #000)', background: '#000', border: '1px solid currentColor',
       }}>
         <div style={{ display: 'flex', gap: 12, padding: '2px 6px', borderBottom: '1px solid currentColor', background: 'var(--vlg-bg, #fff)' }}>
