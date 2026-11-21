@@ -24,10 +24,11 @@ export function MeleeOnline() {
   // Is the player's own copy answering? It says 'ready' when greeted; silence means it isn't running.
   const [up, setUp] = useState<boolean | null>(null);
   const [attempt, setAttempt] = useState(0);
-  // after [START MY COPY], look again every few seconds until the copy answers
+  // after [START MY COPY], look again every few seconds until the copy answers. Only once a look has
+  // come back empty: reloading a copy that is still loading would throw the player back to Play.
   const [starting, setStarting] = useState(false);
   useEffect(() => {
-    if (!starting || up) return;
+    if (!starting || up !== false) return;
     const t = setTimeout(() => setAttempt((a) => a + 1), 3000);
     return () => clearTimeout(t);
   }, [starting, up, attempt]);
@@ -75,6 +76,8 @@ export function MeleeOnline() {
         {/* fairness: holds your controllers back by your friend's delay, so you both play under the same lag */}
         <button onClick={toggleFair} style={btn}>[FAIR: {fair ? 'ON' : 'OFF'}]</button>
         <button onClick={toggleControls} style={btn}>[CONTROLS{controls ? ': ON' : ''}]</button>
+        {/* a full load out: drops this page's isolation headers */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/" style={{ color: 'inherit', textDecoration: 'none', marginLeft: 'auto' }}>[x]</a>
       </div>
       <div className="crt" style={{ flex: 1, minHeight: 0 }}>
@@ -82,15 +85,20 @@ export function MeleeOnline() {
           onLoad={() => send({ t: 'hello' })}
           allow="cross-origin-isolated; gamepad; hid; fullscreen; autoplay; local-network-access; local-network; loopback-network"
           style={{ display: 'block', width: '100%', height: '100%', border: 'none' }} />
-        {up === false && (
+        {/* the station's spinning mark while the copy is found (inside the copy, while the game boots) */}
+        {up !== true && (
           <div style={{
             position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
             background: '#000', color: '#fff', fontSize: 11, lineHeight: '16px', textAlign: 'center', padding: 16,
           }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
+            <img src="/site_assets/logo_roto_v4.webp" alt="" style={{ width: 'min(40%, 220px)', filter: 'brightness(0) invert(1)' }} />
+            {up === false && <>
             <span>{starting ? 'STARTING YOUR MELEE COPY…' : 'YOUR MELEE COPY ISN’T RUNNING.'}</span>
             {/* vlgmelee: is registered on the player's own PC; it starts their copy in the background */}
             {!starting && <a href="vlgmelee://start" onClick={() => setStarting(true)} style={{ color: 'inherit', textDecoration: 'none' }}>[START MY COPY]</a>}
             <button onClick={() => setAttempt((a) => a + 1)} style={{ ...btn, fontSize: 11, opacity: 0.7 }}>[TRY AGAIN]</button>
+            </>}
           </div>
         )}
       </div>
