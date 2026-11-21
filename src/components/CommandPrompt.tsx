@@ -35,7 +35,7 @@ const ps1 = (path: string) => `MAIN:/vlg/stn/${FILES[path] ?? path.split('/').po
 // Tournament sets (Big House, EVO, Genesis). `at`: seconds checked frame by frame (every 10s from
 // the point to 50s after it) to stay in-match, never crowd, players, commentary desk or results. `c`: the game's horizontal centre in the stream layout (0.5 = centred;
 // ~0.66 when a webcam/sponsor column sits left), so the TV can frame just the game.
-const SSBRO_CLIPS: { id: string; c: number; at: number[] }[] = [
+const SSBRO_CLIPS: { id: string; c: number; at?: number[]; d?: number }[] = [
   { id: 'cqM92Lf0IJc', c: 0.5, at: [958, 1277, 1597] },
   { id: 'VVreFdWcze4', c: 0.66, at: [994, 2981, 4969, 6956, 7950] },
   { id: 'Oime4m6suCo', c: 0.5, at: [356, 475, 713, 950] },
@@ -43,8 +43,49 @@ const SSBRO_CLIPS: { id: string; c: number; at: number[] }[] = [
   { id: '_OVP0Z9xF7M', c: 0.5, at: [273, 546, 819] },
   { id: 'T6aixSUxpVA', c: 0.66, at: [135, 405, 674, 809] },
   { id: '6dd4-gj4_HQ', c: 0.66, at: [640, 960, 1600, 1920] },
+  // Slippi / netplay uploads: straight game capture, no cams, so any point a little in is gameplay. `d`: length (s).
+  { id: '_Shvf82KJ60', c: 0.5, d: 460 },
+  { id: '0KvgRCJdKqE', c: 0.5, d: 259 },
+  { id: '1oqFACIzVh8', c: 0.5, d: 276 },
+  { id: '1z6Iy6yrmRU', c: 0.5, d: 313 },
+  { id: '1ZFHkZpIXUE', c: 0.5, d: 283 },
+  { id: '5hlEQeC7UA4', c: 0.5, d: 302 },
+  { id: '5YxGaHJsR4k', c: 0.5, d: 323 },
+  { id: '6D1J9GmtU3Y', c: 0.5, d: 3901 },
+  { id: '6yaKaEPH-vU', c: 0.5, d: 337 },
+  { id: 'aqZgAm_iFHc', c: 0.5, d: 1429 },
+  { id: 'bDwPuz_J7sc', c: 0.5, d: 383 },
+  { id: 'epG4KA2PWX8', c: 0.5, d: 5290 },
+  { id: 'EwBfv0Aw49s', c: 0.5, d: 505 },
+  { id: '-fgsFxPXGhM', c: 0.5, d: 559 },
+  { id: 'g54oy7oxT7A', c: 0.5, d: 625 },
+  { id: 'GJ0mr05NY5E', c: 0.5, d: 481 },
+  { id: 'GLAbJOL19dU', c: 0.5, d: 486 },
+  { id: 'h2xZsfYuPKc', c: 0.5, d: 1720 },
+  { id: 'H-7Cbgmvqxw', c: 0.5, d: 473 },
+  { id: 'i5DIhK0zNhY', c: 0.5, d: 1203 },
+  { id: 'IaX2qozqb6k', c: 0.5, d: 387 },
+  { id: 'NbXC5jqGVHk', c: 0.5, d: 698 },
+  { id: 'OI54vTInWQg', c: 0.5, d: 400 },
+  { id: 'ojD_H7T_lXk', c: 0.5, d: 499 },
+  { id: 'OvxUBxS8w7c', c: 0.5, d: 3202 },
+  { id: 'pJORAumqGjM', c: 0.5, d: 542 },
+  { id: 'pU-oS4oL3NI', c: 0.5, d: 630 },
+  { id: 'QZzzLw1SIVE', c: 0.5, d: 484 },
+  { id: 'RS9NmmeQnJY', c: 0.5, d: 522 },
+  { id: 'RXVXv49HTDc', c: 0.5, d: 1501 },
+  { id: 's7S_714-VPY', c: 0.5, d: 472 },
+  { id: 'T1ANvjuvY20', c: 0.5, d: 585 },
+  { id: 'TxGOoF4gOrk', c: 0.5, d: 495 },
+  { id: 'Tykl8McBPew', c: 0.5, d: 548 },
+  { id: 'v2SXE9uVOoc', c: 0.5, d: 995 },
+  { id: 'weJMWr0JrMw', c: 0.5, d: 3219 },
+  { id: 'xogYys3X0pA', c: 0.5, d: 332 },
+  { id: 'YcJd5DvWbKI', c: 0.5, d: 601 },
+  { id: 'Z0OBHUH8c_c', c: 0.5, d: 3563 },
 ];
 const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+const startOf = (c: (typeof SSBRO_CLIPS)[number]) => c.at ? pick(c.at) : Math.floor(15 + Math.random() * Math.max(1, c.d! - 75));
 const CHANNEL_MS = 45_000;   // every point is checked to stay in-match for 50s; the TV changes channel before that runs out
 // no controls, no keyboard, loops; the JS API lets a tap on the screen toggle sound
 const ssbroSrc = (id: string, start: number) =>
@@ -92,13 +133,13 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     const retune = () => {
       if (++fails.current >= 3) { setNoSignal(true); return; }
       const c = pick(SSBRO_CLIPS);
-      setClip({ clip: c, at: pick(c.at) });
+      setClip({ clip: c, at: startOf(c) });
     };
     const cover = () => { covered = true; setBoot(true); clearTimeout(fallback); fallback = setTimeout(retune, 12000); };
     const hideCaptions = () => { send('unloadModule', ['captions']); send('setOption', ['captions', 'track', {}]); };
     cover();
     const channel = setInterval(() => {
-      target = pick(clip.clip.at);
+      target = startOf(clip.clip);
       cover();
       send('seekTo', [target, true]);
     }, CHANNEL_MS);
@@ -151,7 +192,7 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
       fails.current = 0;
       setNoSignal(false);
       const c = pick(SSBRO_CLIPS);
-      setClip({ clip: c, at: pick(c.at) });
+      setClip({ clip: c, at: startOf(c) });
       return;
     }
     // housekeeping: drops what was keyed into the station log, back to the latest real lines
