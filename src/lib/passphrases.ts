@@ -5,7 +5,7 @@
 export const PASSPHRASE: Record<string, string> = {
   gulam: '/station', farm: '/farm', recky: '/rec',
   Sunbird: '/station/radar', sunbird: '/station/radar',
-  melee: '/melee', Melee: '/melee',
+  melee: '/melee/online', Melee: '/melee/online',
   ibibasement: '/basement', Ibibasement: '/basement',
 };
 

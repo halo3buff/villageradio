@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
       ],
     }];
   },
+  // `melee` is the online version now; the drop-your-own-disc one stays at /melee/basic
+  async redirects() {
+    return [{ source: '/melee', destination: '/melee/online', permanent: false }];
+  },
   images: {
     formats: ['image/webp', 'image/avif'],
     // Admin-uploaded photos/work images are served from the public R2 bucket via next/image.

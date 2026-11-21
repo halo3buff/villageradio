@@ -50,6 +50,7 @@ export default async function BasementPage() {
           <Block title="hidden pages" rows={hidden} />
           <Block title="actions" rows={[
             ['melee tv, any page', SSBRO_WORD],
+            ['melee on another computer (own disc)', '/melee/basic'],
             ['admin sprite, home, phones', SPRITE_WORD],
             ['admin, keyboard', '→ → → ← ↓'],
             ['clear the station log', '/clear'],

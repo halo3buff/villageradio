@@ -208,7 +208,8 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     toLog([{ kind: 'tx', tag: 'KBD', text: value }, { kind: 'sig', tag: 'SIG', text: `->  ${target}` }]);
     grantClearance(target); // a correct command IS the checkpoint pass
     inputRef.current?.blur();
-    timers.current.push(setTimeout(() => { router.push(target); }, 450));
+    // /melee/online's isolation headers only apply to a fresh page load, not a client navigation
+    timers.current.push(setTimeout(() => { if (target.startsWith('/melee/')) location.assign(target); else router.push(target); }, 450));
     timers.current.push(setTimeout(() => { setEcho(null); setCmd(''); }, 900));
   };
 

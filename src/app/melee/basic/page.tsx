@@ -8,7 +8,7 @@ const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', 
 // framed, not rebuilt.
 const PORT_URL = 'https://nikhilunni.github.io/melee/';
 
-/** Playable Melee, reached with the `melee` command: the port in a window, under scanlines. */
+/** Playable Melee on any computer (unlisted; `melee` opens the online version): the port in a window, under scanlines. */
 export default function MeleePage() {
   return (
     <main style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
@@ -20,6 +20,7 @@ export default function MeleePage() {
           <span>MELEE.EXE  NEEDS YOUR OWN NTSC 1.02 DISC IMAGE · CHROME / EDGE / SAFARI</span>
           {/* a full page load, not a client navigation: the online page's isolation headers apply only to a fresh document */}
           <a href="/melee/online" style={{ color: 'inherit', textDecoration: 'none', marginLeft: 'auto' }}>[ONLINE]</a>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" style={{ color: 'inherit', textDecoration: 'none' }}>[x]</a>
         </div>
         <div className="crt" style={{ flex: 1, minHeight: 0 }}>
