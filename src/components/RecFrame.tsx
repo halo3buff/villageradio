@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DotMatrix } from '@/components/DotMatrix';
+import { SoundRing } from '@/components/SoundRing';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const HIDE_MS = 2000;  // the frame choice fades out of shot after this
 
 /**
- * The recording view: the broadcast as a dot-matrix board, for screen-recording to post. VERTICAL
+ * The recording view: the station's mark in a ring of sound, for screen-recording to post. VERTICAL
  * fills the whole screen; SQUARE is the screen's width, centred on black, to crop to. The choice
  * shows for a moment, then leaves the shot; a tap brings it back (and tunes in or out).
  */
@@ -31,7 +31,7 @@ export function RecFrame() {
     <div onClick={() => setShown(true)}
       style={{ position: 'fixed', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={shape === 'vertical' ? { width: '100%', height: '100%' } : { width: 'min(100vw, 100dvh)', aspectRatio: '1' }}>
-        <DotMatrix />
+        <SoundRing />
       </div>
       <div style={{
         position: 'fixed', top: 'max(12px, env(safe-area-inset-top))', left: 0, right: 0, zIndex: 10,
