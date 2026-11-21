@@ -48,7 +48,7 @@ const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
 const CHANNEL_MS = 45_000;   // every point is checked to stay in-match for 50s; the TV changes channel before that runs out
 // no controls, no keyboard, loops; the JS API lets a tap on the screen toggle sound
 const ssbroSrc = (id: string, start: number) =>
-  `https://www.youtube-nocookie.com/embed/${id}?start=${start}&autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&enablejsapi=1`;
+  `https://www.youtube.com/embed/${id}?start=${start}&autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&cc_load_policy=0&rel=0&playsinline=1&enablejsapi=1`;
 
 export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const cmdMap = {
@@ -68,6 +68,8 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   const [clip, setClip] = useState<{ clip: (typeof SSBRO_CLIPS)[number]; at: number } | null>(null);
   const [sound, setSound] = useState(false);
   const tvRef = useRef<HTMLIFrameElement>(null);
+  const fails = useRef(0);          // clips in a row that never got going (YouTube's "confirm you're not a bot" page)
+  const [noSignal, setNoSignal] = useState(false);
   const toggleSound = () => {
     tvRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: sound ? 'mute' : 'unMute', args: [] }), '*');
     setSound(!sound);
@@ -76,7 +78,8 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
   // to a match point, and stays up until playback is 4s past that point. That hides YouTube's title,
   // spinner and the pause/play flash a seek triggers. Every CHANNEL_MS it jumps to another match point,
   // behind the boot screen again. The player reports currentTime over postMessage once told we're
-  // listening; 12s is the fallback if it never does.
+  // listening. If it never plays (YouTube's bot check, a pulled video) the logo stays up and another
+  // clip is tried; after three misses the TV shows NO SIGNAL rather than YouTube's page.
   const [boot, setBoot] = useState(false);
   useEffect(() => {
     if (!clip) return;
@@ -85,8 +88,13 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     let target = clip.at;
     let covered = false;
     let fallback: ReturnType<typeof setTimeout>;
-    const uncover = () => { covered = false; setBoot(false); clearTimeout(fallback); };
-    const cover = () => { covered = true; setBoot(true); clearTimeout(fallback); fallback = setTimeout(uncover, 12000); };
+    const uncover = () => { covered = false; fails.current = 0; setBoot(false); clearTimeout(fallback); };
+    const retune = () => {
+      if (++fails.current >= 3) { setNoSignal(true); return; }
+      const c = pick(SSBRO_CLIPS);
+      setClip({ clip: c, at: pick(c.at) });
+    };
+    const cover = () => { covered = true; setBoot(true); clearTimeout(fallback); fallback = setTimeout(retune, 12000); };
     const hideCaptions = () => { send('unloadModule', ['captions']); send('setOption', ['captions', 'track', {}]); };
     cover();
     const channel = setInterval(() => {
@@ -140,6 +148,8 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
     if (value.toLowerCase() === SSBRO_WORD) {
       setCmd('');
       inputRef.current?.blur();
+      fails.current = 0;
+      setNoSignal(false);
       const c = pick(SSBRO_CLIPS);
       setClip({ clip: c, at: pick(c.at) });
       return;
@@ -195,8 +205,10 @@ export function CommandPrompt({ commands }: { commands: NavCommand[] }) {
             style={{ position: 'absolute', top: '50%', left: `${50 - clip.clip.c * 150}%`, width: '150%', height: '112.5%', transform: 'translateY(-50%)', border: 'none', pointerEvents: 'none' }} />
           {boot && (
             <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- animated, served as is */}
-              <img src="/site_assets/logo_roto_v4.webp" alt="" style={{ width: '45%', filter: 'brightness(0) invert(1)' }} />
+              {noSignal
+                ? <span style={{ color: '#fff' }}>NO SIGNAL</span>
+                // eslint-disable-next-line @next/next/no-img-element -- animated, served as is
+                : <img src="/site_assets/logo_roto_v4.webp" alt="" style={{ width: '45%', filter: 'brightness(0) invert(1)' }} />}
             </div>
           )}
           <div onClick={toggleSound} aria-label={sound ? 'mute' : 'unmute'} role="button" style={{
