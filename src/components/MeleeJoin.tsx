@@ -176,8 +176,9 @@ export function MeleeJoin() {
         <span style={{ marginLeft: 'auto', opacity: 0.7 }}>STICK WASD/ARROWS · A X · B Z · X C · Y V · L Q · R E · Z TAB · START ENTER · C IJKL · OR A CONTROLLER</span>
       </div>
       <div className="crt" style={{ flex: 1, minHeight: 0 }}>
+        {/* Melee's picture is 73:60 inside its 4:3 frame: crop the black side strips, as the host's window does */}
         <video ref={video} autoPlay playsInline muted
-          style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', display: 'block' }} />
+          style={{ height: '100%', maxWidth: '100%', aspectRatio: '73 / 60', margin: '0 auto', objectFit: 'cover', background: '#000', display: 'block' }} />
         {!started && (
           <button onClick={start} style={{
             position: 'absolute', inset: 0, font: 'inherit', fontSize: 13, color: '#fff', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer',

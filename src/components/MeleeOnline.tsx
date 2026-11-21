@@ -24,6 +24,13 @@ export function MeleeOnline() {
   // Is the player's own copy answering? It says 'ready' when greeted; silence means it isn't running.
   const [up, setUp] = useState<boolean | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // after [START MY COPY], look again every few seconds until the copy answers
+  const [starting, setStarting] = useState(false);
+  useEffect(() => {
+    if (!starting || up) return;
+    const t = setTimeout(() => setAttempt((a) => a + 1), 3000);
+    return () => clearTimeout(t);
+  }, [starting, up, attempt]);
   useEffect(() => {
     setUp(null);
     const t = setTimeout(() => setUp((u) => u ?? false), 4000);
@@ -52,10 +59,11 @@ export function MeleeOnline() {
 
   return (
     <main style={{ position: 'fixed', inset: 0, zIndex: 3000 }}>
-      {/* a window fitted to the 4:3 game: the screen's height sets it, the title bar (19px) on top */}
+      {/* a window fitted to Melee's 73:60 picture (the copy crops its 4:3 frame to it): the screen's
+          height sets it, the title bar (19px) on top */}
       <div style={{
         position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-        height: 'min(80vh, 760px)', width: 'min(calc((min(80vh, 760px) - 19px) * 4 / 3), 94vw)', display: 'flex', flexDirection: 'column',
+        height: 'min(80vh, 760px)', width: 'min(calc((min(80vh, 760px) - 19px) * 73 / 60), 94vw)', display: 'flex', flexDirection: 'column',
         fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: 'var(--vlg-fg, #000)', background: '#000', border: '1px solid currentColor',
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '2px 6px', borderBottom: '1px solid currentColor', background: 'var(--vlg-bg, #fff)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
@@ -79,9 +87,10 @@ export function MeleeOnline() {
             position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
             background: '#000', color: '#fff', fontSize: 11, lineHeight: '16px', textAlign: 'center', padding: 16,
           }}>
-            <span>YOUR MELEE COPY ISN&apos;T RUNNING.</span>
-            <span>DOUBLE-CLICK &quot;MELEE ONLINE&quot; ON YOUR DESKTOP, THEN:</span>
-            <button onClick={() => setAttempt((a) => a + 1)} style={{ ...btn, fontSize: 11 }}>[TRY AGAIN]</button>
+            <span>{starting ? 'STARTING YOUR MELEE COPY…' : 'YOUR MELEE COPY ISN’T RUNNING.'}</span>
+            {/* vlgmelee: is registered on the player's own PC; it starts their copy in the background */}
+            {!starting && <a href="vlgmelee://start" onClick={() => setStarting(true)} style={{ color: 'inherit', textDecoration: 'none' }}>[START MY COPY]</a>}
+            <button onClick={() => setAttempt((a) => a + 1)} style={{ ...btn, fontSize: 11, opacity: 0.7 }}>[TRY AGAIN]</button>
           </div>
         )}
       </div>
