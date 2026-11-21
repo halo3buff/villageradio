@@ -20,6 +20,14 @@ export function MeleeOnline() {
   const [delay, setDelay] = useState<{ ms: number; frames: number } | null>(null);
   const [fair, setFair] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Is the player's own copy answering? It says 'ready' when greeted; silence means it isn't running.
+  const [up, setUp] = useState<boolean | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    setUp(null);
+    const t = setTimeout(() => setUp((u) => u ?? false), 4000);
+    return () => clearTimeout(t);
+  }, [attempt]);
 
   const send = (msg: object) => frame.current?.contentWindow?.postMessage({ melee: 1, ...msg }, LOCAL_ORIGIN);
 
@@ -27,6 +35,7 @@ export function MeleeOnline() {
     const onMsg = (e: MessageEvent<Msg>) => {
       if (e.origin !== LOCAL_ORIGIN || !e.data?.melee) return;
       const m = e.data;
+      if (m.t === 'ready') setUp(true);
       if (m.t === 'link' && m.url) setLink(m.url);
       if (m.t === 'status') { setStatus(m.text ?? ''); if (m.text !== 'FRIEND CONNECTED') setDelay(null); }
       if (m.t === 'delay' && m.ms != null) setDelay(m.ms ? { ms: m.ms, frames: m.frames ?? 0 } : null);
@@ -40,8 +49,13 @@ export function MeleeOnline() {
   const copy = () => { if (link) navigator.clipboard?.writeText(link).then(() => setCopied(true), () => {}); };
 
   return (
-    <main style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', flexDirection: 'column', background: '#000', color: '#fff', fontFamily: MONO, fontSize: 10, lineHeight: '14px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '2px 6px', borderBottom: '1px solid #fff', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+    <main style={{ position: 'fixed', inset: 0, zIndex: 3000 }}>
+      {/* the same window as /melee */}
+      <div style={{
+        position: 'absolute', inset: 'min(11vh, 96px) min(16vw, 220px)', display: 'flex', flexDirection: 'column',
+        fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: 'var(--vlg-fg, #000)', background: '#000', border: '1px solid currentColor',
+      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '2px 6px', borderBottom: '1px solid currentColor', background: 'var(--vlg-bg, #fff)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
         <span>MELEE.EXE  ONLINE</span>
         <button onClick={invite} style={btn}>[INVITE FRIEND]</button>
         {link && <button onClick={copy} style={btn} title={link}>{copied ? '[LINK COPIED]' : '[COPY LINK]'}</button>}
@@ -52,10 +66,21 @@ export function MeleeOnline() {
         <a href="/" style={{ color: 'inherit', textDecoration: 'none', marginLeft: 'auto' }}>[x]</a>
       </div>
       <div className="crt" style={{ flex: 1, minHeight: 0 }}>
-        <iframe ref={frame} src={LOCAL} title="Melee online"
+        <iframe key={attempt} ref={frame} src={LOCAL} title="Melee online"
           onLoad={() => send({ t: 'hello' })}
           allow="cross-origin-isolated; gamepad; hid; fullscreen; autoplay; local-network-access; local-network; loopback-network"
           style={{ display: 'block', width: '100%', height: '100%', border: 'none' }} />
+        {up === false && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
+            background: '#000', color: '#fff', fontSize: 11, lineHeight: '16px', textAlign: 'center', padding: 16,
+          }}>
+            <span>YOUR MELEE COPY ISN&apos;T RUNNING.</span>
+            <span>DOUBLE-CLICK &quot;MELEE ONLINE&quot; ON YOUR DESKTOP, THEN:</span>
+            <button onClick={() => setAttempt((a) => a + 1)} style={{ ...btn, fontSize: 11 }}>[TRY AGAIN]</button>
+          </div>
+        )}
+      </div>
       </div>
     </main>
   );
