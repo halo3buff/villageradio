@@ -20,6 +20,7 @@ export function MeleeOnline() {
   const [delay, setDelay] = useState<{ ms: number; frames: number } | null>(null);
   const [fair, setFair] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [controls, setControls] = useState(false);   // the copy's own keyboard/controller bar, hidden in here by default
   // Is the player's own copy answering? It says 'ready' when greeted; silence means it isn't running.
   const [up, setUp] = useState<boolean | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -46,13 +47,15 @@ export function MeleeOnline() {
 
   const invite = () => { setLink(null); setDelay(null); setCopied(false); send({ t: 'invite' }); };
   const toggleFair = () => { const on = !fair; setFair(on); send({ t: 'fair', on }); };
+  const toggleControls = () => { const on = !controls; setControls(on); send({ t: 'controls', on }); };
   const copy = () => { if (link) navigator.clipboard?.writeText(link).then(() => setCopied(true), () => {}); };
 
   return (
     <main style={{ position: 'fixed', inset: 0, zIndex: 3000 }}>
-      {/* the same window as /melee */}
+      {/* a window fitted to the 4:3 game: the screen's height sets it, the title bar (19px) on top */}
       <div style={{
-        position: 'absolute', inset: 'min(11vh, 96px) min(16vw, 220px)', display: 'flex', flexDirection: 'column',
+        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        height: 'min(80vh, 760px)', width: 'min(calc((min(80vh, 760px) - 19px) * 4 / 3), 94vw)', display: 'flex', flexDirection: 'column',
         fontFamily: MONO, fontSize: 10, lineHeight: '14px', color: 'var(--vlg-fg, #000)', background: '#000', border: '1px solid currentColor',
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '2px 6px', borderBottom: '1px solid currentColor', background: 'var(--vlg-bg, #fff)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
@@ -63,6 +66,7 @@ export function MeleeOnline() {
         {delay && <span>DELAY ~{delay.ms}MS ({delay.frames}F)</span>}
         {/* fairness: holds your controllers back by your friend's delay, so you both play under the same lag */}
         <button onClick={toggleFair} style={btn}>[FAIR: {fair ? 'ON' : 'OFF'}]</button>
+        <button onClick={toggleControls} style={btn}>[CONTROLS{controls ? ': ON' : ''}]</button>
         <a href="/" style={{ color: 'inherit', textDecoration: 'none', marginLeft: 'auto' }}>[x]</a>
       </div>
       <div className="crt" style={{ flex: 1, minHeight: 0 }}>
