@@ -13,6 +13,7 @@ import {
 } from '@/lib/content/broadcast';
 import { measureLoudness, fileReader, urlReader, trimDb, TARGET_LUFS } from '@/lib/audio/loudness';
 import { Banner } from './ui';
+import { takeMix } from '@/lib/mix-handoff';
 
 /** aside: a small panel under the library (the log's remarks). */
 type Props = { initial: BroadcastManifest; generation: string; aside?: React.ReactNode };
@@ -113,6 +114,13 @@ export function ArrangementList({ initial, generation: initialGen, aside }: Prop
   const [sel, setSel] = useState<Sel>(null);
   const [toast, setToast] = useState<{ msg: string; key: number } | null>(null);
   const [adding, setAdding] = useState(false);
+  const [handed, setHanded] = useState<File | null>(null);
+  // a mix just finished in the mixer opens straight into "Add to the lineup"
+  useEffect(() => {
+    const f = takeMix();
+    if (f) { setHanded(f); setAdding(true); }
+  }, []);
+  useEffect(() => { if (!adding) setHanded(null); }, [adding]);   // used once: closing the panel lets it go
   const [past, setPast] = useState<Doc[]>([]);
   const [future, setFuture] = useState<Doc[]>([]);
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
@@ -1052,6 +1060,7 @@ export function ArrangementList({ initial, generation: initialGen, aside }: Prop
         >
           <div className="w-full max-w-xl rounded-xl border border-white/10 [background:var(--vlg-cover,#0d0d0d)] shadow-2xl">
             <AddPanel
+              initialFile={handed}
               knownFiles={knownFiles}
               existingIds={entries.map((e) => e.id)}
               onAdd={(entry) => {
@@ -1648,11 +1657,13 @@ function putWithProgress(url: string, file: File, onProgress: (f: number) => voi
 }
 
 function AddPanel({
+  initialFile,
   knownFiles,
   existingIds,
   onAdd,
   onCancel,
 }: {
+  initialFile?: File | null;
   knownFiles: KnownFile[];
   existingIds: string[];
   onAdd: (entry: BroadcastEntry) => void;
@@ -1669,6 +1680,10 @@ function AddPanel({
   const [date, setDate] = useState('');
   const [series, setSeries] = useState<BroadcastSeries | undefined>(undefined);
   const uploading = progress !== null;
+
+  useEffect(() => {
+    if (initialFile) void uploadAudio(initialFile);
+  }, [initialFile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = mode === 'upload' ? upload : (knownFiles.find((f) => f.file === existingFile) ?? null);
 
