@@ -12,9 +12,9 @@ import { filmDots } from '@/lib/theme';
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
 const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the station sits above it
 const WHITE = '#ffffff';
-const W = 104, H = 64;    // the Lissajous window
+const LISS_W = 104, LISS_H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
-const SONO_BANDS = 24, SONO_COLS = 47, SONO_DX = 2, SONO_DY = 2.3, SONO_COL_MS = 70;   // the sonogram's grid and its scroll
+const SONO_W = 180, SONO_H = 240, SONO_GAP = 4, SONO_EDGE = 4, SONO_COL_MS = 70;   // the sonogram's window, its square grid of dots, and its scroll
 const STEP = 8;   // samples between dots, so each stays its own light
 // the floor: quieter than this (dBFS RMS) the figure is held at this size, its shape intact, so a
 // quiet stretch still moves; louder plays exactly as before. Never lifted more than LIFT_MAX.
@@ -114,6 +114,7 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
     window.addEventListener('vlg:cmdclear', clear);
     return () => { window.removeEventListener('vlg:cmdfeed', take); window.removeEventListener('vlg:cmdclear', clear); };
   }, [log]);
+  const W = sono ? SONO_W : LISS_W, H = sono ? SONO_H : LISS_H;
   const { analyserL, analyserR, analyserFreq, isPlaying, mode, broadcastPlay, pause, volume, news } = useAudio();
   const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
@@ -155,7 +156,9 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
     let l = new Float32Array(2048), r = new Float32Array(2048);
     let nextRead = 0, raf = 0, lift = 0, last = 0, gatherAt = 0, scatterAt = -1e9, wasLive = false;
     const held: number[] = [];   // the figure's dots as last drawn on air (x, y from the centre), for the scatter
-    const cols: number[][] = [], hi = new Array(SONO_BANDS).fill(0.3), lo = new Array(SONO_BANDS).fill(0.2);
+    // the sonogram's grid fills the window, edge to edge
+    const BANDS = Math.floor((H - 2 * SONO_EDGE) / SONO_GAP) + 1, COLS = Math.floor((W - 2 * SONO_EDGE) / SONO_GAP) + 1;
+    const cols: number[][] = [], hi = new Array(BANDS).fill(0.3), lo = new Array(BANDS).fill(0.2);
     let freq = new Uint8Array(1024), nextCol = 0;
     const clock0 = secondsIntoDay(Date.now()) - performance.now() / 1000;   // the station's clock, on the frame clock
 
@@ -218,8 +221,8 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
           aF.getByteFrequencyData(freq);
           const hz = aF.context.sampleRate / aF.fftSize;
           const col: number[] = [];
-          for (let b = 0; b < SONO_BANDS; b++) {
-            const f0 = 40 * Math.pow(400, b / SONO_BANDS), f1 = 40 * Math.pow(400, (b + 1) / SONO_BANDS);
+          for (let b = 0; b < BANDS; b++) {
+            const f0 = 40 * Math.pow(400, b / BANDS), f1 = 40 * Math.pow(400, (b + 1) / BANDS);
             const i0 = Math.floor(f0 / hz), i1 = Math.max(i0 + 1, Math.ceil(f1 / hz));
             let v = 0;
             for (let i = i0; i < i1 && i < freq.length; i++) v = Math.max(v, freq[i] / 255);
@@ -227,14 +230,14 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
             col.push(Math.max(0, (v - lo[b]) / Math.max(0.05, hi[b] - lo[b])));
           }
           cols.push(col);
-          if (cols.length > SONO_COLS) cols.shift();
+          if (cols.length > COLS) cols.shift();
         }
         held.length = 0;
         cols.forEach((col, ci) => col.forEach((v, b) => {
           if (v < 0.2) return;
-          const x = W - 6 - (cols.length - 1 - ci) * SONO_DX, y = H - 5 - b * SONO_DY, d = Math.min(DOT, 0.6 + v * 1.2);
+          const x = W - SONO_EDGE - (cols.length - 1 - ci) * SONO_GAP, y = H - SONO_EDGE - b * SONO_GAP, d = Math.min(3, 0.8 + v * 2.2);
           ctx.fillRect(x - d / 2, y - d / 2, d, d);
-          if (ci % 2 === 0) held.push(x - W / 2, y - H / 2);
+          if ((ci + b) % 6 === 0) held.push(x - W / 2, y - H / 2);
         }));
       } else if (!testing && liveRef.current) {
         held.length = 0;
@@ -283,7 +286,7 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [res, sono]);
+  }, [res, sono, W, H]);
 
   // the pips, armed a few seconds before each hour while on air, so they're timed on the audio clock
   useEffect(() => {
@@ -328,6 +331,10 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
         .plate::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,0.02); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
         .plate .info { padding: 3px 12px 3px 6px; display: grid; grid-template-columns: auto auto; column-gap: 22px; row-gap: 3px; align-content: center; }
         .plate .info .end { text-align: right; }
+        .plate.vert { flex-direction: column; }
+        .plate.vert .info { grid-template-columns: 1fr auto; padding: 3px 6px; }
+        .plate.vert .window { cursor: pointer; }
+        .plate.vert canvas { margin: 6px; }
         .plate button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 0; margin: -6px 0; }
         .plate button:active { opacity: 0.6; }
         .plate .lamp { width: 6px; height: 6px; background: currentColor; animation: lamp 1s steps(1) infinite; }
@@ -352,6 +359,19 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
         }
       `}</style>
 
+      {sono ? (
+        // the recording's plate: upright, the name, clock and levels over a tall window; the window plays and pauses
+        <div className="plate vert">
+          <div className="info">
+            <span>VGF-8194</span>
+            <span className="end">{clock ?? '--:--:--'}</span>
+            <span>LVL {rd?.lvl ?? '   --'} DB</span>
+            <span className="end">PK {rd?.pk ?? '   --'} DB</span>
+          </div>
+          <div className="window" role="button" aria-label={live ? 'Pause the station' : 'Play the station'}
+            onClick={() => (live ? pause() : broadcastPlay())}><canvas ref={lights} aria-hidden /></div>
+        </div>
+      ) : (
       <div className="plate">
         <div className="info">
           <span>VGF-8194</span>
@@ -373,6 +393,7 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
         <div className="window"><canvas ref={lights} aria-hidden /></div>
         {news && <div className="note">{`NEWS HOUR  ${clockTime(news.start)}–${clockTime(news.end)} ET  ${news.name}`}</div>}
       </div>
+      )}
 
       {/* the log sits bottom-left, right above the command prompt */}
       {(logData || keyed.length > 0) && clock && (

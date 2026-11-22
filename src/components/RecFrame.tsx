@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { HomeDesktop } from '@/components/HomeDesktop';
 
 const MONO = "var(--font-ibm-plex-mono, var(--font-space-mono)), 'Courier New', monospace";
-const PLATE_W = 345;   // the plate's width at zoom 1, px
-const FILL = 0.84;     // of the frame's width the plate spans
+const PLATE_W = 206, PLATE_H = 300;   // the upright plate's size at zoom 1, px
+const FILL = 0.84;     // of the frame the plate spans, whichever side runs out first
 const HIDE_MS = 2000;  // the frame choice fades out of shot after this
 
 /**
@@ -23,7 +23,7 @@ export function RecFrame() {
   useEffect(() => {
     const el = frame.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setZoom((e.contentRect.width * FILL) / PLATE_W));
+    const ro = new ResizeObserver(([e]) => setZoom(FILL * Math.min(e.contentRect.width / PLATE_W, e.contentRect.height / PLATE_H)));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
