@@ -14,6 +14,12 @@ const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the sta
 const WHITE = '#ffffff';
 const LISS_W = 104, LISS_H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
+// a thermal camera's iron ramp, cold to hot
+const IRON = Array.from({ length: 48 }, (_, i) => {
+  const STOPS: [number, number, number][] = [[18, 8, 52], [70, 14, 120], [150, 20, 130], [215, 45, 60], [250, 110, 10], [255, 190, 30], [255, 245, 170], [255, 255, 255]];
+  const t = (i / 47) * (STOPS.length - 1), a = STOPS[Math.floor(t)], b = STOPS[Math.min(STOPS.length - 1, Math.floor(t) + 1)], f = t - Math.floor(t);
+  return `rgb(${a.map((c, j) => Math.round(c + (b[j] - c) * f)).join(',')})`;
+});
 const SONO_W = 180, SONO_H = 240, SONO_GAP = 4, SONO_EDGE = 4, SONO_COL_MS = 70;   // the sonogram's window, its square grid of dots, and its scroll
 const STEP = 8;   // samples between dots, so each stays its own light
 // the floor: quieter than this (dBFS RMS) the figure is held at this size, its shape intact, so a
@@ -158,7 +164,7 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
     const held: number[] = [];   // the figure's dots as last drawn on air (x, y from the centre), for the scatter
     // the sonogram's grid fills the window, edge to edge
     const BANDS = Math.floor((H - 2 * SONO_EDGE) / SONO_GAP) + 1, COLS = Math.floor((W - 2 * SONO_EDGE) / SONO_GAP) + 1;
-    const cols: number[][] = [], hi = new Array(BANDS).fill(0.3), lo = new Array(BANDS).fill(0.2);
+    const cols: number[][] = [], hi = new Array(BANDS).fill(1), lo = new Array(BANDS).fill(0.45);   // start cool, then learn each band
     let freq = new Uint8Array(1024), nextCol = 0;
     const clock0 = secondsIntoDay(Date.now()) - performance.now() / 1000;   // the station's clock, on the frame clock
 
@@ -234,11 +240,13 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
         }
         held.length = 0;
         cols.forEach((col, ci) => col.forEach((v, b) => {
-          if (v < 0.2) return;
-          const x = W - SONO_EDGE - (cols.length - 1 - ci) * SONO_GAP, y = H - SONO_EDGE - b * SONO_GAP, d = Math.min(3, 0.8 + v * 2.2);
+          // infrared: every cell shows, cold ones a dim violet, the loudest burning through orange to white
+          const k = Math.min(1, v), x = W - SONO_EDGE - (cols.length - 1 - ci) * SONO_GAP, y = H - SONO_EDGE - b * SONO_GAP, d = 1.4 + k * 1.6;
+          ctx.fillStyle = IRON[Math.round(k * (IRON.length - 1))];
           ctx.fillRect(x - d / 2, y - d / 2, d, d);
           if ((ci + b) % 6 === 0) held.push(x - W / 2, y - H / 2);
         }));
+        ctx.fillStyle = ink;
       } else if (!testing && liveRef.current) {
         held.length = 0;
         for (let i = 0; i < l.length; i += STEP) {
@@ -334,7 +342,7 @@ export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: numb
         .plate.vert { flex-direction: column; }
         .plate.vert .info { grid-template-columns: 1fr auto; padding: 3px 6px; }
         .plate.vert .window { cursor: pointer; }
-        .plate.vert canvas { margin: 6px; }
+        .plate.vert canvas { margin: 6px; filter: saturate(1.2) drop-shadow(0 0 2px rgba(255, 120, 40, 0.5)) drop-shadow(0 0 7px rgba(255, 70, 30, 0.35)); }
         .plate button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 0; margin: -6px 0; }
         .plate button:active { opacity: 0.6; }
         .plate .lamp { width: 6px; height: 6px; background: currentColor; animation: lamp 1s steps(1) infinite; }
