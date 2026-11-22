@@ -14,6 +14,7 @@ const PROMPT_BAND = 72;   // the command prompt is fixed at bottom-left: the sta
 const WHITE = '#ffffff';
 const W = 104, H = 64;    // the Lissajous window
 const REACH = 28, DOT = 1.75;  // full scale, in px, stops short of the edges
+const SONO_BANDS = 24, SONO_COLS = 47, SONO_DX = 2, SONO_DY = 2.3, SONO_COL_MS = 70;   // the sonogram's grid and its scroll
 const STEP = 8;   // samples between dots, so each stays its own light
 // the floor: quieter than this (dBFS RMS) the figure is held at this size, its shape intact, so a
 // quiet stretch still moves; louder plays exactly as before. Never lifted more than LIFT_MAX.
@@ -89,8 +90,8 @@ const LOG_LINES = 10, LOG_POLL_MS = 60_000, LISTEN_BEAT_MS = 20_000;
 const logTime = new Intl.DateTimeFormat('en-US', { timeZone: BROADCAST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
 /** res: the Lissajous canvas drawn this many times sharper, for the recording frame, which zooms the plate.
- *  log: show the station log above the prompt. */
-export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: boolean }) {
+ *  log: show the station log above the prompt. sono: on air, a scrolling sonogram in place of the Lissajous. */
+export function HomeDesktop({ res = 1, log = false, sono = false }: { res?: number; log?: boolean; sono?: boolean }) {
   const [logData, setLogData] = useState<{ plan: PlanStep[]; entries: LogEntry[]; rx?: RxCount[] } | null>(null);
   useEffect(() => {
     if (!log) return;
@@ -113,11 +114,11 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
     window.addEventListener('vlg:cmdclear', clear);
     return () => { window.removeEventListener('vlg:cmdfeed', take); window.removeEventListener('vlg:cmdclear', clear); };
   }, [log]);
-  const { analyserL, analyserR, isPlaying, mode, broadcastPlay, pause, volume, news } = useAudio();
+  const { analyserL, analyserR, analyserFreq, isPlaying, mode, broadcastPlay, pause, volume, news } = useAudio();
   const live = isPlaying && mode === 'broadcast';
   const [clock, setClock] = useState<string | null>(null);
   const [rd, setRd] = useState<Readout | null>(null);
-  const ch = useRef({ aL: analyserL, aR: analyserR });
+  const ch = useRef({ aL: analyserL, aR: analyserR, aF: analyserFreq });
   const liveRef = useRef(live);
   liveRef.current = live;
 
@@ -130,7 +131,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
     const t = setInterval(beat, LISTEN_BEAT_MS);
     return () => clearInterval(t);
   }, [live]);
-  ch.current = { aL: analyserL, aR: analyserR };
+  ch.current = { aL: analyserL, aR: analyserR, aF: analyserFreq };
   const lights = useRef<HTMLCanvasElement>(null);
 
   // the body's min-h-screen is iOS's LARGE viewport, taller than what's visible with the URL bar
@@ -154,11 +155,13 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
     let l = new Float32Array(2048), r = new Float32Array(2048);
     let nextRead = 0, raf = 0, lift = 0, last = 0, gatherAt = 0, scatterAt = -1e9, wasLive = false;
     const held: number[] = [];   // the figure's dots as last drawn on air (x, y from the centre), for the scatter
+    const cols: number[][] = [], hi = new Array(SONO_BANDS).fill(0.3), lo = new Array(SONO_BANDS).fill(0.2);
+    let freq = new Uint8Array(1024), nextCol = 0;
     const clock0 = secondsIntoDay(Date.now()) - performance.now() / 1000;   // the station's clock, on the frame clock
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
-      const { aL, aR } = ch.current;
+      const { aL, aR, aF } = ch.current;
       const t = now / 1000;
       if (wasLive && !liveRef.current && held.length) scatterAt = now;
       wasLive = liveRef.current;
@@ -207,7 +210,33 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
       lift = want < lift ? want : lift + (want - lift) * (1 - Math.exp(-Math.min(0.25, (now - last) / 1000) / LIFT_EASE_S));
       last = now;
       const gain = Math.pow(10, (VISUAL_TRIM_DB + lift) / 20);
-      if (!testing && liveRef.current) {
+      if (sono && !testing && liveRef.current && aF) {
+        // the sonogram: log-spaced bands, each scaled to its own recent range, bass at the foot, scrolling left
+        if (now >= nextCol) {
+          nextCol = now + SONO_COL_MS;
+          if (freq.length !== aF.frequencyBinCount) freq = new Uint8Array(aF.frequencyBinCount);
+          aF.getByteFrequencyData(freq);
+          const hz = aF.context.sampleRate / aF.fftSize;
+          const col: number[] = [];
+          for (let b = 0; b < SONO_BANDS; b++) {
+            const f0 = 40 * Math.pow(400, b / SONO_BANDS), f1 = 40 * Math.pow(400, (b + 1) / SONO_BANDS);
+            const i0 = Math.floor(f0 / hz), i1 = Math.max(i0 + 1, Math.ceil(f1 / hz));
+            let v = 0;
+            for (let i = i0; i < i1 && i < freq.length; i++) v = Math.max(v, freq[i] / 255);
+            hi[b] = Math.max(v, hi[b] - 0.003); lo[b] = lo[b] * 0.96 + v * 0.04;   // its peak, and its running mean: only what stands above the mean lights
+            col.push(Math.max(0, (v - lo[b]) / Math.max(0.05, hi[b] - lo[b])));
+          }
+          cols.push(col);
+          if (cols.length > SONO_COLS) cols.shift();
+        }
+        held.length = 0;
+        cols.forEach((col, ci) => col.forEach((v, b) => {
+          if (v < 0.2) return;
+          const x = W - 6 - (cols.length - 1 - ci) * SONO_DX, y = H - 5 - b * SONO_DY, d = Math.min(DOT, 0.6 + v * 1.2);
+          ctx.fillRect(x - d / 2, y - d / 2, d, d);
+          if (ci % 2 === 0) held.push(x - W / 2, y - H / 2);
+        }));
+      } else if (!testing && liveRef.current) {
         held.length = 0;
         for (let i = 0; i < l.length; i += STEP) {
           const x = W / 2 + Math.max(-1, Math.min(1, r[i] * gain)) * REACH;
@@ -254,7 +283,7 @@ export function HomeDesktop({ res = 1, log = false }: { res?: number; log?: bool
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [res]);
+  }, [res, sono]);
 
   // the pips, armed a few seconds before each hour while on air, so they're timed on the audio clock
   useEffect(() => {

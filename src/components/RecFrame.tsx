@@ -55,7 +55,7 @@ export function RecFrame() {
         .rec-frame a { display: none; }
       `}</style>
       <div ref={frame} className={`rec-frame ${shape}`} style={{ '--rec-zoom': zoom } as React.CSSProperties}>
-        <HomeDesktop res={Math.ceil(zoom)} />
+        <HomeDesktop res={Math.ceil(zoom)} sono />
       </div>
       <div style={{
         position: 'fixed', top: 'max(12px, env(safe-area-inset-top))', left: 0, right: 0, zIndex: 10,
