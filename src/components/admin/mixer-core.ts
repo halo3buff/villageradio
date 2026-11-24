@@ -74,11 +74,28 @@ export function autoFades(cs: Clip[]): Clip[] {
   return fix.size ? cs.map((c) => (fix.has(c.id) ? { ...c, ...fix.get(c.id) } : c)) : cs;
 }
 
-/** A clip's volume over mix time, as points to ramp between. */
+const CURVE = 12;   // steps in a fade: equal-power, so a crossfade holds its loudness through the middle
+/** A clip's volume over mix time, as points to ramp between. No fade means full volume from the first sample. */
 export function envelope(c: Clip): [number, number][] {
   const l = len(c), L = dbGain(c.gain);
-  const fi = Math.min(c.fadeIn, l), fo = Math.min(c.fadeOut, l - fi);
-  return [[c.at, fi ? 0 : L], [c.at + fi, L], [end(c) - fo, L], [end(c), fo ? 0 : L]];
+  const fi = Math.min(c.fadeIn, l), fo = Math.min(c.fadeOut, l - fi), e = end(c);
+  const pts: [number, number][] = [];
+  if (fi > 0) for (let k = 0; k <= CURVE; k++) pts.push([c.at + (fi * k) / CURVE, L * Math.sin(((k / CURVE) * Math.PI) / 2)]);
+  else pts.push([c.at, L]);
+  if (fo > 0) for (let k = 0; k <= CURVE; k++) pts.push([e - fo + (fo * k) / CURVE, L * Math.cos(((k / CURVE) * Math.PI) / 2)]);
+  else pts.push([e, L]);
+  return pts;
+}
+
+/** Piecewise-linear value at t; before the first point, its value; with no points, rest. */
+export function valueAt(pts: [number, number][], t: number, rest = 1): number {
+  if (!pts.length) return rest;
+  if (t <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) {
+    const [t0, v0] = pts[i - 1], [t1, v1] = pts[i];
+    return t1 > t0 ? v0 + ((v1 - v0) * (t - t0)) / (t1 - t0) : v1;
+  }
+  return pts[pts.length - 1][1];
 }
 
 /** Songs dip under the sound board's pieces. */
@@ -93,16 +110,10 @@ export function duckPoints(cs: Clip[], song: Clip, depthDb: number): [number, nu
 }
 
 /** Ramps a parameter through piecewise-linear points, from mix time `from` on; nothing is scheduled in the past. */
-function follow(p: AudioParam, pts: [number, number][], from: number, T: (t: number) => number, rest = 1) {
-  const at = (t: number) => {
-    if (!pts.length || t <= pts[0][0]) return pts.length ? pts[0][1] : rest;
-    for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) {
-      const [t0, v0] = pts[i - 1], [t1, v1] = pts[i];
-      return t1 > t0 ? v0 + ((v1 - v0) * (t - t0)) / (t1 - t0) : v1;
-    }
-    return pts[pts.length - 1][1];
-  };
-  p.setValueAtTime(at(from), T(from));
+function follow(p: AudioParam, pts: [number, number][], from: number, T: (t: number) => number) {
+  // the node's own default (1) would otherwise sound until the first event: set the value before the sound starts
+  p.value = valueAt(pts, from);
+  p.setValueAtTime(valueAt(pts, from), T(from));
   for (const [t, v] of pts) if (t > from) p.linearRampToValueAtTime(v, T(t));
 }
 

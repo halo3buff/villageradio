@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Mp3Encoder } from '@breezystack/lamejs';
-import { autoFades, envelope, duckPoints, audible, type Clip } from './mixer-core';
+import { autoFades, envelope, duckPoints, audible, valueAt, type Clip } from './mixer-core';
 import { probeDurationFromBuffer } from '@/lib/audio/probe';
 
 const clip = (id: number, at: number, dur: number, board = false): Clip => ({
@@ -13,8 +13,16 @@ describe('mixer', () => {
     const [a, b] = autoFades([clip(1, 0, 30), clip(2, 22, 30)]);
     expect([a.fadeIn, a.fadeOut, b.fadeIn, b.fadeOut]).toEqual([0, 8, 8, 0]);
   });
-  it('ramps the volume through its fades', () => {
-    expect(envelope({ ...clip(1, 10, 20), fadeIn: 2, fadeOut: 4 })).toEqual([[10, 0], [12, 1], [26, 1], [30, 0]]);
+  it('plays at full volume from the first sample when there is no fade', () => {
+    const e = envelope(clip(1, 10, 20));
+    expect([valueAt(e, 10), valueAt(e, 20), valueAt(e, 30)]).toEqual([1, 1, 1]);
+  });
+  it('fades on an equal-power curve', () => {
+    const e = envelope({ ...clip(1, 10, 20), fadeIn: 2, fadeOut: 4 });
+    expect(valueAt(e, 10)).toBe(0);
+    expect(valueAt(e, 11)).toBeCloseTo(Math.SQRT1_2, 2);
+    expect(valueAt(e, 20)).toBe(1);
+    expect(valueAt(e, 30)).toBeCloseTo(0, 5);
   });
   it('dips a song under a board sound', () => {
     expect(duckPoints([clip(1, 0, 60), clip(2, 5, 10, true)], clip(1, 0, 60), 20)).toEqual([[4.7, 1], [5, 0.1], [15, 0.1], [15.6, 1]]);

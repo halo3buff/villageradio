@@ -7,7 +7,7 @@ import type { BoardSound } from '@/app/api/admin/board/route';
 import { handMix } from '@/lib/mix-handoff';
 import {
   type Clip, RATE, PEAKS_PER_S, VOICE, DECK_A, DECK_B,
-  len, end, total, mmss, peaksOf, audible, levelFor, autoFades, envelope, schedule,
+  len, end, total, mmss, peaksOf, audible, levelFor, autoFades, envelope, duckPoints, valueAt, schedule,
 } from './mixer-core';
 import { putFile, getFile, saveDraft, loadDraft, clearDraft, prune } from './mixer-draft';
 
@@ -49,7 +49,7 @@ async function render(clips: Clip[], duck: number, onProgress: (f: number) => vo
 type Grab = 'move' | 'trimL' | 'trimR' | 'fadeIn' | 'fadeOut';
 
 /** One piece: its waveform shaped by its volume and fades, with handles to trim and fade. */
-const ClipView = memo(function ClipView({ c, pps, selected, onGrab }: { c: Clip; pps: number; selected: boolean; onGrab: (e: React.PointerEvent, id: number, g: Grab) => void }) {
+const ClipView = memo(function ClipView({ c, pps, selected, duckKey, onGrab }: { c: Clip; pps: number; selected: boolean; duckKey: string; onGrab: (e: React.PointerEvent, id: number, g: Grab) => void }) {
   const cv = useRef<HTMLCanvasElement>(null);
   const w = len(c) * pps;
   const lane = LANES.find((l) => l.lane === c.lane) ?? LANES[1];
@@ -59,14 +59,9 @@ const ClipView = memo(function ClipView({ c, pps, selected, onGrab }: { c: Clip;
     if (!canvas || !ctx) return;
     const W = Math.max(1, Math.min(4096, Math.ceil(w))), H = 120;
     canvas.width = W; canvas.height = H;
-    const env = envelope(c);
-    const gainAt = (t: number) => {
-      for (let i = 1; i < env.length; i++) if (t <= env[i][0]) {
-        const [t0, v0] = env[i - 1], [t1, v1] = env[i];
-        return t1 > t0 ? v0 + ((v1 - v0) * (t - t0)) / (t1 - t0) : v1;
-      }
-      return env[env.length - 1][1];
-    };
+    // exactly what is heard: the fades and level, times the dip under any voice
+    const env = envelope(c), duck: [number, number][] = duckKey ? JSON.parse(duckKey) : [];
+    const gainAt = (t: number) => valueAt(env, t) * valueAt(duck, t);
     ctx.fillStyle = c.board ? 'rgba(140,220,140,0.85)' : 'rgba(255,255,255,0.72)';
     const span = len(c) / W;
     for (let x = 0; x < W; x++) {
@@ -80,12 +75,12 @@ const ClipView = memo(function ClipView({ c, pps, selected, onGrab }: { c: Clip;
     ctx.strokeStyle = 'rgba(255,200,80,0.9)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    env.forEach(([t, v], i) => {
-      const x = ((t - c.at) / len(c)) * W, y = H - 3 - Math.min(1.4, v) * ((H - 6) / 1.4);
-      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
-    });
+    for (let x = 0; x <= W; x += 2) {
+      const y = H - 3 - Math.min(1.4, gainAt(c.at + x * span)) * ((H - 6) / 1.4);
+      if (x) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
     ctx.stroke();
-  }, [c, w]);
+  }, [c, w, duckKey]);
 
   const fi = Math.min(c.fadeIn, len(c)) * pps, fo = Math.min(c.fadeOut, len(c)) * pps;
   return (
@@ -148,6 +143,14 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
   const T = Math.max(total(clips) + 15, 60);
   const fitPps = viewW / T;
   const pps = fitPps * zoom;
+  const ppsRef = useRef(pps);
+  ppsRef.current = pps;
+  // keep the moment under the pointer still while zooming
+  useLayoutEffect(() => {
+    const a = anchor.current, el = scroller.current;
+    if (a && el) el.scrollLeft = a.t * pps - a.x;
+    anchor.current = null;
+  }, [pps]);
 
   /** Every change goes through here: crossfades follow the overlaps. history: undoable. */
   const setClips = useCallback((next: Clip[] | ((cs: Clip[]) => Clip[]), history = true) => {
@@ -196,6 +199,21 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
     const ro = new ResizeObserver(() => setViewW(el.clientWidth));
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+  // the mouse wheel zooms around the pointer; Shift + wheel, or a sideways swipe, scrolls along
+  const anchor = useRef<{ t: number; x: number } | null>(null);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) { el.scrollLeft += e.deltaX || e.deltaY; return; }
+      const x = e.clientX - el.getBoundingClientRect().left;
+      anchor.current = { t: (x + el.scrollLeft) / ppsRef.current, x };
+      setZoom((z) => Math.max(1, Math.min(64, z * Math.pow(1.0015, -e.deltaY))));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
   // --- loading pieces ---
@@ -302,6 +320,19 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
 
   // --- editing ---
   const patch = useCallback((id: number, p: Partial<Clip>, history = true) => setClips((cs) => cs.map((c) => (c.id === id ? { ...c, ...p } : c)), history), [setClips]);
+  /** A copy of a piece (its file too) at `at`. */
+  const clipboard = useRef<Clip | null>(null);
+  const pasteAt = useCallback((src: Clip, at: number) => {
+    const id = nextId.current++;
+    void getFile(src.id).then((b) => b && putFile(id, b));
+    const c = { ...src, id, at: Math.max(0, at), autoIn: src.board ? src.autoIn : true, autoOut: src.board ? src.autoOut : true };
+    setClips((cs) => [...cs, c]);
+    setSel(id);
+  }, [setClips]);
+  const duplicate = useCallback((id: number) => {
+    const c = st.current.clips.find((x) => x.id === id);
+    if (c) pasteAt(c, end(c));
+  }, [pasteAt]);
   const remove = useCallback((id: number) => { setClips((cs) => cs.filter((c) => c.id !== id)); setSel(null); }, [setClips]);
   const split = useCallback((id: number) => {
     const c = st.current.clips.find((x) => x.id === id), p = st.current.pos;
@@ -385,6 +416,10 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
       else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); undo(true); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && s !== null) { e.preventDefault(); remove(s); }
       else if (e.key.toLowerCase() === 's' && !mod && s !== null) split(s);
+      else if (mod && e.key.toLowerCase() === 'c' && s !== null) { clipboard.current = st.current.clips.find((x) => x.id === s) ?? null; }
+      else if (mod && e.key.toLowerCase() === 'x' && s !== null) { clipboard.current = st.current.clips.find((x) => x.id === s) ?? null; remove(s); }
+      else if (mod && e.key.toLowerCase() === 'v' && clipboard.current) { e.preventDefault(); pasteAt(clipboard.current, p); }
+      else if (mod && e.key.toLowerCase() === 'd' && s !== null) { e.preventDefault(); duplicate(s); }
       else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
         const d = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 1 : 0.1);
@@ -400,7 +435,7 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [play, stop, undo, remove, split, patch]);
+  }, [play, stop, undo, remove, split, patch, pasteAt, duplicate]);
 
   // --- the sound board ---
   async function saveBoard(next: BoardSound[]) {
@@ -543,7 +578,7 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
         <section className={`min-w-0 min-h-0 flex flex-col rounded-md border ${over ? 'border-white/70' : 'border-white/12'} bg-black/10`}
           onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onTimelineDrop}>
           <div ref={scroller} className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden relative select-none"
-            onWheel={(e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom((z) => Math.max(1, Math.min(64, z * (e.deltaY < 0 ? 1.2 : 1 / 1.2)))); } }}>
+>
             <div className="relative h-full flex flex-col" style={{ width }}>
               {/* ruler */}
               <div className="h-6 shrink-0 relative border-b border-white/12 cursor-text" onPointerDown={(e) => { setSel(null); seek(e.clientX); }}>
@@ -559,7 +594,7 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
                     <span className="sticky left-0 inline-block px-2 pt-1 font-mono text-[9px] tracking-[0.18em] text-white/30 pointer-events-none">{l.label}</span>
                   </div>
                 ))}
-                {clips.map((c) => <ClipView key={c.id} c={c} pps={pps} selected={c.id === sel} onGrab={onGrab} />)}
+                {clips.map((c) => <ClipView key={c.id} c={c} pps={pps} selected={c.id === sel} duckKey={c.board ? '' : JSON.stringify(duckPoints(clips, c, duck))} onGrab={onGrab} />)}
                 {!clips.length && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center pointer-events-none">
                     <div className="font-sans text-[18px] text-white/85">{busy ? busy : 'Drop songs here'}</div>
@@ -610,6 +645,8 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
             <div className="flex gap-1.5 ml-auto">
               <button className={BTN} onClick={() => patch(selected.id, { gain: levelFor(selected.buf) })} title="Match the station's loudness">Auto level</button>
               <button className={BTN} onClick={() => split(selected.id)} title="S">Split at playhead</button>
+              <button className={BTN} onClick={() => { clipboard.current = selected; }} title="Ctrl C, then Ctrl V pastes at the playhead">Copy</button>
+              <button className={BTN} onClick={() => duplicate(selected.id)} title="Ctrl D">Duplicate</button>
               <button className={BTN} onClick={() => remove(selected.id)} title="Delete">Remove</button>
             </div>
           </div>
@@ -621,9 +658,11 @@ export function Mixer({ initialBoard }: { initialBoard: BoardSound[] }) {
             <span><b className="text-white/80 font-normal">Drag its ends</b> trim</span>
             <span><b className="text-[#ffc850] font-normal">Yellow tabs</b> fades</span>
             <span><b className="text-white/80 font-normal">S</b> split at the playhead</span>
+            <span><b className="text-white/80 font-normal">Ctrl C / V</b> copy, paste at the playhead</span>
+            <span><b className="text-white/80 font-normal">Ctrl D</b> duplicate</span>
             <span><b className="text-white/80 font-normal">Del</b> remove</span>
             <span><b className="text-white/80 font-normal">⌘/Ctrl Z</b> undo</span>
-            <span><b className="text-white/80 font-normal">Ctrl + scroll</b> zoom</span>
+            <span><b className="text-white/80 font-normal">Scroll</b> zoom (Shift + scroll: move along)</span>
             <span className="text-white/35">Your mix saves itself in this browser as you go.</span>
           </div>
         )}
